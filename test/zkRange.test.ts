@@ -158,18 +158,22 @@ maybe("verify rejects an unknown scheme", async () => {
 // --- Zero-knowledge sanity: the value does not appear in cleartext ---
 
 maybe("zero-knowledge: the value is not present in the proof or commitment", async () => {
-  const secret = 73421;
+  // A large, distinctive value (14-digit decimal): a coincidental substring in the
+  // randomized proof is statistically impossible. A short value can collide by chance
+  // with the variable-width hex of the proof scalars, so it must be wide. The gte range
+  // proof bounds (value - threshold) under 2^32, so keep that offset small while the
+  // value itself stays large and distinctive.
+  const threshold = 10000000000000; // 10^13
+  const secret = threshold + 312345671; // 10000312345671, offset well under 2^32
   const proof = await proveRange({
-    predicate: { kind: "gte", field: "capital", value: 1000 },
+    predicate: { kind: "gte", field: "capital", value: threshold },
     value: secret,
     salt: salt(),
   });
   const serialized = JSON.stringify(proof);
-  assert.ok(!serialized.includes(String(secret)), "decimal value leaked into the proof");
-  // The shifted value (v - t) should not appear either.
-  assert.ok(!serialized.includes(String(secret - 1000)), "shifted value leaked into the proof");
+  assert.ok(!serialized.includes(String(secret)), "value leaked into the proof");
   // The commitment is a curve point, not the value.
-  assert.ok(!proof.commitment.includes(String(secret)));
+  assert.ok(!proof.commitment.includes(String(secret)), "value leaked into the commitment");
 });
 
 maybe("zero-knowledge: two proofs of the same value differ (fresh randomness)", async () => {
