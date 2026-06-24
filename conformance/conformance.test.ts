@@ -20,7 +20,7 @@ import {
   verifyChallengeResponse,
   type AgentDisclosure,
 } from "../src/index.ts";
-import { CANONICALIZATION_VECTORS, SHA256_VECTORS } from "./vectors.ts";
+import vectors from "./vectors.json" with { type: "json" };
 
 const NOW = "2026-06-24T12:00:00.000Z";
 const H = sha256Hex("anchor");
@@ -46,9 +46,13 @@ function disclosure(): AgentDisclosure {
 
 // ── Canonicalization: the interoperability crux ──────────────────────────────
 test("conformance: canonicalization vectors are reproduced byte for byte", () => {
-  for (const v of CANONICALIZATION_VECTORS) {
+  for (const v of vectors.canonicalization) {
     assert.equal(canonicalize(v.input), v.canonical, `canonicalize(${JSON.stringify(v.input)})`);
   }
+  // JS-specific (not in the language-neutral set): canonicalize drops `undefined`
+  // properties. A parsed disclosure never holds `undefined`, so other languages, which
+  // have no such value, do not need this case.
+  assert.equal(canonicalize({ a: 1, b: undefined, c: 3 }), '{"a":1,"c":3}');
 });
 
 test("conformance: canonicalization is key-order independent", () => {
@@ -58,7 +62,7 @@ test("conformance: canonicalization is key-order independent", () => {
 
 // ── Digests ──────────────────────────────────────────────────────────────────
 test("conformance: sha256 vectors match", () => {
-  for (const v of SHA256_VECTORS) {
+  for (const v of vectors.sha256) {
     assert.equal(sha256Hex(v.input), v.sha256);
   }
 });

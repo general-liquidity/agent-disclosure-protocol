@@ -11,6 +11,7 @@
     "verbatimModuleSyntax": true,
     "erasableSyntaxOnly": true,
     "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
     "forceConsistentCasingInFileNames": true
   },
   "include": ["src", "test", "conformance"]

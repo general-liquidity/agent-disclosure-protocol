@@ -1,0 +1,813 @@
+{
+  "_comment": "Cross-stack interop fixtures, generated from the TS reference with a fixed ed25519 key. A verifier in any language MUST reproduce disclosures[].expect.decision and handshakes[].expect; SHOULD reproduce disclosures[].expect.failed (sorted check names). Regenerate with: node --import tsx conformance/generate-interop.ts",
+  "key": {
+    "privateKeyHex": "302e020100300506032b657004220420aace66c414504180b9dc76c2fe47f41cdcda8909882c0f6e4774e5a5535bf8ee",
+    "publicKeyHex": "ef4931f78822741b7eccd616712ff1367d308537828b083ea1326b9ba583cb9d"
+  },
+  "disclosures": [
+    {
+      "name": "valid-transact",
+      "signed": {
+        "disclosure": {
+          "version": 1,
+          "disclosureId": "disc_interop",
+          "agentId": "ef4931f78822741b7eccd616712ff1367d308537828b083ea1326b9ba583cb9d",
+          "issuedAt": "2026-06-24T12:00:00.000Z",
+          "validUntil": "2026-06-24T13:00:00.000Z",
+          "nonce": "nonce_interop",
+          "auditAnchor": "79bfb0e2ba76b9d447606ddbcc494834f05a4c11deb052e74b49ea307a3c5bcd",
+          "systemPrompt": {
+            "algorithm": "sha256",
+            "digest": "79bfb0e2ba76b9d447606ddbcc494834f05a4c11deb052e74b49ea307a3c5bcd"
+          },
+          "constitution": {
+            "hardConstraints": [
+              {
+                "id": "no_self_payment",
+                "description": "no paying your own operator",
+                "kind": "deny"
+              }
+            ],
+            "digest": "79bfb0e2ba76b9d447606ddbcc494834f05a4c11deb052e74b49ea307a3c5bcd",
+            "enforced": true
+          },
+          "tools": {
+            "tools": [
+              {
+                "name": "pay",
+                "access": "gated",
+                "movesValue": true
+              }
+            ]
+          },
+          "capital": {
+            "mandates": [],
+            "custody": "non_custodial"
+          },
+          "operator": {
+            "operatorId": "op",
+            "attestation": {
+              "scheme": "none",
+              "level": "none"
+            },
+            "deniabilityBoundary": "spend within mandates"
+          },
+          "history": {
+            "chainAnchor": "79bfb0e2ba76b9d447606ddbcc494834f05a4c11deb052e74b49ea307a3c5bcd",
+            "summary": {
+              "totalDecisions": 5,
+              "settledCount": 4,
+              "blockedCount": 1
+            }
+          },
+          "redTeam": {
+            "corpus": {
+              "name": "spendtrust",
+              "version": "1.0.0"
+            },
+            "result": {
+              "grade": "A",
+              "score": 95,
+              "passed": true,
+              "hardFails": []
+            },
+            "attestedAt": "2026-06-24T12:00:00.000Z"
+          }
+        },
+        "signature": {
+          "algorithm": "ed25519",
+          "publicKey": "ef4931f78822741b7eccd616712ff1367d308537828b083ea1326b9ba583cb9d",
+          "value": "aabf85077cda58bd39a1ad5dac647b3bf00f3f2a8808e746430884944cef8e99ab68168a011c34c49f0c101384b16a9aba891f07f7376a3dcc702b4ebad0c706"
+        }
+      },
+      "policy": {
+        "now": "2026-06-24T12:30:00.000Z",
+        "requireEnforcedConstitution": true,
+        "requireNonCustodial": true,
+        "requireDeploymentHistory": true,
+        "requireAuditAnchor": true,
+        "minRedTeamGrade": "B"
+      },
+      "expect": {
+        "decision": "transact",
+        "failed": []
+      }
+    },
+    {
+      "name": "unenforced-refuse",
+      "signed": {
+        "disclosure": {
+          "version": 1,
+          "disclosureId": "disc_interop",
+          "agentId": "ef4931f78822741b7eccd616712ff1367d308537828b083ea1326b9ba583cb9d",
+          "issuedAt": "2026-06-24T12:00:00.000Z",
+          "validUntil": "2026-06-24T13:00:00.000Z",
+          "nonce": "nonce_interop",
+          "auditAnchor": "79bfb0e2ba76b9d447606ddbcc494834f05a4c11deb052e74b49ea307a3c5bcd",
+          "systemPrompt": {
+            "algorithm": "sha256",
+            "digest": "79bfb0e2ba76b9d447606ddbcc494834f05a4c11deb052e74b49ea307a3c5bcd"
+          },
+          "constitution": {
+            "hardConstraints": [],
+            "digest": "79bfb0e2ba76b9d447606ddbcc494834f05a4c11deb052e74b49ea307a3c5bcd",
+            "enforced": false
+          },
+          "tools": {
+            "tools": [
+              {
+                "name": "pay",
+                "access": "gated",
+                "movesValue": true
+              }
+            ]
+          },
+          "capital": {
+            "mandates": [],
+            "custody": "non_custodial"
+          },
+          "operator": {
+            "operatorId": "op",
+            "attestation": {
+              "scheme": "none",
+              "level": "none"
+            },
+            "deniabilityBoundary": "spend within mandates"
+          },
+          "history": {
+            "chainAnchor": "79bfb0e2ba76b9d447606ddbcc494834f05a4c11deb052e74b49ea307a3c5bcd",
+            "summary": {
+              "totalDecisions": 5,
+              "settledCount": 4,
+              "blockedCount": 1
+            }
+          },
+          "redTeam": {
+            "corpus": {
+              "name": "spendtrust",
+              "version": "1.0.0"
+            },
+            "result": {
+              "grade": "A",
+              "score": 95,
+              "passed": true,
+              "hardFails": []
+            },
+            "attestedAt": "2026-06-24T12:00:00.000Z"
+          }
+        },
+        "signature": {
+          "algorithm": "ed25519",
+          "publicKey": "ef4931f78822741b7eccd616712ff1367d308537828b083ea1326b9ba583cb9d",
+          "value": "80ea1f74cc40e16c2723d9ab1b78eb7e9dc7d4827f97ae8a07dc12c3b58a0f3e3f05f43e5b4d7f2ab27952cba48a7943856f739bdada6d37f84901704d3bd909"
+        }
+      },
+      "policy": {
+        "now": "2026-06-24T12:30:00.000Z",
+        "requireEnforcedConstitution": true,
+        "requireNonCustodial": true,
+        "requireDeploymentHistory": true,
+        "requireAuditAnchor": true,
+        "minRedTeamGrade": "B"
+      },
+      "expect": {
+        "decision": "refuse",
+        "failed": [
+          "enforcedConstitution"
+        ]
+      }
+    },
+    {
+      "name": "stale-refuse",
+      "signed": {
+        "disclosure": {
+          "version": 1,
+          "disclosureId": "disc_interop",
+          "agentId": "ef4931f78822741b7eccd616712ff1367d308537828b083ea1326b9ba583cb9d",
+          "issuedAt": "2026-06-24T12:00:00.000Z",
+          "validUntil": "2026-06-24T13:00:00.000Z",
+          "nonce": "nonce_interop",
+          "auditAnchor": "79bfb0e2ba76b9d447606ddbcc494834f05a4c11deb052e74b49ea307a3c5bcd",
+          "systemPrompt": {
+            "algorithm": "sha256",
+            "digest": "79bfb0e2ba76b9d447606ddbcc494834f05a4c11deb052e74b49ea307a3c5bcd"
+          },
+          "constitution": {
+            "hardConstraints": [
+              {
+                "id": "no_self_payment",
+                "description": "no paying your own operator",
+                "kind": "deny"
+              }
+            ],
+            "digest": "79bfb0e2ba76b9d447606ddbcc494834f05a4c11deb052e74b49ea307a3c5bcd",
+            "enforced": true
+          },
+          "tools": {
+            "tools": [
+              {
+                "name": "pay",
+                "access": "gated",
+                "movesValue": true
+              }
+            ]
+          },
+          "capital": {
+            "mandates": [],
+            "custody": "non_custodial"
+          },
+          "operator": {
+            "operatorId": "op",
+            "attestation": {
+              "scheme": "none",
+              "level": "none"
+            },
+            "deniabilityBoundary": "spend within mandates"
+          },
+          "history": {
+            "chainAnchor": "79bfb0e2ba76b9d447606ddbcc494834f05a4c11deb052e74b49ea307a3c5bcd",
+            "summary": {
+              "totalDecisions": 5,
+              "settledCount": 4,
+              "blockedCount": 1
+            }
+          },
+          "redTeam": {
+            "corpus": {
+              "name": "spendtrust",
+              "version": "1.0.0"
+            },
+            "result": {
+              "grade": "A",
+              "score": 95,
+              "passed": true,
+              "hardFails": []
+            },
+            "attestedAt": "2026-06-24T12:00:00.000Z"
+          }
+        },
+        "signature": {
+          "algorithm": "ed25519",
+          "publicKey": "ef4931f78822741b7eccd616712ff1367d308537828b083ea1326b9ba583cb9d",
+          "value": "aabf85077cda58bd39a1ad5dac647b3bf00f3f2a8808e746430884944cef8e99ab68168a011c34c49f0c101384b16a9aba891f07f7376a3dcc702b4ebad0c706"
+        }
+      },
+      "policy": {
+        "now": "2026-06-24T14:00:00.000Z",
+        "requireEnforcedConstitution": true,
+        "requireNonCustodial": true,
+        "requireDeploymentHistory": true,
+        "requireAuditAnchor": true,
+        "minRedTeamGrade": "B"
+      },
+      "expect": {
+        "decision": "refuse",
+        "failed": [
+          "freshness"
+        ]
+      }
+    },
+    {
+      "name": "custodial-refuse",
+      "signed": {
+        "disclosure": {
+          "version": 1,
+          "disclosureId": "disc_interop",
+          "agentId": "ef4931f78822741b7eccd616712ff1367d308537828b083ea1326b9ba583cb9d",
+          "issuedAt": "2026-06-24T12:00:00.000Z",
+          "validUntil": "2026-06-24T13:00:00.000Z",
+          "nonce": "nonce_interop",
+          "auditAnchor": "79bfb0e2ba76b9d447606ddbcc494834f05a4c11deb052e74b49ea307a3c5bcd",
+          "systemPrompt": {
+            "algorithm": "sha256",
+            "digest": "79bfb0e2ba76b9d447606ddbcc494834f05a4c11deb052e74b49ea307a3c5bcd"
+          },
+          "constitution": {
+            "hardConstraints": [
+              {
+                "id": "no_self_payment",
+                "description": "no paying your own operator",
+                "kind": "deny"
+              }
+            ],
+            "digest": "79bfb0e2ba76b9d447606ddbcc494834f05a4c11deb052e74b49ea307a3c5bcd",
+            "enforced": true
+          },
+          "tools": {
+            "tools": [
+              {
+                "name": "pay",
+                "access": "gated",
+                "movesValue": true
+              }
+            ]
+          },
+          "capital": {
+            "mandates": [],
+            "custody": "custodial"
+          },
+          "operator": {
+            "operatorId": "op",
+            "attestation": {
+              "scheme": "none",
+              "level": "none"
+            },
+            "deniabilityBoundary": "spend within mandates"
+          },
+          "history": {
+            "chainAnchor": "79bfb0e2ba76b9d447606ddbcc494834f05a4c11deb052e74b49ea307a3c5bcd",
+            "summary": {
+              "totalDecisions": 5,
+              "settledCount": 4,
+              "blockedCount": 1
+            }
+          },
+          "redTeam": {
+            "corpus": {
+              "name": "spendtrust",
+              "version": "1.0.0"
+            },
+            "result": {
+              "grade": "A",
+              "score": 95,
+              "passed": true,
+              "hardFails": []
+            },
+            "attestedAt": "2026-06-24T12:00:00.000Z"
+          }
+        },
+        "signature": {
+          "algorithm": "ed25519",
+          "publicKey": "ef4931f78822741b7eccd616712ff1367d308537828b083ea1326b9ba583cb9d",
+          "value": "6d48f92f98440c883fe11089107fd6a7d763dcb8e060d72a886846cf2ec86cee267ef4b32a17f9b0f25b0d205957614f3c7de0de5076e45a49b5b29faa12a40f"
+        }
+      },
+      "policy": {
+        "now": "2026-06-24T12:30:00.000Z",
+        "requireEnforcedConstitution": true,
+        "requireNonCustodial": true,
+        "requireDeploymentHistory": true,
+        "requireAuditAnchor": true,
+        "minRedTeamGrade": "B"
+      },
+      "expect": {
+        "decision": "refuse",
+        "failed": [
+          "nonCustodial"
+        ]
+      }
+    },
+    {
+      "name": "low-grade-refuse",
+      "signed": {
+        "disclosure": {
+          "version": 1,
+          "disclosureId": "disc_interop",
+          "agentId": "ef4931f78822741b7eccd616712ff1367d308537828b083ea1326b9ba583cb9d",
+          "issuedAt": "2026-06-24T12:00:00.000Z",
+          "validUntil": "2026-06-24T13:00:00.000Z",
+          "nonce": "nonce_interop",
+          "auditAnchor": "79bfb0e2ba76b9d447606ddbcc494834f05a4c11deb052e74b49ea307a3c5bcd",
+          "systemPrompt": {
+            "algorithm": "sha256",
+            "digest": "79bfb0e2ba76b9d447606ddbcc494834f05a4c11deb052e74b49ea307a3c5bcd"
+          },
+          "constitution": {
+            "hardConstraints": [
+              {
+                "id": "no_self_payment",
+                "description": "no paying your own operator",
+                "kind": "deny"
+              }
+            ],
+            "digest": "79bfb0e2ba76b9d447606ddbcc494834f05a4c11deb052e74b49ea307a3c5bcd",
+            "enforced": true
+          },
+          "tools": {
+            "tools": [
+              {
+                "name": "pay",
+                "access": "gated",
+                "movesValue": true
+              }
+            ]
+          },
+          "capital": {
+            "mandates": [],
+            "custody": "non_custodial"
+          },
+          "operator": {
+            "operatorId": "op",
+            "attestation": {
+              "scheme": "none",
+              "level": "none"
+            },
+            "deniabilityBoundary": "spend within mandates"
+          },
+          "history": {
+            "chainAnchor": "79bfb0e2ba76b9d447606ddbcc494834f05a4c11deb052e74b49ea307a3c5bcd",
+            "summary": {
+              "totalDecisions": 5,
+              "settledCount": 4,
+              "blockedCount": 1
+            }
+          },
+          "redTeam": {
+            "corpus": {
+              "name": "spendtrust",
+              "version": "1.0.0"
+            },
+            "result": {
+              "grade": "D",
+              "score": 40,
+              "passed": false,
+              "hardFails": []
+            },
+            "attestedAt": "2026-06-24T12:00:00.000Z"
+          }
+        },
+        "signature": {
+          "algorithm": "ed25519",
+          "publicKey": "ef4931f78822741b7eccd616712ff1367d308537828b083ea1326b9ba583cb9d",
+          "value": "19db8d81e820cc985c7c4280a6d46680104ed6b342cf2c9cd0ef1bdb7eeee6f78debfbf9c09af67eebd17828674641933a1e4d758d35d3cf9bbb5cbd4b11af0a"
+        }
+      },
+      "policy": {
+        "now": "2026-06-24T12:30:00.000Z",
+        "requireEnforcedConstitution": true,
+        "requireNonCustodial": true,
+        "requireDeploymentHistory": true,
+        "requireAuditAnchor": true,
+        "minRedTeamGrade": "B"
+      },
+      "expect": {
+        "decision": "refuse",
+        "failed": [
+          "redTeamGrade"
+        ]
+      }
+    },
+    {
+      "name": "no-history-refuse",
+      "signed": {
+        "disclosure": {
+          "version": 1,
+          "disclosureId": "disc_interop",
+          "agentId": "ef4931f78822741b7eccd616712ff1367d308537828b083ea1326b9ba583cb9d",
+          "issuedAt": "2026-06-24T12:00:00.000Z",
+          "validUntil": "2026-06-24T13:00:00.000Z",
+          "nonce": "nonce_interop",
+          "auditAnchor": "79bfb0e2ba76b9d447606ddbcc494834f05a4c11deb052e74b49ea307a3c5bcd",
+          "systemPrompt": {
+            "algorithm": "sha256",
+            "digest": "79bfb0e2ba76b9d447606ddbcc494834f05a4c11deb052e74b49ea307a3c5bcd"
+          },
+          "constitution": {
+            "hardConstraints": [
+              {
+                "id": "no_self_payment",
+                "description": "no paying your own operator",
+                "kind": "deny"
+              }
+            ],
+            "digest": "79bfb0e2ba76b9d447606ddbcc494834f05a4c11deb052e74b49ea307a3c5bcd",
+            "enforced": true
+          },
+          "tools": {
+            "tools": [
+              {
+                "name": "pay",
+                "access": "gated",
+                "movesValue": true
+              }
+            ]
+          },
+          "capital": {
+            "mandates": [],
+            "custody": "non_custodial"
+          },
+          "operator": {
+            "operatorId": "op",
+            "attestation": {
+              "scheme": "none",
+              "level": "none"
+            },
+            "deniabilityBoundary": "spend within mandates"
+          },
+          "history": {
+            "chainAnchor": "79bfb0e2ba76b9d447606ddbcc494834f05a4c11deb052e74b49ea307a3c5bcd",
+            "summary": {
+              "totalDecisions": 0,
+              "settledCount": 0,
+              "blockedCount": 0
+            }
+          },
+          "redTeam": {
+            "corpus": {
+              "name": "spendtrust",
+              "version": "1.0.0"
+            },
+            "result": {
+              "grade": "A",
+              "score": 95,
+              "passed": true,
+              "hardFails": []
+            },
+            "attestedAt": "2026-06-24T12:00:00.000Z"
+          }
+        },
+        "signature": {
+          "algorithm": "ed25519",
+          "publicKey": "ef4931f78822741b7eccd616712ff1367d308537828b083ea1326b9ba583cb9d",
+          "value": "97e7fb76f793d24532c81e44ffa33647f240a776c4df258b1ddd1725d7b5dc9048fcfd37b4994190e620becd78b9c500f8c941aebbb91aa5bc2f4c0cbfd55c02"
+        }
+      },
+      "policy": {
+        "now": "2026-06-24T12:30:00.000Z",
+        "requireEnforcedConstitution": true,
+        "requireNonCustodial": true,
+        "requireDeploymentHistory": true,
+        "requireAuditAnchor": true,
+        "minRedTeamGrade": "B"
+      },
+      "expect": {
+        "decision": "refuse",
+        "failed": [
+          "deploymentHistory"
+        ]
+      }
+    },
+    {
+      "name": "tampered-signature-refuse",
+      "signed": {
+        "disclosure": {
+          "version": 1,
+          "disclosureId": "disc_interop",
+          "agentId": "ef4931f78822741b7eccd616712ff1367d308537828b083ea1326b9ba583cb9d",
+          "issuedAt": "2026-06-24T12:00:00.000Z",
+          "validUntil": "2026-06-24T13:00:00.000Z",
+          "nonce": "nonce_interop",
+          "auditAnchor": "79bfb0e2ba76b9d447606ddbcc494834f05a4c11deb052e74b49ea307a3c5bcd",
+          "systemPrompt": {
+            "algorithm": "sha256",
+            "digest": "79bfb0e2ba76b9d447606ddbcc494834f05a4c11deb052e74b49ea307a3c5bcd"
+          },
+          "constitution": {
+            "hardConstraints": [
+              {
+                "id": "no_self_payment",
+                "description": "no paying your own operator",
+                "kind": "deny"
+              }
+            ],
+            "digest": "9d6f965ac832e40a5df6c06afe983e3b449c07b843ff51ce76204de05c690d11",
+            "enforced": true
+          },
+          "tools": {
+            "tools": [
+              {
+                "name": "pay",
+                "access": "gated",
+                "movesValue": true
+              }
+            ]
+          },
+          "capital": {
+            "mandates": [],
+            "custody": "non_custodial"
+          },
+          "operator": {
+            "operatorId": "op",
+            "attestation": {
+              "scheme": "none",
+              "level": "none"
+            },
+            "deniabilityBoundary": "spend within mandates"
+          },
+          "history": {
+            "chainAnchor": "79bfb0e2ba76b9d447606ddbcc494834f05a4c11deb052e74b49ea307a3c5bcd",
+            "summary": {
+              "totalDecisions": 5,
+              "settledCount": 4,
+              "blockedCount": 1
+            }
+          },
+          "redTeam": {
+            "corpus": {
+              "name": "spendtrust",
+              "version": "1.0.0"
+            },
+            "result": {
+              "grade": "A",
+              "score": 95,
+              "passed": true,
+              "hardFails": []
+            },
+            "attestedAt": "2026-06-24T12:00:00.000Z"
+          }
+        },
+        "signature": {
+          "algorithm": "ed25519",
+          "publicKey": "ef4931f78822741b7eccd616712ff1367d308537828b083ea1326b9ba583cb9d",
+          "value": "aabf85077cda58bd39a1ad5dac647b3bf00f3f2a8808e746430884944cef8e99ab68168a011c34c49f0c101384b16a9aba891f07f7376a3dcc702b4ebad0c706"
+        }
+      },
+      "policy": {
+        "now": "2026-06-24T12:30:00.000Z",
+        "requireEnforcedConstitution": true,
+        "requireNonCustodial": true,
+        "requireDeploymentHistory": true,
+        "requireAuditAnchor": true,
+        "minRedTeamGrade": "B"
+      },
+      "expect": {
+        "decision": "refuse",
+        "failed": [
+          "signature"
+        ]
+      }
+    },
+    {
+      "name": "forged-agentid-refuse",
+      "signed": {
+        "disclosure": {
+          "version": 1,
+          "disclosureId": "disc_interop",
+          "agentId": "0000000000000000000000000000000000000000000000000000000000000001",
+          "issuedAt": "2026-06-24T12:00:00.000Z",
+          "validUntil": "2026-06-24T13:00:00.000Z",
+          "nonce": "nonce_interop",
+          "auditAnchor": "79bfb0e2ba76b9d447606ddbcc494834f05a4c11deb052e74b49ea307a3c5bcd",
+          "systemPrompt": {
+            "algorithm": "sha256",
+            "digest": "79bfb0e2ba76b9d447606ddbcc494834f05a4c11deb052e74b49ea307a3c5bcd"
+          },
+          "constitution": {
+            "hardConstraints": [
+              {
+                "id": "no_self_payment",
+                "description": "no paying your own operator",
+                "kind": "deny"
+              }
+            ],
+            "digest": "79bfb0e2ba76b9d447606ddbcc494834f05a4c11deb052e74b49ea307a3c5bcd",
+            "enforced": true
+          },
+          "tools": {
+            "tools": [
+              {
+                "name": "pay",
+                "access": "gated",
+                "movesValue": true
+              }
+            ]
+          },
+          "capital": {
+            "mandates": [],
+            "custody": "non_custodial"
+          },
+          "operator": {
+            "operatorId": "op",
+            "attestation": {
+              "scheme": "none",
+              "level": "none"
+            },
+            "deniabilityBoundary": "spend within mandates"
+          },
+          "history": {
+            "chainAnchor": "79bfb0e2ba76b9d447606ddbcc494834f05a4c11deb052e74b49ea307a3c5bcd",
+            "summary": {
+              "totalDecisions": 5,
+              "settledCount": 4,
+              "blockedCount": 1
+            }
+          },
+          "redTeam": {
+            "corpus": {
+              "name": "spendtrust",
+              "version": "1.0.0"
+            },
+            "result": {
+              "grade": "A",
+              "score": 95,
+              "passed": true,
+              "hardFails": []
+            },
+            "attestedAt": "2026-06-24T12:00:00.000Z"
+          }
+        },
+        "signature": {
+          "algorithm": "ed25519",
+          "publicKey": "ef4931f78822741b7eccd616712ff1367d308537828b083ea1326b9ba583cb9d",
+          "value": "aabf85077cda58bd39a1ad5dac647b3bf00f3f2a8808e746430884944cef8e99ab68168a011c34c49f0c101384b16a9aba891f07f7376a3dcc702b4ebad0c706"
+        }
+      },
+      "policy": {
+        "now": "2026-06-24T12:30:00.000Z",
+        "requireEnforcedConstitution": true,
+        "requireNonCustodial": true,
+        "requireDeploymentHistory": true,
+        "requireAuditAnchor": true,
+        "minRedTeamGrade": "B"
+      },
+      "expect": {
+        "decision": "refuse",
+        "failed": [
+          "signature"
+        ]
+      }
+    }
+  ],
+  "handshakes": [
+    {
+      "name": "valid",
+      "challenge": {
+        "nonce": "chal_interop",
+        "issuedAt": "2026-06-24T12:30:00.000Z",
+        "verifierId": "verifier-X"
+      },
+      "response": {
+        "nonce": "chal_interop",
+        "agentId": "ef4931f78822741b7eccd616712ff1367d308537828b083ea1326b9ba583cb9d",
+        "auditHead": "79bfb0e2ba76b9d447606ddbcc494834f05a4c11deb052e74b49ea307a3c5bcd",
+        "signedAt": "2026-06-24T12:30:00.000Z",
+        "signature": "a8751284f86da2963bb6d4fd1d896af5dfb3e7c88bbc508aa5b9430fe347fdc331829cf7cae458360ae8dc64edac1f3e7ab03b6f365e8fd6f983aca52344db03"
+      },
+      "expectedAgentId": "ef4931f78822741b7eccd616712ff1367d308537828b083ea1326b9ba583cb9d",
+      "now": "2026-06-24T12:30:00.000Z",
+      "expect": true
+    },
+    {
+      "name": "nonce-mismatch",
+      "challenge": {
+        "nonce": "different",
+        "issuedAt": "2026-06-24T12:30:00.000Z",
+        "verifierId": "verifier-X"
+      },
+      "response": {
+        "nonce": "chal_interop",
+        "agentId": "ef4931f78822741b7eccd616712ff1367d308537828b083ea1326b9ba583cb9d",
+        "auditHead": "79bfb0e2ba76b9d447606ddbcc494834f05a4c11deb052e74b49ea307a3c5bcd",
+        "signedAt": "2026-06-24T12:30:00.000Z",
+        "signature": "a8751284f86da2963bb6d4fd1d896af5dfb3e7c88bbc508aa5b9430fe347fdc331829cf7cae458360ae8dc64edac1f3e7ab03b6f365e8fd6f983aca52344db03"
+      },
+      "expectedAgentId": "ef4931f78822741b7eccd616712ff1367d308537828b083ea1326b9ba583cb9d",
+      "now": "2026-06-24T12:30:00.000Z",
+      "expect": false
+    },
+    {
+      "name": "wrong-agent",
+      "challenge": {
+        "nonce": "chal_interop",
+        "issuedAt": "2026-06-24T12:30:00.000Z",
+        "verifierId": "verifier-X"
+      },
+      "response": {
+        "nonce": "chal_interop",
+        "agentId": "0000000000000000000000000000000000000000000000000000000000000001",
+        "auditHead": "79bfb0e2ba76b9d447606ddbcc494834f05a4c11deb052e74b49ea307a3c5bcd",
+        "signedAt": "2026-06-24T12:30:00.000Z",
+        "signature": "a8751284f86da2963bb6d4fd1d896af5dfb3e7c88bbc508aa5b9430fe347fdc331829cf7cae458360ae8dc64edac1f3e7ab03b6f365e8fd6f983aca52344db03"
+      },
+      "expectedAgentId": "ef4931f78822741b7eccd616712ff1367d308537828b083ea1326b9ba583cb9d",
+      "now": "2026-06-24T12:30:00.000Z",
+      "expect": false
+    },
+    {
+      "name": "bad-signature",
+      "challenge": {
+        "nonce": "chal_interop",
+        "issuedAt": "2026-06-24T12:30:00.000Z",
+        "verifierId": "verifier-X"
+      },
+      "response": {
+        "nonce": "chal_interop",
+        "agentId": "ef4931f78822741b7eccd616712ff1367d308537828b083ea1326b9ba583cb9d",
+        "auditHead": "79bfb0e2ba76b9d447606ddbcc494834f05a4c11deb052e74b49ea307a3c5bcd",
+        "signedAt": "2026-06-24T12:30:00.000Z",
+        "signature": "a8751284f86da2963bb6d4fd1d896af5dfb3e7c88bbc508aa5b9430fe347fdc331829cf7cae458360ae8dc64edac1f3e7ab03b6f365e8fd6f983aca52344db00"
+      },
+      "expectedAgentId": "ef4931f78822741b7eccd616712ff1367d308537828b083ea1326b9ba583cb9d",
+      "now": "2026-06-24T12:30:00.000Z",
+      "expect": false
+    },
+    {
+      "name": "stale",
+      "challenge": {
+        "nonce": "chal_interop",
+        "issuedAt": "2026-06-24T12:30:00.000Z",
+        "verifierId": "verifier-X"
+      },
+      "response": {
+        "nonce": "chal_interop",
+        "agentId": "ef4931f78822741b7eccd616712ff1367d308537828b083ea1326b9ba583cb9d",
+        "auditHead": "79bfb0e2ba76b9d447606ddbcc494834f05a4c11deb052e74b49ea307a3c5bcd",
+        "signedAt": "2026-06-24T12:30:00.000Z",
+        "signature": "a8751284f86da2963bb6d4fd1d896af5dfb3e7c88bbc508aa5b9430fe347fdc331829cf7cae458360ae8dc64edac1f3e7ab03b6f365e8fd6f983aca52344db03"
+      },
+      "expectedAgentId": "ef4931f78822741b7eccd616712ff1367d308537828b083ea1326b9ba583cb9d",
+      "now": "2026-06-24T14:00:00.000Z",
+      "expect": false
+    }
+  ]
+}
