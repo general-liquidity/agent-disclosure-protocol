@@ -15,7 +15,7 @@ from .verify import (
     Verdict,
     VerificationPolicy,
 )
-from .handshake import verify_challenge_response
+from .handshake import verify_challenge_response, respond_to_challenge
 from .emit import (
     AgentKey,
     generate_agent_key,
@@ -36,6 +36,7 @@ __all__ = [
     "Verdict",
     "VerificationPolicy",
     "verify_challenge_response",
+    "respond_to_challenge",
     "AgentKey",
     "generate_agent_key",
     "agent_key_from_private_hex",

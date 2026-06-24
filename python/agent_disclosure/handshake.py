@@ -10,20 +10,43 @@ from datetime import datetime
 
 from .canonical import canonicalize
 from .attestation import verify_message
+from .emit import AgentKey, sign_message
 
 _DEFAULT_MAX_AGE_MS = 60_000
 
 
 def _response_message(response: dict, verifier_id) -> str:
-    return canonicalize(
-        {
-            "nonce": response["nonce"],
-            "agentId": response["agentId"],
-            "auditHead": response["auditHead"],
-            "signedAt": response["signedAt"],
-            "verifierId": verifier_id,
-        }
-    )
+    # Mirror the TS `responseMessage`: verifierId is included only when present
+    # (TS drops `=== undefined`, so an absent challenge verifierId is omitted,
+    # not rendered as null).
+    body = {
+        "nonce": response["nonce"],
+        "agentId": response["agentId"],
+        "auditHead": response["auditHead"],
+        "signedAt": response["signedAt"],
+    }
+    if verifier_id is not None:
+        body["verifierId"] = verifier_id
+    return canonicalize(body)
+
+
+def respond_to_challenge(
+    challenge: dict, key: AgentKey, audit_head: str, now: str
+) -> dict:
+    """The agent answers a challenge: sign the nonce bound to the live audit head.
+
+    Port of `respondToChallenge` (src/handshake.ts). Builds
+    {nonce, agentId, auditHead, signedAt} and signs
+    canonicalize({nonce, agentId, auditHead, signedAt, verifierId}) — verifierId
+    taken from the challenge and dropped when absent."""
+    body = {
+        "nonce": challenge["nonce"],
+        "agentId": key.public_key_hex,
+        "auditHead": audit_head,
+        "signedAt": now,
+    }
+    signature = sign_message(_response_message(body, challenge.get("verifierId")), key)
+    return {**body, "signature": signature}
 
 
 def _parse_iso_ms(ts: str) -> float:

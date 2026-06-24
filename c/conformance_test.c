@@ -348,6 +348,83 @@ static void run_transparency(const cJSON *root) {
     total_fail += fail;
 }
 
+/* ── handshake responder byte-match ────────────────────────────────────────────
+ * Derive the keypair from the fixed seed (key.privateKeyHex), then for handshakes[0]
+ * ("valid") re-sign its response and assert the produced signature hex equals the
+ * fixture's response.signature. Then round-trip: the produced response must pass
+ * adp_verify_challenge_response. */
+static void run_handshake_responder(const cJSON *root) {
+    int pass = 0, fail = 0;
+    const cJSON *key = cJSON_GetObjectItemCaseSensitive(root, "key");
+    const cJSON *priv = cJSON_GetObjectItemCaseSensitive(key, "privateKeyHex");
+    const cJSON *handshakes = cJSON_GetObjectItemCaseSensitive(root, "handshakes");
+    const cJSON *tc = cJSON_IsArray(handshakes) ? cJSON_GetArrayItem(handshakes, 0) : NULL;
+    if (!cJSON_IsString(priv) || !cJSON_IsObject(tc)) {
+        printf("  [FAIL] handshake responder: missing key.privateKeyHex / handshakes[0]\n");
+        total_fail++;
+        return;
+    }
+
+    unsigned char seed[32], pk[32], sk[64];
+    if (adp_seed_from_pkcs8_hex(priv->valuestring, seed) != 0) {
+        printf("  [FAIL] handshake responder: cannot extract seed from PKCS8 DER\n");
+        total_fail++;
+        return;
+    }
+    adp_keypair_from_seed(seed, pk, sk);
+    char pk_hex[65];
+    sodium_bin2hex(pk_hex, sizeof(pk_hex), pk, sizeof(pk));
+
+    const cJSON *challenge = cJSON_GetObjectItemCaseSensitive(tc, "challenge");
+    const cJSON *response = cJSON_GetObjectItemCaseSensitive(tc, "response");
+    const cJSON *r_head = cJSON_GetObjectItemCaseSensitive(response, "auditHead");
+    const cJSON *r_signedAt = cJSON_GetObjectItemCaseSensitive(response, "signedAt");
+    const cJSON *r_sig = cJSON_GetObjectItemCaseSensitive(response, "signature");
+    if (!cJSON_IsString(r_head) || !cJSON_IsString(r_signedAt) || !cJSON_IsString(r_sig)) {
+        printf("  [FAIL] handshake responder: malformed fixture response\n");
+        total_fail++;
+        return;
+    }
+
+    char produced[129];
+    if (adp_respond_to_challenge(challenge, sk, pk_hex, r_head->valuestring,
+                                 r_signedAt->valuestring, produced) != 0) {
+        printf("  [FAIL] handshake responder: respond_to_challenge failed\n");
+        fail++;
+    } else if (strcmp(produced, r_sig->valuestring) == 0) {
+        pass++;
+    } else {
+        fail++;
+        printf("  [FAIL] handshake responder byte-match: got %s want %s\n",
+               produced, r_sig->valuestring);
+    }
+
+    /* round-trip: assemble the produced response and verify it accepts */
+    const cJSON *c_nonce = cJSON_GetObjectItemCaseSensitive(challenge, "nonce");
+    cJSON *built = cJSON_CreateObject();
+    cJSON_AddStringToObject(built, "nonce", cJSON_IsString(c_nonce) ? c_nonce->valuestring : "");
+    cJSON_AddStringToObject(built, "agentId", pk_hex);
+    cJSON_AddStringToObject(built, "auditHead", r_head->valuestring);
+    cJSON_AddStringToObject(built, "signedAt", r_signedAt->valuestring);
+    cJSON_AddStringToObject(built, "signature", produced);
+    const char *reason = NULL;
+    const cJSON *now = cJSON_GetObjectItemCaseSensitive(tc, "now");
+    bool ok = adp_verify_challenge_response(built, challenge, pk_hex,
+                                            cJSON_IsString(now) ? now->valuestring : NULL,
+                                            -1, &reason);
+    cJSON_Delete(built);
+    if (ok) {
+        pass++;
+    } else {
+        fail++;
+        printf("  [FAIL] handshake responder round-trip: %s\n", reason ? reason : "?");
+    }
+
+    printf("handshake responder: %d passed, %d failed\n", pass, fail);
+    total_pass += pass;
+    total_fail += fail;
+}
+
 static void run_interop_handshakes(const cJSON *root) {
     const cJSON *arr = cJSON_GetObjectItemCaseSensitive(root, "handshakes");
     int pass = 0, fail = 0;
@@ -458,6 +535,7 @@ int main(void) {
     run_revocations(interop);
     run_transparency(interop);
     run_interop_handshakes(interop);
+    run_handshake_responder(interop);
     run_negative(negative);
 
     printf("-------------------------\n");

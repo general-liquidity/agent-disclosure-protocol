@@ -20,6 +20,24 @@ func responseMessage(r ChallengeResponse, verifierID string) string {
 	return Canonicalize(body)
 }
 
+// RespondToChallenge is the emit side of the handshake (SPEC.md section 7.3): the
+// agent answers a verifier's challenge by signing the nonce bound to its CURRENT
+// audit-chain head and its agentId. It builds {nonce, agentId, auditHead, signedAt}
+// and signs Canonicalize({nonce, agentId, auditHead, signedAt, verifierId}) with the
+// agent key - the verifierId taken from the challenge, dropped when absent. The
+// produced signature is byte-identical to the TS respondToChallenge for the same
+// inputs, completing the handshake in both directions in Go.
+func RespondToChallenge(challenge Challenge, key AgentKeyPair, auditHead, now string) ChallengeResponse {
+	r := ChallengeResponse{
+		Nonce:     challenge.Nonce,
+		AgentID:   key.PublicKeyHex,
+		AuditHead: auditHead,
+		SignedAt:  now,
+	}
+	r.Signature = SignMessage(responseMessage(r, challenge.VerifierID), key.Private)
+	return r
+}
+
 // VerifyChallengeResponse verifies a challenge response against the original
 // challenge, the expected agentId, and a verifier clock (SPEC.md section 7.4).
 // maxAgeMs defaults to 60000. Returns (ok, reason). Checks, in order: nonce

@@ -379,7 +379,34 @@ static int parse_iso_ms(const char *s, int64_t *out_ms) {
     return 0;
 }
 
-/* ── handshake (SPEC.md §7) ────────────────────────────────────────────────── */
+/* ── handshake responder (SPEC.md §7) ──────────────────────────────────────── */
+int adp_respond_to_challenge(const cJSON *challenge, const unsigned char sk[64],
+                             const char *pk_hex, const char *audit_head,
+                             const char *now, char out_sig_hex[129]) {
+    const cJSON *c_nonce = cJSON_GetObjectItemCaseSensitive(challenge, "nonce");
+    const cJSON *c_verifier = cJSON_GetObjectItemCaseSensitive(challenge, "verifierId");
+    if (!cJSON_IsString(c_nonce) || !pk_hex || !audit_head || !now) return -1;
+
+    /* Sign over canonicalize({nonce, agentId, auditHead, signedAt, verifierId}) —
+     * verifierId from the CHALLENGE, dropped (not added) when absent, matching
+     * responseMessage() in src/handshake.ts. */
+    cJSON *body = cJSON_CreateObject();
+    if (!body) return -1;
+    cJSON_AddStringToObject(body, "nonce", c_nonce->valuestring);
+    cJSON_AddStringToObject(body, "agentId", pk_hex);
+    cJSON_AddStringToObject(body, "auditHead", audit_head);
+    cJSON_AddStringToObject(body, "signedAt", now);
+    if (cJSON_IsString(c_verifier))
+        cJSON_AddStringToObject(body, "verifierId", c_verifier->valuestring);
+    char *msg = adp_canonicalize(body);
+    cJSON_Delete(body);
+    if (!msg) return -1;
+    adp_sign_message((const unsigned char *)msg, strlen(msg), sk, out_sig_hex);
+    free(msg);
+    return 0;
+}
+
+/* ── handshake verifier (SPEC.md §7) ───────────────────────────────────────── */
 bool adp_verify_challenge_response(const cJSON *response,
                                    const cJSON *challenge,
                                    const char *expected_agent_id,

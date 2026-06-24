@@ -15,6 +15,7 @@ from agent_disclosure import (
     sha256_hex,
     evaluate_disclosure,
     verify_challenge_response,
+    respond_to_challenge,
     verify_disclosure_signature,
     agent_key_from_private_hex,
     generate_agent_key,
@@ -82,6 +83,48 @@ class TestInteropHandshakes(unittest.TestCase):
                 now=case.get("now"),
             )
             self.assertEqual(ok, case["expect"], msg=case["name"])
+
+
+class TestResponder(unittest.TestCase):
+    def test_byte_match_against_fixed_key(self):
+        # Re-build the "valid" handshake response with the fixed PKCS8 key and
+        # assert the signature hex EQUALS the fixture's value: proves the Python
+        # responder is byte-identical to the TS `respondToChallenge` signer.
+        priv = agent_key_from_private_hex(INTEROP["key"]["privateKeyHex"])
+        case = INTEROP["handshakes"][0]
+        self.assertEqual(case["name"], "valid")
+        fixture = case["response"]
+        response = respond_to_challenge(
+            case["challenge"], priv, fixture["auditHead"], fixture["signedAt"]
+        )
+        self.assertEqual(response["signature"], fixture["signature"], msg=case["name"])
+
+    def test_round_trip_verifies(self):
+        # The responder's output passes verify_challenge_response (the verifier
+        # half accepts what the responder half produces).
+        priv = agent_key_from_private_hex(INTEROP["key"]["privateKeyHex"])
+        case = INTEROP["handshakes"][0]
+        fixture = case["response"]
+        response = respond_to_challenge(
+            case["challenge"], priv, fixture["auditHead"], fixture["signedAt"]
+        )
+        ok, reason = verify_challenge_response(
+            response, case["challenge"], priv.public_key_hex, now=case.get("now")
+        )
+        self.assertTrue(ok, msg=reason)
+
+    def test_round_trip_fresh_key_no_verifier_id(self):
+        # A fresh key + a challenge without a verifierId still round-trips
+        # (verifierId dropped, not rendered null — matches the TS responder).
+        key = generate_agent_key()
+        challenge = {"nonce": "chal_fresh", "issuedAt": "2026-06-24T12:30:00.000Z"}
+        response = respond_to_challenge(
+            challenge, key, "audithead-deadbeef", "2026-06-24T12:30:00.000Z"
+        )
+        ok, reason = verify_challenge_response(
+            response, challenge, key.public_key_hex, now="2026-06-24T12:30:00.000Z"
+        )
+        self.assertTrue(ok, msg=reason)
 
 
 class TestEmitter(unittest.TestCase):

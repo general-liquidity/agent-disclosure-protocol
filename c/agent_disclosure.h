@@ -126,7 +126,18 @@ typedef struct {
 void adp_evaluate_disclosure(const cJSON *signed_env, const cJSON *policy, adp_verdict *out);
 void adp_verdict_free(adp_verdict *v);
 
-/* ── Handshake (SPEC.md §7) ────────────────────────────────────────────────────
+/* ── Handshake responder (SPEC.md §7) ──────────────────────────────────────────
+ * The emit side of the handshake. Build the response body {nonce, agentId,
+ * auditHead, signedAt} (agentId = pk_hex, nonce from the challenge), sign
+ * canonicalize({nonce, agentId, auditHead, signedAt, verifierId}) — verifierId taken
+ * from the challenge, dropped when absent — and write the detached signature as
+ * lowercase hex into out_sig_hex[129]. Mirrors respondToChallenge() in
+ * src/handshake.ts. Returns 0 on success, -1 on malformed challenge / OOM. */
+int adp_respond_to_challenge(const cJSON *challenge, const unsigned char sk[64],
+                             const char *pk_hex, const char *audit_head,
+                             const char *now, char out_sig_hex[129]);
+
+/* ── Handshake verifier (SPEC.md §7) ───────────────────────────────────────────
  * Verify a challenge response against the challenge + expected agentId/clock.
  * Mirrors verifyChallengeResponse() in src/handshake.ts. maxAgeMs default 60000
  * when max_age_ms < 0. `now` may be NULL to skip the freshness check. */

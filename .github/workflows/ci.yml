@@ -86,6 +86,8 @@ jobs:
       - run: pip install cryptography
       - run: go build -o verify-url ./cmd/verify-url
         working-directory: go
+      - run: cargo build --bin verify-url
+        working-directory: rust
       # Start the disclosure server in the background, then wait for the socket.
       - name: Start disclosure server
         run: |
@@ -104,6 +106,8 @@ jobs:
         run: ./go/verify-url "http://localhost:$PORT"
       - name: Python verify_url leg
         run: python python/verify_url.py "http://localhost:$PORT"
+      - name: Rust verify-url leg
+        run: ./rust/target/debug/verify-url "http://localhost:$PORT"
       - name: Stop disclosure server
         if: always()
         run: kill "$SERVER_PID" || true

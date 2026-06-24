@@ -517,6 +517,28 @@ fn response_message(response: &ChallengeResponse, verifier_id: Option<&str>) -> 
     canonicalize(&Value::Object(obj))
 }
 
+/// Answer a challenge: build `{nonce, agentId, auditHead, signedAt}` and sign over
+/// `canonicalize({nonce, agentId, auditHead, signedAt, verifierId})` (the `verifierId`
+/// taken from the challenge, dropped if absent). Byte-identical to the reference
+/// `respondToChallenge` in `src/handshake.ts`. `agentId` is the signer's verifying key.
+pub fn respond_to_challenge(
+    challenge: &Challenge,
+    signing_key: &SigningKey,
+    audit_head: &str,
+    now: &str,
+) -> ChallengeResponse {
+    let mut response = ChallengeResponse {
+        nonce: challenge.nonce.clone(),
+        agent_id: verifying_key_hex(signing_key),
+        audit_head: audit_head.to_string(),
+        signed_at: now.to_string(),
+        signature: String::new(),
+    };
+    let message = response_message(&response, challenge.verifier_id.as_deref());
+    response.signature = sign_message(&message, signing_key);
+    response
+}
+
 /// Verify a challenge response, in the spec's MUST order: nonce match, agentId
 /// match, signature, freshness. Audit-head currency is treated as a non-fatal
 /// signal (matching the reference). `now` is optional; when supplied the response
@@ -1100,6 +1122,66 @@ mod tests {
             let want = case["expect"].as_bool().unwrap();
             assert_eq!(ok, want, "handshake {name}");
         }
+    }
+
+    #[test]
+    fn responder_byte_matches_fixture() {
+        // The responder, signing with the fixed key over the fixture's challenge +
+        // audit head + signedAt, MUST reproduce the recorded response.signature
+        // byte-for-byte — proof the Rust signer agrees with the TS `respondToChallenge`.
+        let i = interop();
+        let key = fixed_signing_key();
+        let case = &i["handshakes"][0];
+        assert_eq!(case["name"].as_str().unwrap(), "valid");
+        let chal = &case["challenge"];
+        let challenge = Challenge {
+            nonce: chal["nonce"].as_str().unwrap().to_string(),
+            verifier_id: chal.get("verifierId").and_then(|v| v.as_str()).map(String::from),
+        };
+        let resp = &case["response"];
+        let audit_head = resp["auditHead"].as_str().unwrap();
+        let signed_at = resp["signedAt"].as_str().unwrap();
+
+        let produced = respond_to_challenge(&challenge, &key, audit_head, signed_at);
+        let want = resp["signature"].as_str().unwrap();
+        assert_eq!(produced.signature, want, "responder signature bytes");
+        assert_eq!(produced.nonce, resp["nonce"].as_str().unwrap());
+        assert_eq!(produced.agent_id, resp["agentId"].as_str().unwrap());
+        assert_eq!(produced.audit_head, audit_head);
+        assert_eq!(produced.signed_at, signed_at);
+    }
+
+    #[test]
+    fn responder_round_trips_through_verifier() {
+        // A response the Rust responder produces must pass the Rust verifier.
+        let i = interop();
+        let key = fixed_signing_key();
+        let challenge = Challenge {
+            nonce: "rt_nonce".to_string(),
+            verifier_id: Some("verifier-rt".to_string()),
+        };
+        let agent_id = i["key"]["publicKeyHex"].as_str().unwrap();
+        let now = "2026-06-24T12:30:00.000Z";
+        let response = respond_to_challenge(&challenge, &key, "head_rt", now);
+        assert!(
+            verify_challenge_response(&response, &challenge, agent_id, Some(now)).is_ok(),
+            "responder output must verify"
+        );
+    }
+
+    #[test]
+    fn responder_drops_absent_verifier_id() {
+        // With no verifierId on the challenge, the signed bytes omit it — and the
+        // response still round-trips through the verifier (which also omits it).
+        let key = fixed_signing_key();
+        let challenge = Challenge { nonce: "no_vid".to_string(), verifier_id: None };
+        let agent_id = verifying_key_hex(&key);
+        let now = "2026-06-24T12:30:00.000Z";
+        let response = respond_to_challenge(&challenge, &key, "head_x", now);
+        assert!(
+            verify_challenge_response(&response, &challenge, &agent_id, Some(now)).is_ok(),
+            "verifierId-absent response must verify"
+        );
     }
 
     fn fixed_signing_key() -> SigningKey {
