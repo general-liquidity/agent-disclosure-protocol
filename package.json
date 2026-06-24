@@ -1,0 +1,67 @@
+{
+  "name": "@general-liquidity/agent-disclosure",
+  "version": "0.1.0",
+  "type": "module",
+  "publishConfig": {
+    "access": "public"
+  },
+  "description": "The Agent Disclosure Protocol (ADP): a vendor-neutral disclosure protocol for agent-to-agent commerce. An agent exposes, before transacting, what it is committed to; a counterparty verifies and decides transact or refuse before any value moves. The wire format for Verifiable Agency.",
+  "license": "MIT",
+  "author": "General Liquidity",
+  "homepage": "https://github.com/general-liquidity/agent-disclosure-protocol#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/general-liquidity/agent-disclosure-protocol.git"
+  },
+  "bugs": {
+    "url": "https://github.com/general-liquidity/agent-disclosure-protocol/issues"
+  },
+  "keywords": [
+    "ai-agents",
+    "agentic-payments",
+    "disclosure",
+    "attestation",
+    "ed25519",
+    "agent-identity",
+    "erc-8004",
+    "x402",
+    "trust"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "SPEC.md",
+    "THREAT_MODEL.md",
+    "LICENSE",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "prepublishOnly": "npm run build",
+    "test": "node --import tsx --test \"test/**/*.test.ts\"",
+    "conformance": "node --import tsx --test \"conformance/*.test.ts\"",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome lint",
+    "format": "biome format --write",
+    "format:check": "biome format"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.5.1",
+    "@types/node": "^22.13.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.8.0"
+  },
+  "dependencies": {
+    "zod": "^4.4.3"
+  }
+}
