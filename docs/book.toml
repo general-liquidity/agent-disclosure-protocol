@@ -1,0 +1,16 @@
+[book]
+title = "Agent Disclosure Protocol"
+authors = ["General Liquidity"]
+description = "The wire format for Verifiable Agency: a disclose-before-settle protocol for agent-to-agent commerce."
+language = "en"
+src = "src"
+
+[output.html]
+default-theme = "rust"
+preferred-dark-theme = "navy"
+git-repository-url = "https://github.com/general-liquidity/agent-disclosure-protocol"
+edit-url-template = "https://github.com/general-liquidity/agent-disclosure-protocol/edit/main/docs/{path}"
+
+[output.html.fold]
+enable = true
+level = 1
