@@ -11,5 +11,6 @@
 - [Selective Disclosure](./selective-disclosure.md)
 - [Revocation and Transparency](./revocation-and-transparency.md)
 - [Conformance](./conformance.md)
+- [Stability guarantees](./stability.md)
 - [Threat Model](./threat-model.md)
 - [Positioning](./positioning.md)
