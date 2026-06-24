@@ -1,0 +1,341 @@
+{
+  "_comment": "MUST-REJECT corpus. A verifier given any of these MUST NOT return transact/accept and MUST NOT crash. `raw` is the value to feed the verifier; when isRawString is true, `raw` is a literal byte string (not valid JSON) the parser must reject. Regenerate: node --import tsx conformance/generate-negative.ts",
+  "cases": [
+    {
+      "name": "empty-object",
+      "raw": {}
+    },
+    {
+      "name": "null",
+      "raw": null
+    },
+    {
+      "name": "number",
+      "raw": 42
+    },
+    {
+      "name": "array",
+      "raw": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "name": "not-json",
+      "raw": "this is not json {",
+      "isRawString": true
+    },
+    {
+      "name": "missing-signature",
+      "raw": {
+        "disclosure": {
+          "version": 1,
+          "disclosureId": "d",
+          "agentId": "ef4931f78822741b7eccd616712ff1367d308537828b083ea1326b9ba583cb9d",
+          "issuedAt": "2026-06-24T12:00:00.000Z",
+          "validUntil": "2026-06-24T13:00:00.000Z",
+          "nonce": "n",
+          "auditAnchor": "79bfb0e2ba76b9d447606ddbcc494834f05a4c11deb052e74b49ea307a3c5bcd",
+          "systemPrompt": {
+            "algorithm": "sha256",
+            "digest": "79bfb0e2ba76b9d447606ddbcc494834f05a4c11deb052e74b49ea307a3c5bcd"
+          },
+          "constitution": {
+            "hardConstraints": [],
+            "digest": "79bfb0e2ba76b9d447606ddbcc494834f05a4c11deb052e74b49ea307a3c5bcd",
+            "enforced": true
+          },
+          "tools": {
+            "tools": []
+          },
+          "capital": {
+            "mandates": [],
+            "custody": "non_custodial"
+          },
+          "operator": {
+            "operatorId": "op",
+            "attestation": {
+              "scheme": "none",
+              "level": "none"
+            },
+            "deniabilityBoundary": "x"
+          },
+          "history": {
+            "chainAnchor": "79bfb0e2ba76b9d447606ddbcc494834f05a4c11deb052e74b49ea307a3c5bcd",
+            "summary": {
+              "totalDecisions": 1,
+              "settledCount": 1,
+              "blockedCount": 0
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "missing-disclosure",
+      "raw": {
+        "signature": {
+          "algorithm": "ed25519",
+          "publicKey": "ef4931f78822741b7eccd616712ff1367d308537828b083ea1326b9ba583cb9d",
+          "value": "6afe810e5112f832e5e219ca27e5d344c9f6ba4432f424a7e4710bb39ef996d93b859cea65f72dbdd5a6942c83d925e82da292558e9e8dc88234c0c8aaa6d504"
+        }
+      }
+    },
+    {
+      "name": "wrong-version-type",
+      "raw": {
+        "disclosure": {
+          "version": "1",
+          "disclosureId": "d",
+          "agentId": "ef4931f78822741b7eccd616712ff1367d308537828b083ea1326b9ba583cb9d",
+          "issuedAt": "2026-06-24T12:00:00.000Z",
+          "validUntil": "2026-06-24T13:00:00.000Z",
+          "nonce": "n",
+          "auditAnchor": "79bfb0e2ba76b9d447606ddbcc494834f05a4c11deb052e74b49ea307a3c5bcd",
+          "systemPrompt": {
+            "algorithm": "sha256",
+            "digest": "79bfb0e2ba76b9d447606ddbcc494834f05a4c11deb052e74b49ea307a3c5bcd"
+          },
+          "constitution": {
+            "hardConstraints": [],
+            "digest": "79bfb0e2ba76b9d447606ddbcc494834f05a4c11deb052e74b49ea307a3c5bcd",
+            "enforced": true
+          },
+          "tools": {
+            "tools": []
+          },
+          "capital": {
+            "mandates": [],
+            "custody": "non_custodial"
+          },
+          "operator": {
+            "operatorId": "op",
+            "attestation": {
+              "scheme": "none",
+              "level": "none"
+            },
+            "deniabilityBoundary": "x"
+          },
+          "history": {
+            "chainAnchor": "79bfb0e2ba76b9d447606ddbcc494834f05a4c11deb052e74b49ea307a3c5bcd",
+            "summary": {
+              "totalDecisions": 1,
+              "settledCount": 1,
+              "blockedCount": 0
+            }
+          }
+        },
+        "signature": {
+          "algorithm": "ed25519",
+          "publicKey": "ef4931f78822741b7eccd616712ff1367d308537828b083ea1326b9ba583cb9d",
+          "value": "6afe810e5112f832e5e219ca27e5d344c9f6ba4432f424a7e4710bb39ef996d93b859cea65f72dbdd5a6942c83d925e82da292558e9e8dc88234c0c8aaa6d504"
+        }
+      }
+    },
+    {
+      "name": "wrong-algorithm",
+      "raw": {
+        "disclosure": {
+          "version": 1,
+          "disclosureId": "d",
+          "agentId": "ef4931f78822741b7eccd616712ff1367d308537828b083ea1326b9ba583cb9d",
+          "issuedAt": "2026-06-24T12:00:00.000Z",
+          "validUntil": "2026-06-24T13:00:00.000Z",
+          "nonce": "n",
+          "auditAnchor": "79bfb0e2ba76b9d447606ddbcc494834f05a4c11deb052e74b49ea307a3c5bcd",
+          "systemPrompt": {
+            "algorithm": "sha256",
+            "digest": "79bfb0e2ba76b9d447606ddbcc494834f05a4c11deb052e74b49ea307a3c5bcd"
+          },
+          "constitution": {
+            "hardConstraints": [],
+            "digest": "79bfb0e2ba76b9d447606ddbcc494834f05a4c11deb052e74b49ea307a3c5bcd",
+            "enforced": true
+          },
+          "tools": {
+            "tools": []
+          },
+          "capital": {
+            "mandates": [],
+            "custody": "non_custodial"
+          },
+          "operator": {
+            "operatorId": "op",
+            "attestation": {
+              "scheme": "none",
+              "level": "none"
+            },
+            "deniabilityBoundary": "x"
+          },
+          "history": {
+            "chainAnchor": "79bfb0e2ba76b9d447606ddbcc494834f05a4c11deb052e74b49ea307a3c5bcd",
+            "summary": {
+              "totalDecisions": 1,
+              "settledCount": 1,
+              "blockedCount": 0
+            }
+          }
+        },
+        "signature": {
+          "algorithm": "hmac-sha256",
+          "publicKey": "ef4931f78822741b7eccd616712ff1367d308537828b083ea1326b9ba583cb9d",
+          "value": "6afe810e5112f832e5e219ca27e5d344c9f6ba4432f424a7e4710bb39ef996d93b859cea65f72dbdd5a6942c83d925e82da292558e9e8dc88234c0c8aaa6d504"
+        }
+      }
+    },
+    {
+      "name": "agentid-mismatch",
+      "raw": {
+        "disclosure": {
+          "version": 1,
+          "disclosureId": "d",
+          "agentId": "0000000000000000000000000000000000000000000000000000000000000001",
+          "issuedAt": "2026-06-24T12:00:00.000Z",
+          "validUntil": "2026-06-24T13:00:00.000Z",
+          "nonce": "n",
+          "auditAnchor": "79bfb0e2ba76b9d447606ddbcc494834f05a4c11deb052e74b49ea307a3c5bcd",
+          "systemPrompt": {
+            "algorithm": "sha256",
+            "digest": "79bfb0e2ba76b9d447606ddbcc494834f05a4c11deb052e74b49ea307a3c5bcd"
+          },
+          "constitution": {
+            "hardConstraints": [],
+            "digest": "79bfb0e2ba76b9d447606ddbcc494834f05a4c11deb052e74b49ea307a3c5bcd",
+            "enforced": true
+          },
+          "tools": {
+            "tools": []
+          },
+          "capital": {
+            "mandates": [],
+            "custody": "non_custodial"
+          },
+          "operator": {
+            "operatorId": "op",
+            "attestation": {
+              "scheme": "none",
+              "level": "none"
+            },
+            "deniabilityBoundary": "x"
+          },
+          "history": {
+            "chainAnchor": "79bfb0e2ba76b9d447606ddbcc494834f05a4c11deb052e74b49ea307a3c5bcd",
+            "summary": {
+              "totalDecisions": 1,
+              "settledCount": 1,
+              "blockedCount": 0
+            }
+          }
+        },
+        "signature": {
+          "algorithm": "ed25519",
+          "publicKey": "ef4931f78822741b7eccd616712ff1367d308537828b083ea1326b9ba583cb9d",
+          "value": "6afe810e5112f832e5e219ca27e5d344c9f6ba4432f424a7e4710bb39ef996d93b859cea65f72dbdd5a6942c83d925e82da292558e9e8dc88234c0c8aaa6d504"
+        }
+      }
+    },
+    {
+      "name": "bad-signature-hex",
+      "raw": {
+        "disclosure": {
+          "version": 1,
+          "disclosureId": "d",
+          "agentId": "ef4931f78822741b7eccd616712ff1367d308537828b083ea1326b9ba583cb9d",
+          "issuedAt": "2026-06-24T12:00:00.000Z",
+          "validUntil": "2026-06-24T13:00:00.000Z",
+          "nonce": "n",
+          "auditAnchor": "79bfb0e2ba76b9d447606ddbcc494834f05a4c11deb052e74b49ea307a3c5bcd",
+          "systemPrompt": {
+            "algorithm": "sha256",
+            "digest": "79bfb0e2ba76b9d447606ddbcc494834f05a4c11deb052e74b49ea307a3c5bcd"
+          },
+          "constitution": {
+            "hardConstraints": [],
+            "digest": "79bfb0e2ba76b9d447606ddbcc494834f05a4c11deb052e74b49ea307a3c5bcd",
+            "enforced": true
+          },
+          "tools": {
+            "tools": []
+          },
+          "capital": {
+            "mandates": [],
+            "custody": "non_custodial"
+          },
+          "operator": {
+            "operatorId": "op",
+            "attestation": {
+              "scheme": "none",
+              "level": "none"
+            },
+            "deniabilityBoundary": "x"
+          },
+          "history": {
+            "chainAnchor": "79bfb0e2ba76b9d447606ddbcc494834f05a4c11deb052e74b49ea307a3c5bcd",
+            "summary": {
+              "totalDecisions": 1,
+              "settledCount": 1,
+              "blockedCount": 0
+            }
+          }
+        },
+        "signature": {
+          "algorithm": "ed25519",
+          "publicKey": "ef4931f78822741b7eccd616712ff1367d308537828b083ea1326b9ba583cb9d",
+          "value": "zzzz"
+        }
+      }
+    },
+    {
+      "name": "tampered-field",
+      "raw": {
+        "disclosure": {
+          "version": 1,
+          "disclosureId": "d",
+          "agentId": "ef4931f78822741b7eccd616712ff1367d308537828b083ea1326b9ba583cb9d",
+          "issuedAt": "2026-06-24T12:00:00.000Z",
+          "validUntil": "2026-06-24T13:00:00.000Z",
+          "nonce": "n",
+          "auditAnchor": "79bfb0e2ba76b9d447606ddbcc494834f05a4c11deb052e74b49ea307a3c5bcd",
+          "systemPrompt": {
+            "algorithm": "sha256",
+            "digest": "79bfb0e2ba76b9d447606ddbcc494834f05a4c11deb052e74b49ea307a3c5bcd"
+          },
+          "constitution": {
+            "hardConstraints": [],
+            "digest": "79bfb0e2ba76b9d447606ddbcc494834f05a4c11deb052e74b49ea307a3c5bcd",
+            "enforced": false
+          },
+          "tools": {
+            "tools": []
+          },
+          "capital": {
+            "mandates": [],
+            "custody": "non_custodial"
+          },
+          "operator": {
+            "operatorId": "op",
+            "attestation": {
+              "scheme": "none",
+              "level": "none"
+            },
+            "deniabilityBoundary": "x"
+          },
+          "history": {
+            "chainAnchor": "79bfb0e2ba76b9d447606ddbcc494834f05a4c11deb052e74b49ea307a3c5bcd",
+            "summary": {
+              "totalDecisions": 1,
+              "settledCount": 1,
+              "blockedCount": 0
+            }
+          }
+        },
+        "signature": {
+          "algorithm": "ed25519",
+          "publicKey": "ef4931f78822741b7eccd616712ff1367d308537828b083ea1326b9ba583cb9d",
+          "value": "6afe810e5112f832e5e219ca27e5d344c9f6ba4432f424a7e4710bb39ef996d93b859cea65f72dbdd5a6942c83d925e82da292558e9e8dc88234c0c8aaa6d504"
+        }
+      }
+    }
+  ]
+}

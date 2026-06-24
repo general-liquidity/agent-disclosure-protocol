@@ -69,16 +69,26 @@ export function agentKeyFromPrivateHex(hex: string): AgentKeyPair {
   return { privateKey, publicKey, publicKeyHex: der.subarray(der.length - 32).toString("hex") };
 }
 
+/** Defense-in-depth: cap recursion so a hostile, deeply-nested value cannot exhaust
+ *  the stack. No valid disclosure nests anywhere near this; the byte output for any
+ *  in-range value is unchanged. */
+export const MAX_CANONICALIZE_DEPTH = 256;
+
 /** Deterministic JSON: keys sorted recursively, so the signed bytes are stable
  *  across producers (the same canonicalization the audit chain uses). */
 export function canonicalize(value: unknown): string {
+  return canonicalizeAt(value, 0);
+}
+
+function canonicalizeAt(value: unknown, depth: number): string {
+  if (depth > MAX_CANONICALIZE_DEPTH) throw new Error("canonicalize: maximum nesting depth exceeded");
   if (value === null || typeof value !== "object") return JSON.stringify(value);
-  if (Array.isArray(value)) return `[${value.map(canonicalize).join(",")}]`;
+  if (Array.isArray(value)) return `[${value.map((v) => canonicalizeAt(v, depth + 1)).join(",")}]`;
   const obj = value as Record<string, unknown>;
   const body = Object.keys(obj)
     .sort()
     .filter((k) => obj[k] !== undefined)
-    .map((k) => `${JSON.stringify(k)}:${canonicalize(obj[k])}`)
+    .map((k) => `${JSON.stringify(k)}:${canonicalizeAt(obj[k], depth + 1)}`)
     .join(",");
   return `{${body}}`;
 }
