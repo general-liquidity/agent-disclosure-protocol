@@ -61,3 +61,12 @@ jobs:
       # Use the system libsodium (the vendored MinGW build is Windows-only, gitignored).
       - run: make SODIUM_INC= SODIUM_LIB= LDLIBS=-lsodium test
         working-directory: c
+
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: peaceiris/actions-mdbook@v2
+        with:
+          mdbook-version: latest
+      - run: mdbook build docs

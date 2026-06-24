@@ -65,3 +65,25 @@ export * from "./negotiate.ts";
 
 // Framework adapters (a verify-before-pay tool/guard for any agent framework).
 export * from "./adapters.ts";
+
+// Verifier-as-a-service (HTTP) + discovery (a .well-known fetcher + agent directory).
+export * from "./verifierService.ts";
+export * from "./discovery.ts";
+
+// Key management (rotation, keyring, key files) + disclosure diffing / downgrade alarm.
+export * from "./keys.ts";
+export * from "./monitor.ts";
+
+// W3C StatusList revocation + model-attestation envelope + a generic disclosure builder.
+export * from "./statusList.ts";
+export * from "./modelAttestation.ts";
+export * from "./builder.ts";
+
+// Transparency witness (append-only / split-view monitor).
+export * from "./witness.ts";
+
+// ERC-8004 on-chain bridge (secp256k1 wallet-signature recovery; optional @noble dep).
+export * from "./erc8004Onchain.ts";
+
+// ZK selective disclosure (interface + a dep-free equality backend; range proofs are the open item).
+export * from "./zk.ts";
