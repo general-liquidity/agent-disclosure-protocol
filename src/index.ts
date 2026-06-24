@@ -85,5 +85,11 @@ export * from "./witness.ts";
 // ERC-8004 on-chain bridge (secp256k1 wallet-signature recovery; optional @noble dep).
 export * from "./erc8004Onchain.ts";
 
-// ZK selective disclosure (interface + a dep-free equality backend; range proofs are the open item).
+// ERC-8004 registry client (read a wallet->agentId mapping over JSON-RPC; optional viem dep).
+export * from "./erc8004Registry.ts";
+
+// ZK selective disclosure (interface + a dep-free equality backend).
 export * from "./zk.ts";
+
+// ZK range proofs (Pedersen + bit-decomposition over secp256k1; optional @noble dep).
+export * from "./zkRange.ts";

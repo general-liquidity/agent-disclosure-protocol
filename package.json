@@ -65,13 +65,15 @@
     "@noble/hashes": "^1.5.0",
     "@types/node": "^22.13.0",
     "tsx": "^4.19.0",
-    "typescript": "^5.8.0"
+    "typescript": "^5.8.0",
+    "viem": "^2.21.0"
   },
   "dependencies": {
     "zod": "^4.4.3"
   },
   "optionalDependencies": {
     "@noble/curves": "^1.6.0",
-    "@noble/hashes": "^1.5.0"
+    "@noble/hashes": "^1.5.0",
+    "viem": "^2.21.0"
   }
 }
