@@ -93,3 +93,12 @@ export * from "./zk.ts";
 
 // ZK range proofs (Pedersen + bit-decomposition over secp256k1; optional @noble dep).
 export * from "./zkRange.ts";
+
+// ZK range proofs as a disclosure feature (attach + require proofs about hidden attributes).
+export * from "./zkDisclosure.ts";
+
+// DID bridge (did:key / did:web for the agentId).
+export * from "./did.ts";
+
+// W3C Verifiable Credential bridge (a disclosure as a VC).
+export * from "./vc.ts";

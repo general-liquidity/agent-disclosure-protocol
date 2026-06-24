@@ -51,7 +51,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "prepublishOnly": "npm run build",
-    "test": "node --import tsx --test \"test/**/*.test.ts\"",
+    "test": "node --import tsx --test \"test/**/*.test.ts\" \"examples/**/*.test.ts\"",
     "conformance": "node --import tsx --test \"conformance/*.test.ts\"",
     "cli": "node --import tsx src/cli.ts",
     "typecheck": "tsc --noEmit",
