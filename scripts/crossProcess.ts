@@ -14,7 +14,7 @@
 // script is the TypeScript leg of that same matrix, runnable locally with no Go or
 // Python toolchain.
 //
-// Run: node --import tsx scripts/crossProcess.ts [port]
+// Run: node --import tsx scripts/crossProcess.ts
 
 import {
   verifyDisclosureSignature,
@@ -25,8 +25,9 @@ import {
 import { startDisclosureServer, DISCLOSURE_PATH } from "./serveDisclosure.ts";
 
 async function main(): Promise<number> {
-  const port = Number(process.argv[2] ?? process.env.PORT ?? 8799);
-  const { server, port: boundPort } = await startDisclosureServer(port);
+  // Self-contained: start our OWN server on an ephemeral port (0 -> OS-assigned) so
+  // this never collides with another listener (e.g. the CI cross-language server).
+  const { server, port: boundPort } = await startDisclosureServer(0);
   const url = `http://localhost:${boundPort}${DISCLOSURE_PATH}`;
   const failures: string[] = [];
 

@@ -99,7 +99,7 @@ jobs:
           done
           echo "server did not become ready"; exit 1
       - name: TypeScript leg (real socket)
-        run: node --import tsx scripts/crossProcess.ts "$PORT"
+        run: node --import tsx scripts/crossProcess.ts
       - name: Go verify-url leg
         run: ./go/verify-url "http://localhost:$PORT"
       - name: Python verify_url leg
