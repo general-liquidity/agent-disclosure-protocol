@@ -1,0 +1,6 @@
+*.o
+conformance_test
+conformance_test.exe
+# Prebuilt libsodium is a local convenience (the Makefile vendors it on Windows).
+# CI and packaged systems use the system libsodium: make SODIUM_INC= SODIUM_LIB=
+vendor/
