@@ -446,6 +446,15 @@ typedef struct {
     int checks_run;
 } failset;
 
+/* strdup is POSIX, not C11. Under -std=c11 on glibc it is undeclared, so the compiler
+ * assumes it returns int and truncates the 64-bit pointer (a segfault waiting to
+ * happen). A self-contained dup keeps the build portable across glibc / MinGW / macOS. */
+static char *adp_strdup(const char *s) {
+    size_t n = strlen(s) + 1;
+    char *p = (char *)malloc(n);
+    if (p) memcpy(p, s, n);
+    return p;
+}
 static void fs_init(failset *f) {
     f->cap = 8;
     f->count = 0;
@@ -457,7 +466,7 @@ static void fs_add(failset *f, const char *name) {
         f->cap *= 2;
         f->names = (char **)realloc(f->names, f->cap * sizeof(char *));
     }
-    f->names[f->count++] = strdup(name);
+    f->names[f->count++] = adp_strdup(name);
 }
 static int str_cmp_qsort(const void *a, const void *b) {
     return strcmp(*(const char *const *)a, *(const char *const *)b);
