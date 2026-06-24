@@ -1,5 +1,5 @@
 {
-  "_comment": "Cross-stack interop fixtures, generated from the TS reference with a fixed ed25519 key. A verifier in any language MUST reproduce disclosures[].expect.decision and handshakes[].expect; SHOULD reproduce disclosures[].expect.failed (sorted check names). Regenerate with: node --import tsx conformance/generate-interop.ts",
+  "_comment": "Cross-stack interop fixtures, generated from the TS reference with a fixed ed25519 key. A verifier MUST reproduce disclosures[].expect.decision and handshakes[].expect; SHOULD reproduce disclosures[].expect.failed. A full implementation also reproduces redactions[].expect (verifyRedacted), revocations[].expect (verifyRevocation), transparency[].expect (verifyInclusionProof). Regenerate: node --import tsx conformance/generate-interop.ts",
   "key": {
     "privateKeyHex": "302e020100300506032b657004220420aace66c414504180b9dc76c2fe47f41cdcda8909882c0f6e4774e5a5535bf8ee",
     "publicKeyHex": "ef4931f78822741b7eccd616712ff1367d308537828b083ea1326b9ba583cb9d"
@@ -807,6 +807,352 @@
       },
       "expectedAgentId": "ef4931f78822741b7eccd616712ff1367d308537828b083ea1326b9ba583cb9d",
       "now": "2026-06-24T14:00:00.000Z",
+      "expect": false
+    }
+  ],
+  "redactions": [
+    {
+      "name": "full-reveal",
+      "view": {
+        "meta": {
+          "version": 1,
+          "disclosureId": "disc_interop",
+          "agentId": "ef4931f78822741b7eccd616712ff1367d308537828b083ea1326b9ba583cb9d",
+          "issuedAt": "2026-06-24T12:00:00.000Z",
+          "validUntil": "2026-06-24T13:00:00.000Z",
+          "nonce": "nonce_interop",
+          "auditAnchor": "79bfb0e2ba76b9d447606ddbcc494834f05a4c11deb052e74b49ea307a3c5bcd"
+        },
+        "commitments": {
+          "systemPrompt": "afeec72f1aa2d6e5338631f7e34d3ef55ff90768c74245facab584c2f9311983",
+          "constitution": "fcc01ffc2b18b8f034205e2a88ae3789283b72ddb93305f924c314230d540f24",
+          "tools": "a5c0ffc3e97a1d5a17a042c0c71a17e2a66dafa1037b8b9af027246de8a3e553",
+          "capital": "258ef3e292205ba9462b5d294fe82667e4eb86d60778c88e91f1eb0045550df0",
+          "operator": "937e5398a678dd45c147df159815f3c8001859c63331ece0ec3c575805742bef",
+          "history": "a7954be26e4795e2bc66d50e2a3e648c116c4cd08659380d4e261cdb41d8acfe",
+          "redTeam": "7280ffd7689e2052ac6decb187ea4904323f7f0e3c59f3d0c945d396a652a7be"
+        },
+        "revealed": {
+          "systemPrompt": {
+            "value": {
+              "algorithm": "sha256",
+              "digest": "79bfb0e2ba76b9d447606ddbcc494834f05a4c11deb052e74b49ea307a3c5bcd"
+            },
+            "salt": "f41b7b5183169bdc7a847846a430c03e"
+          },
+          "constitution": {
+            "value": {
+              "hardConstraints": [
+                {
+                  "id": "no_self_payment",
+                  "description": "no paying your own operator",
+                  "kind": "deny"
+                }
+              ],
+              "digest": "79bfb0e2ba76b9d447606ddbcc494834f05a4c11deb052e74b49ea307a3c5bcd",
+              "enforced": true
+            },
+            "salt": "e0040a3deea1f1124102ed9be3b7be48"
+          },
+          "tools": {
+            "value": {
+              "tools": [
+                {
+                  "name": "pay",
+                  "access": "gated",
+                  "movesValue": true
+                }
+              ]
+            },
+            "salt": "0f32b5f77c05e04110261a2d27a585bd"
+          },
+          "capital": {
+            "value": {
+              "mandates": [],
+              "custody": "non_custodial"
+            },
+            "salt": "982e621b89419cb62f7c8e7202912dc9"
+          },
+          "operator": {
+            "value": {
+              "operatorId": "op",
+              "attestation": {
+                "scheme": "none",
+                "level": "none"
+              },
+              "deniabilityBoundary": "spend within mandates"
+            },
+            "salt": "56a7565bfef6b53b34d6c7642080684c"
+          },
+          "history": {
+            "value": {
+              "chainAnchor": "79bfb0e2ba76b9d447606ddbcc494834f05a4c11deb052e74b49ea307a3c5bcd",
+              "summary": {
+                "totalDecisions": 5,
+                "settledCount": 4,
+                "blockedCount": 1
+              }
+            },
+            "salt": "0273156a7a154b1e0a46448895b206ec"
+          },
+          "redTeam": {
+            "value": {
+              "corpus": {
+                "name": "spendtrust",
+                "version": "1.0.0"
+              },
+              "result": {
+                "grade": "A",
+                "score": 95,
+                "passed": true,
+                "hardFails": []
+              },
+              "attestedAt": "2026-06-24T12:00:00.000Z"
+            },
+            "salt": "4e44d6fc87ee261ab6423ca4619c16ec"
+          }
+        },
+        "signature": {
+          "algorithm": "ed25519",
+          "publicKey": "ef4931f78822741b7eccd616712ff1367d308537828b083ea1326b9ba583cb9d",
+          "value": "cb618048c0eff10516e8d144447a3a17eb56ab668a027303a2ea24d3f85d7a98fc26cfc0ccfd776f9e79612f749fcf2300abb24ff3b9c3ebcf8abd73d7b5590f"
+        }
+      },
+      "expect": {
+        "ok": true,
+        "revealedFields": [
+          "capital",
+          "constitution",
+          "history",
+          "operator",
+          "redTeam",
+          "systemPrompt",
+          "tools"
+        ]
+      }
+    },
+    {
+      "name": "partial-reveal",
+      "view": {
+        "meta": {
+          "version": 1,
+          "disclosureId": "disc_interop",
+          "agentId": "ef4931f78822741b7eccd616712ff1367d308537828b083ea1326b9ba583cb9d",
+          "issuedAt": "2026-06-24T12:00:00.000Z",
+          "validUntil": "2026-06-24T13:00:00.000Z",
+          "nonce": "nonce_interop",
+          "auditAnchor": "79bfb0e2ba76b9d447606ddbcc494834f05a4c11deb052e74b49ea307a3c5bcd"
+        },
+        "commitments": {
+          "systemPrompt": "afeec72f1aa2d6e5338631f7e34d3ef55ff90768c74245facab584c2f9311983",
+          "constitution": "fcc01ffc2b18b8f034205e2a88ae3789283b72ddb93305f924c314230d540f24",
+          "tools": "a5c0ffc3e97a1d5a17a042c0c71a17e2a66dafa1037b8b9af027246de8a3e553",
+          "capital": "258ef3e292205ba9462b5d294fe82667e4eb86d60778c88e91f1eb0045550df0",
+          "operator": "937e5398a678dd45c147df159815f3c8001859c63331ece0ec3c575805742bef",
+          "history": "a7954be26e4795e2bc66d50e2a3e648c116c4cd08659380d4e261cdb41d8acfe",
+          "redTeam": "7280ffd7689e2052ac6decb187ea4904323f7f0e3c59f3d0c945d396a652a7be"
+        },
+        "revealed": {
+          "constitution": {
+            "value": {
+              "hardConstraints": [
+                {
+                  "id": "no_self_payment",
+                  "description": "no paying your own operator",
+                  "kind": "deny"
+                }
+              ],
+              "digest": "79bfb0e2ba76b9d447606ddbcc494834f05a4c11deb052e74b49ea307a3c5bcd",
+              "enforced": true
+            },
+            "salt": "e0040a3deea1f1124102ed9be3b7be48"
+          },
+          "history": {
+            "value": {
+              "chainAnchor": "79bfb0e2ba76b9d447606ddbcc494834f05a4c11deb052e74b49ea307a3c5bcd",
+              "summary": {
+                "totalDecisions": 5,
+                "settledCount": 4,
+                "blockedCount": 1
+              }
+            },
+            "salt": "0273156a7a154b1e0a46448895b206ec"
+          }
+        },
+        "signature": {
+          "algorithm": "ed25519",
+          "publicKey": "ef4931f78822741b7eccd616712ff1367d308537828b083ea1326b9ba583cb9d",
+          "value": "cb618048c0eff10516e8d144447a3a17eb56ab668a027303a2ea24d3f85d7a98fc26cfc0ccfd776f9e79612f749fcf2300abb24ff3b9c3ebcf8abd73d7b5590f"
+        }
+      },
+      "expect": {
+        "ok": true,
+        "revealedFields": [
+          "constitution",
+          "history"
+        ]
+      }
+    },
+    {
+      "name": "tampered-reveal",
+      "view": {
+        "meta": {
+          "version": 1,
+          "disclosureId": "disc_interop",
+          "agentId": "ef4931f78822741b7eccd616712ff1367d308537828b083ea1326b9ba583cb9d",
+          "issuedAt": "2026-06-24T12:00:00.000Z",
+          "validUntil": "2026-06-24T13:00:00.000Z",
+          "nonce": "nonce_interop",
+          "auditAnchor": "79bfb0e2ba76b9d447606ddbcc494834f05a4c11deb052e74b49ea307a3c5bcd"
+        },
+        "commitments": {
+          "systemPrompt": "afeec72f1aa2d6e5338631f7e34d3ef55ff90768c74245facab584c2f9311983",
+          "constitution": "fcc01ffc2b18b8f034205e2a88ae3789283b72ddb93305f924c314230d540f24",
+          "tools": "a5c0ffc3e97a1d5a17a042c0c71a17e2a66dafa1037b8b9af027246de8a3e553",
+          "capital": "258ef3e292205ba9462b5d294fe82667e4eb86d60778c88e91f1eb0045550df0",
+          "operator": "937e5398a678dd45c147df159815f3c8001859c63331ece0ec3c575805742bef",
+          "history": "a7954be26e4795e2bc66d50e2a3e648c116c4cd08659380d4e261cdb41d8acfe",
+          "redTeam": "7280ffd7689e2052ac6decb187ea4904323f7f0e3c59f3d0c945d396a652a7be"
+        },
+        "revealed": {
+          "systemPrompt": {
+            "value": {
+              "algorithm": "sha256",
+              "digest": "79bfb0e2ba76b9d447606ddbcc494834f05a4c11deb052e74b49ea307a3c5bcd"
+            },
+            "salt": "f41b7b5183169bdc7a847846a430c03e"
+          },
+          "constitution": {
+            "value": {
+              "hardConstraints": [
+                {
+                  "id": "no_self_payment",
+                  "description": "no paying your own operator",
+                  "kind": "deny"
+                }
+              ],
+              "digest": "79bfb0e2ba76b9d447606ddbcc494834f05a4c11deb052e74b49ea307a3c5bcd",
+              "enforced": false
+            },
+            "salt": "e0040a3deea1f1124102ed9be3b7be48"
+          },
+          "tools": {
+            "value": {
+              "tools": [
+                {
+                  "name": "pay",
+                  "access": "gated",
+                  "movesValue": true
+                }
+              ]
+            },
+            "salt": "0f32b5f77c05e04110261a2d27a585bd"
+          },
+          "capital": {
+            "value": {
+              "mandates": [],
+              "custody": "non_custodial"
+            },
+            "salt": "982e621b89419cb62f7c8e7202912dc9"
+          },
+          "operator": {
+            "value": {
+              "operatorId": "op",
+              "attestation": {
+                "scheme": "none",
+                "level": "none"
+              },
+              "deniabilityBoundary": "spend within mandates"
+            },
+            "salt": "56a7565bfef6b53b34d6c7642080684c"
+          },
+          "history": {
+            "value": {
+              "chainAnchor": "79bfb0e2ba76b9d447606ddbcc494834f05a4c11deb052e74b49ea307a3c5bcd",
+              "summary": {
+                "totalDecisions": 5,
+                "settledCount": 4,
+                "blockedCount": 1
+              }
+            },
+            "salt": "0273156a7a154b1e0a46448895b206ec"
+          },
+          "redTeam": {
+            "value": {
+              "corpus": {
+                "name": "spendtrust",
+                "version": "1.0.0"
+              },
+              "result": {
+                "grade": "A",
+                "score": 95,
+                "passed": true,
+                "hardFails": []
+              },
+              "attestedAt": "2026-06-24T12:00:00.000Z"
+            },
+            "salt": "4e44d6fc87ee261ab6423ca4619c16ec"
+          }
+        },
+        "signature": {
+          "algorithm": "ed25519",
+          "publicKey": "ef4931f78822741b7eccd616712ff1367d308537828b083ea1326b9ba583cb9d",
+          "value": "cb618048c0eff10516e8d144447a3a17eb56ab668a027303a2ea24d3f85d7a98fc26cfc0ccfd776f9e79612f749fcf2300abb24ff3b9c3ebcf8abd73d7b5590f"
+        }
+      },
+      "expect": {
+        "ok": false,
+        "revealedFields": []
+      }
+    }
+  ],
+  "revocations": [
+    {
+      "name": "valid",
+      "record": {
+        "id": "disc_interop",
+        "reason": "key compromised",
+        "revokedAt": "2026-06-24T12:30:00.000Z",
+        "publicKey": "ef4931f78822741b7eccd616712ff1367d308537828b083ea1326b9ba583cb9d",
+        "signature": "740b1280006cb2060382ccc2a363abb39c6aad3176fb020a4ed3501923fbc66c2f81ff8459edf4726245ef37034bd36e9fb484eca8d6c1815c9a991325915005"
+      },
+      "expect": true
+    },
+    {
+      "name": "tampered",
+      "record": {
+        "id": "disc_interop",
+        "reason": "not actually compromised",
+        "revokedAt": "2026-06-24T12:30:00.000Z",
+        "publicKey": "ef4931f78822741b7eccd616712ff1367d308537828b083ea1326b9ba583cb9d",
+        "signature": "740b1280006cb2060382ccc2a363abb39c6aad3176fb020a4ed3501923fbc66c2f81ff8459edf4726245ef37034bd36e9fb484eca8d6c1815c9a991325915005"
+      },
+      "expect": false
+    }
+  ],
+  "transparency": [
+    {
+      "name": "valid",
+      "entry": {
+        "index": 0,
+        "disclosureDigest": "ffba29539fea533b2a4c50697bc9e9c10b8a72e0ce3dbbccb203a53bf7ee7172",
+        "agentId": "ef4931f78822741b7eccd616712ff1367d308537828b083ea1326b9ba583cb9d",
+        "issuedAt": "2026-06-24T12:00:00.000Z",
+        "prevHash": "0000000000000000000000000000000000000000000000000000000000000000",
+        "hash": "0604ade07ce53d30557cff67d40bc9e31af95945e7af6a3e840f34208ba31f74"
+      },
+      "expect": true
+    },
+    {
+      "name": "tampered",
+      "entry": {
+        "index": 0,
+        "disclosureDigest": "812e28645d2cd23ae1b881eebf1abce11484a12f90c56d2d4d1d2b93eab05780",
+        "agentId": "ef4931f78822741b7eccd616712ff1367d308537828b083ea1326b9ba583cb9d",
+        "issuedAt": "2026-06-24T12:00:00.000Z",
+        "prevHash": "0000000000000000000000000000000000000000000000000000000000000000",
+        "hash": "0604ade07ce53d30557cff67d40bc9e31af95945e7af6a3e840f34208ba31f74"
+      },
       "expect": false
     }
   ]

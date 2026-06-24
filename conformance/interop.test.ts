@@ -10,9 +10,15 @@ import {
   parseSignedDisclosure,
   evaluateDisclosure,
   verifyChallengeResponse,
+  verifyRedacted,
+  verifyRevocation,
+  verifyInclusionProof,
   type VerificationPolicy,
   type Challenge,
   type ChallengeResponse,
+  type RedactedView,
+  type SignedRevocation,
+  type TransparencyLogEntry,
 } from "../src/index.ts";
 import interop from "./interop.json" with { type: "json" };
 
@@ -36,5 +42,25 @@ test("interop: every handshake case reproduces its expected result", () => {
       now: c.now,
     });
     assert.equal(result.ok, c.expect, c.name);
+  }
+});
+
+test("interop: redaction (selective disclosure) cases verify", () => {
+  for (const c of interop.redactions) {
+    const r = verifyRedacted(c.view as unknown as RedactedView);
+    assert.equal(r.ok, c.expect.ok, c.name);
+    if (c.expect.ok) assert.deepEqual([...r.revealedFields].sort(), c.expect.revealedFields, c.name);
+  }
+});
+
+test("interop: revocation records verify", () => {
+  for (const c of interop.revocations) {
+    assert.equal(verifyRevocation(c.record as unknown as SignedRevocation), c.expect, c.name);
+  }
+});
+
+test("interop: transparency inclusion proofs verify", () => {
+  for (const c of interop.transparency) {
+    assert.equal(verifyInclusionProof(c.entry as unknown as TransparencyLogEntry), c.expect, c.name);
   }
 });

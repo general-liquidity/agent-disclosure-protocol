@@ -19,6 +19,11 @@ import {
   createChallenge,
   respondToChallenge,
   sha256Hex,
+  prepareRedactable,
+  reveal,
+  REDACTABLE_FIELDS,
+  signRevocation,
+  TransparencyLog,
   type AgentDisclosure,
   type SignedDisclosure,
   type VerificationPolicy,
@@ -136,13 +141,55 @@ const handshakes: HandshakeCase[] = [
   { name: "stale", challenge, response: good, expectedAgentId: AGENT, now: STALE, expect: false },
 ];
 
+// ── redaction fixtures (selective disclosure) ────────────────────────────────
+// verifyRedacted MUST: check meta.agentId == signature.publicKey, ed25519-verify the
+// signature over canonicalize({meta, commitments}), and recompute each revealed field
+// as sha256Hex(canonicalize(value)+":"+salt) == commitments[field].
+const { holder } = prepareRedactable(base(), key);
+const presentFields = REDACTABLE_FIELDS.filter(
+  (f) => (base() as Record<string, unknown>)[f] !== undefined,
+);
+const fullView = reveal(holder, presentFields);
+const partialView = reveal(holder, ["constitution", "history"]);
+const tamperedView = JSON.parse(JSON.stringify(fullView)) as typeof fullView;
+(tamperedView.revealed.constitution.value as { enforced: boolean }).enforced = false;
+const redactions = [
+  { name: "full-reveal", view: fullView, expect: { ok: true, revealedFields: [...presentFields].sort() } },
+  { name: "partial-reveal", view: partialView, expect: { ok: true, revealedFields: ["constitution", "history"] } },
+  { name: "tampered-reveal", view: tamperedView, expect: { ok: false, revealedFields: [] } },
+];
+
+// ── revocation fixtures ──────────────────────────────────────────────────────
+// verifyRevocation MUST ed25519-verify the signature over canonicalize({id, reason, revokedAt}).
+const goodRev = signRevocation("disc_interop", "key compromised", FRESH, key);
+const tamperedRev = { ...goodRev, reason: "not actually compromised" };
+const revocations = [
+  { name: "valid", record: goodRev, expect: true },
+  { name: "tampered", record: tamperedRev, expect: false },
+];
+
+// ── transparency fixtures ────────────────────────────────────────────────────
+// verifyInclusionProof MUST recompute entry.hash = sha256Hex(canonicalize({index, disclosureDigest, agentId, issuedAt, prevHash})).
+const log = new TransparencyLog();
+const tEntry = log.append(signDisclosure(base(), key));
+const tTampered = { ...tEntry, disclosureDigest: sha256Hex("a different disclosure") };
+const transparency = [
+  { name: "valid", entry: tEntry, expect: true },
+  { name: "tampered", entry: tTampered, expect: false },
+];
+
 const out = {
   _comment:
-    "Cross-stack interop fixtures, generated from the TS reference with a fixed ed25519 key. A verifier in any language MUST reproduce disclosures[].expect.decision and handshakes[].expect; SHOULD reproduce disclosures[].expect.failed (sorted check names). Regenerate with: node --import tsx conformance/generate-interop.ts",
+    "Cross-stack interop fixtures, generated from the TS reference with a fixed ed25519 key. A verifier MUST reproduce disclosures[].expect.decision and handshakes[].expect; SHOULD reproduce disclosures[].expect.failed. A full implementation also reproduces redactions[].expect (verifyRedacted), revocations[].expect (verifyRevocation), transparency[].expect (verifyInclusionProof). Regenerate: node --import tsx conformance/generate-interop.ts",
   key: { privateKeyHex: PRIV, publicKeyHex: AGENT },
   disclosures,
   handshakes,
+  redactions,
+  revocations,
+  transparency,
 };
 
 writeFileSync(fileURLToPath(new URL("./interop.json", import.meta.url)), `${JSON.stringify(out, null, 2)}\n`);
-console.log(`wrote interop.json: ${disclosures.length} disclosure cases, ${handshakes.length} handshake cases`);
+console.log(
+  `wrote interop.json: ${disclosures.length} disclosure, ${handshakes.length} handshake, ${redactions.length} redaction, ${revocations.length} revocation, ${transparency.length} transparency cases`,
+);
