@@ -1,7 +1,7 @@
 <!-- prettier-ignore -->
 <div align="center">
 
-# Agent Disclosure Protocol
+# Agent Disclosure Protocol (ADP)
 
 ### The wire format for Verifiable Agency
 
