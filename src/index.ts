@@ -44,3 +44,24 @@ export * from "./transparency.ts";
 
 // The economic-viability model (which markets survive at verification cost C).
 export * from "./economics.ts";
+
+// Mutual disclosure over the wire (both agents verify each other before clearing).
+export * from "./mutual.ts";
+
+// Schema version negotiation.
+export * from "./versioning.ts";
+
+// Revocation transport (fetch + honor a status list over the wire).
+export * from "./revocationTransport.ts";
+
+// Transparency-log transport (publish + fetch + verify inclusion proofs).
+export * from "./transparencyTransport.ts";
+
+// ERC-8004 identity bridge (bind the ed25519 agentId to a wallet-anchored identity).
+export * from "./erc8004.ts";
+
+// Policy-driven selective disclosure (reveal exactly what a verifier's policy needs).
+export * from "./negotiate.ts";
+
+// Framework adapters (a verify-before-pay tool/guard for any agent framework).
+export * from "./adapters.ts";

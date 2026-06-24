@@ -38,6 +38,9 @@
       "import": "./dist/index.js"
     }
   },
+  "bin": {
+    "agent-disclosure": "dist/cli.js"
+  },
   "files": [
     "dist",
     "SPEC.md",
@@ -50,6 +53,7 @@
     "prepublishOnly": "npm run build",
     "test": "node --import tsx --test \"test/**/*.test.ts\"",
     "conformance": "node --import tsx --test \"conformance/*.test.ts\"",
+    "cli": "node --import tsx src/cli.ts",
     "typecheck": "tsc --noEmit",
     "lint": "biome lint",
     "format": "biome format --write",
