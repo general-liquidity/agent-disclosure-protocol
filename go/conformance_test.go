@@ -42,6 +42,35 @@ func TestCanonicalizationVectors(t *testing.T) {
 	}
 }
 
+// readFixtureArray loads a JSON file whose top level is an array (e.g. fuzz.json).
+func readFixtureArray(t *testing.T, path string) []any {
+	t.Helper()
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read %s: %v", path, err)
+	}
+	return decodeNumberAware(t, data).([]any)
+}
+
+// TestFuzzCanonicalization replays the differential fuzz corpus produced by the TS
+// reference (conformance/generate-fuzz.ts). Each case carries the reference's
+// canonical output; Go MUST reproduce it byte-for-byte, proving the two stacks agree
+// on random inputs, not just the fixed vectors.
+func TestFuzzCanonicalization(t *testing.T) {
+	cases := readFixtureArray(t, "../conformance/fuzz.json")
+	if len(cases) == 0 {
+		t.Fatal("fuzz.json is empty")
+	}
+	for i, raw := range cases {
+		c := raw.(map[string]any)
+		got := Canonicalize(c["input"])
+		want := c["canonical"].(string)
+		if got != want {
+			t.Errorf("fuzz[%d]: got %q want %q", i, got, want)
+		}
+	}
+}
+
 func TestSha256Vectors(t *testing.T) {
 	v := readFixture(t, "../conformance/vectors.json")
 	for i, raw := range v["sha256"].([]any) {

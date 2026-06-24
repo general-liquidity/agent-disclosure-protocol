@@ -660,3 +660,226 @@ void adp_verdict_free(adp_verdict *v) {
     v->failed = NULL;
     v->failed_count = 0;
 }
+
+/* ── emitter: ed25519 signing (SPEC.md §5) ─────────────────────────────────────
+ * PKCS8 DER for an ed25519 private key is a fixed 48-byte structure: the 16-byte
+ * prefix below, then the 32-byte seed. crypto_sign_seed_keypair expands the seed
+ * into libsodium's 64-byte secret key (seed||pubkey), matching what node:crypto's
+ * createPrivateKey + sign(null, ...) does internally. */
+static const char PKCS8_ED25519_PREFIX[] = "302e020100300506032b657004220420";
+
+int adp_seed_from_pkcs8_hex(const char *pkcs8_hex, unsigned char seed[32]) {
+    if (!pkcs8_hex) return -1;
+    size_t prefix_len = strlen(PKCS8_ED25519_PREFIX);
+    if (strncmp(pkcs8_hex, PKCS8_ED25519_PREFIX, prefix_len) != 0) return -1;
+    const char *seed_hex = pkcs8_hex + prefix_len;
+    size_t bin_len = 0;
+    if (sodium_hex2bin(seed, 32, seed_hex, strlen(seed_hex), NULL, &bin_len, NULL) != 0)
+        return -1;
+    if (bin_len != 32) return -1;
+    return 0;
+}
+
+void adp_keypair_from_seed(const unsigned char seed[32],
+                           unsigned char pk[32], unsigned char sk[64]) {
+    crypto_sign_seed_keypair(pk, sk, seed);
+}
+
+void adp_sign_message(const unsigned char *msg, size_t msglen,
+                      const unsigned char sk[64], char out_hex[129]) {
+    unsigned char sig[crypto_sign_BYTES];
+    crypto_sign_detached(sig, NULL, msg, msglen, sk);
+    sodium_bin2hex(out_hex, 129, sig, sizeof(sig));
+}
+
+int adp_sign_disclosure(const cJSON *disclosure, const unsigned char sk[64],
+                        char out_sig_hex[129]) {
+    char *canon = adp_canonicalize(disclosure);
+    if (!canon) return -1;
+    adp_sign_message((const unsigned char *)canon, strlen(canon), sk, out_sig_hex);
+    free(canon);
+    return 0;
+}
+
+/* ── redactable disclosure (src/redaction.ts) ──────────────────────────────────
+ * commit(value, salt) = sha256Hex(canonicalize(value) + ":" + salt). */
+void adp_free_str_list(char **list, size_t count) {
+    if (!list) return;
+    for (size_t i = 0; i < count; i++) free(list[i]);
+    free(list);
+}
+
+static int commit_field(const cJSON *value, const char *salt, char out_hex[65]) {
+    char *cv = adp_canonicalize(value);
+    if (!cv) return -1;
+    size_t clen = strlen(cv);
+    size_t slen = strlen(salt);
+    size_t total = clen + 1 + slen;
+    unsigned char *buf = (unsigned char *)malloc(total);
+    if (!buf) {
+        free(cv);
+        return -1;
+    }
+    memcpy(buf, cv, clen);
+    buf[clen] = ':';
+    memcpy(buf + clen + 1, salt, slen);
+    adp_sha256_hex(buf, total, out_hex);
+    free(buf);
+    free(cv);
+    return 0;
+}
+
+bool adp_verify_redacted(const cJSON *view, char ***out_revealed,
+                         size_t *out_count, const char **reason) {
+    if (out_revealed) *out_revealed = NULL;
+    if (out_count) *out_count = 0;
+
+    const cJSON *meta = cJSON_GetObjectItemCaseSensitive(view, "meta");
+    const cJSON *commitments = cJSON_GetObjectItemCaseSensitive(view, "commitments");
+    const cJSON *revealed = cJSON_GetObjectItemCaseSensitive(view, "revealed");
+    const cJSON *signature = cJSON_GetObjectItemCaseSensitive(view, "signature");
+    if (!cJSON_IsObject(meta) || !cJSON_IsObject(commitments) ||
+        !cJSON_IsObject(signature)) {
+        if (reason) *reason = "malformed redacted view";
+        return false;
+    }
+    const cJSON *agentId = cJSON_GetObjectItemCaseSensitive(meta, "agentId");
+    const cJSON *publicKey = cJSON_GetObjectItemCaseSensitive(signature, "publicKey");
+    const cJSON *sigValue = cJSON_GetObjectItemCaseSensitive(signature, "value");
+    if (!cJSON_IsString(agentId) || !cJSON_IsString(publicKey) || !cJSON_IsString(sigValue)) {
+        if (reason) *reason = "malformed redacted view";
+        return false;
+    }
+
+    /* 1. identity binding */
+    if (strcmp(agentId->valuestring, publicKey->valuestring) != 0) {
+        if (reason) *reason = "agentId does not match the signing public key";
+        return false;
+    }
+
+    /* 2. signature over canonicalize({meta, commitments}) */
+    cJSON *signed_body = cJSON_CreateObject();
+    if (!signed_body) {
+        if (reason) *reason = "out of memory";
+        return false;
+    }
+    cJSON_AddItemReferenceToObject(signed_body, "meta", (cJSON *)meta);
+    cJSON_AddItemReferenceToObject(signed_body, "commitments", (cJSON *)commitments);
+    char *signed_canon = adp_canonicalize(signed_body);
+    cJSON_Delete(signed_body);
+    if (!signed_canon) {
+        if (reason) *reason = "out of memory";
+        return false;
+    }
+    bool sig_ok = verify_message(signed_canon, publicKey->valuestring, sigValue->valuestring);
+    free(signed_canon);
+    if (!sig_ok) {
+        if (reason) *reason = "signature mismatch";
+        return false;
+    }
+
+    /* 3. each revealed field recomputes to its commitment */
+    size_t cap = 8, count = 0;
+    char **names = (char **)malloc(cap * sizeof(char *));
+    if (!names) {
+        if (reason) *reason = "out of memory";
+        return false;
+    }
+    const cJSON *field;
+    cJSON_ArrayForEach(field, revealed) {
+        const char *fname = field->string ? field->string : "";
+        const cJSON *value = cJSON_GetObjectItemCaseSensitive(field, "value");
+        const cJSON *salt = cJSON_GetObjectItemCaseSensitive(field, "salt");
+        const cJSON *expected = cJSON_GetObjectItemCaseSensitive(commitments, fname);
+        if (!cJSON_IsString(expected)) {
+            adp_free_str_list(names, count);
+            if (reason) *reason = "revealed field has no commitment";
+            return false;
+        }
+        char got[65];
+        if (!cJSON_IsString(salt) ||
+            commit_field(value, salt->valuestring, got) != 0 ||
+            strcmp(got, expected->valuestring) != 0) {
+            adp_free_str_list(names, count);
+            if (reason) *reason = "revealed field does not match its commitment";
+            return false;
+        }
+        if (count == cap) {
+            cap *= 2;
+            char **grown = (char **)realloc(names, cap * sizeof(char *));
+            if (!grown) {
+                adp_free_str_list(names, count);
+                if (reason) *reason = "out of memory";
+                return false;
+            }
+            names = grown;
+        }
+        names[count++] = adp_strdup(fname);
+    }
+
+    if (count > 1)
+        qsort(names, count, sizeof(char *), str_cmp_qsort);
+
+    if (out_revealed) *out_revealed = names;
+    else adp_free_str_list(names, count);
+    if (out_count) *out_count = count;
+    if (reason) *reason = NULL;
+    return true;
+}
+
+/* ── revocation (src/revocation.ts) ────────────────────────────────────────────
+ * Signature covers canonicalize({id, reason, revokedAt}). */
+bool adp_verify_revocation(const cJSON *record) {
+    const cJSON *id = cJSON_GetObjectItemCaseSensitive(record, "id");
+    const cJSON *reason = cJSON_GetObjectItemCaseSensitive(record, "reason");
+    const cJSON *revokedAt = cJSON_GetObjectItemCaseSensitive(record, "revokedAt");
+    const cJSON *publicKey = cJSON_GetObjectItemCaseSensitive(record, "publicKey");
+    const cJSON *signature = cJSON_GetObjectItemCaseSensitive(record, "signature");
+    if (!cJSON_IsString(id) || !cJSON_IsString(reason) || !cJSON_IsString(revokedAt) ||
+        !cJSON_IsString(publicKey) || !cJSON_IsString(signature))
+        return false;
+
+    cJSON *body = cJSON_CreateObject();
+    if (!body) return false;
+    cJSON_AddStringToObject(body, "id", id->valuestring);
+    cJSON_AddStringToObject(body, "reason", reason->valuestring);
+    cJSON_AddStringToObject(body, "revokedAt", revokedAt->valuestring);
+    char *canon = adp_canonicalize(body);
+    cJSON_Delete(body);
+    if (!canon) return false;
+    bool ok = verify_message(canon, publicKey->valuestring, signature->valuestring);
+    free(canon);
+    return ok;
+}
+
+/* ── transparency inclusion proof (src/transparencyTransport.ts) ───────────────
+ * Recompute sha256Hex(canonicalize({index, disclosureDigest, agentId, issuedAt,
+ * prevHash})) and compare against entry.hash. The fields are added by reference so
+ * the number/string types (and thus the canonical form) match the source entry. */
+bool adp_verify_inclusion_proof(const cJSON *entry) {
+    const cJSON *index = cJSON_GetObjectItemCaseSensitive(entry, "index");
+    const cJSON *disclosureDigest = cJSON_GetObjectItemCaseSensitive(entry, "disclosureDigest");
+    const cJSON *agentId = cJSON_GetObjectItemCaseSensitive(entry, "agentId");
+    const cJSON *issuedAt = cJSON_GetObjectItemCaseSensitive(entry, "issuedAt");
+    const cJSON *prevHash = cJSON_GetObjectItemCaseSensitive(entry, "prevHash");
+    const cJSON *hash = cJSON_GetObjectItemCaseSensitive(entry, "hash");
+    if (!cJSON_IsNumber(index) || !cJSON_IsString(disclosureDigest) ||
+        !cJSON_IsString(agentId) || !cJSON_IsString(issuedAt) ||
+        !cJSON_IsString(prevHash) || !cJSON_IsString(hash))
+        return false;
+
+    cJSON *body = cJSON_CreateObject();
+    if (!body) return false;
+    cJSON_AddItemReferenceToObject(body, "index", (cJSON *)index);
+    cJSON_AddItemReferenceToObject(body, "disclosureDigest", (cJSON *)disclosureDigest);
+    cJSON_AddItemReferenceToObject(body, "agentId", (cJSON *)agentId);
+    cJSON_AddItemReferenceToObject(body, "issuedAt", (cJSON *)issuedAt);
+    cJSON_AddItemReferenceToObject(body, "prevHash", (cJSON *)prevHash);
+    char *canon = adp_canonicalize(body);
+    cJSON_Delete(body);
+    if (!canon) return false;
+    char expected[65];
+    adp_sha256_hex((const unsigned char *)canon, strlen(canon), expected);
+    free(canon);
+    return strcmp(expected, hash->valuestring) == 0;
+}

@@ -1,0 +1,2998 @@
+[
+  {
+    "input": [
+      0
+    ],
+    "canonical": "[0]"
+  },
+  {
+    "input": {
+      "0": 1024,
+      "KEY": "emoji 😀💡",
+      "Z": {
+        "0": null,
+        "2": 1,
+        "value": null,
+        "with\\slash": null,
+        "a": {
+          "a": -2147483648,
+          "key": [
+            true,
+            false,
+            -42
+          ],
+          "KEY": false,
+          "c": {
+            "2": null,
+            "with\\slash": "[1,2,3]"
+          }
+        }
+      },
+      "list": -1024,
+      "z": "a b c"
+    },
+    "canonical": "{\"0\":1024,\"KEY\":\"emoji 😀💡\",\"Z\":{\"0\":null,\"2\":1,\"a\":{\"KEY\":false,\"a\":-2147483648,\"c\":{\"2\":null,\"with\\\\slash\":\"[1,2,3]\"},\"key\":[true,false,-42]},\"value\":null,\"with\\\\slash\":null},\"list\":-1024,\"z\":\"a b c\"}"
+  },
+  {
+    "input": {
+      "z": {
+        "KEY": null
+      }
+    },
+    "canonical": "{\"z\":{\"KEY\":null}}"
+  },
+  {
+    "input": [
+      false,
+      {
+        "z": -42
+      },
+      [
+        false,
+        null,
+        "[1,2,3]",
+        2
+      ]
+    ],
+    "canonical": "[false,{\"z\":-42},[false,null,\"[1,2,3]\",2]]"
+  },
+  {
+    "input": {
+      "10": 255,
+      "with\\slash": null,
+      "with space": "carriage\rreturn"
+    },
+    "canonical": "{\"10\":255,\"with space\":\"carriage\\rreturn\",\"with\\\\slash\":null}"
+  },
+  {
+    "input": {
+      "2": null,
+      "KEY": "{not json}",
+      "Z": {
+        "2": [],
+        "c": [
+          -2147483648,
+          255,
+          false,
+          [
+            "mixed \"\\/\b\f\n\r\t end",
+            false,
+            null
+          ]
+        ],
+        "with\"quote": {
+          "0": null,
+          "2": "newline\nhere",
+          "list": false,
+          "A": "quote \" inside",
+          "z": {
+            "0": "key-like:value",
+            "10": 1024,
+            "with space": 0,
+            "a": true,
+            "with\\slash": true
+          }
+        },
+        "z": true,
+        "with\\slash": 255
+      },
+      "A": true,
+      "with\\slash": {
+        "KEY": {
+          "list": "back\\slash",
+          "with space": false,
+          "with\\slash": [
+            true,
+            false
+          ],
+          "value": "newline\nhere",
+          "A": []
+        },
+        "A": null
+      }
+    },
+    "canonical": "{\"2\":null,\"A\":true,\"KEY\":\"{not json}\",\"Z\":{\"2\":[],\"c\":[-2147483648,255,false,[\"mixed \\\"\\\\/\\b\\f\\n\\r\\t end\",false,null]],\"with\\\"quote\":{\"0\":null,\"2\":\"newline\\nhere\",\"A\":\"quote \\\" inside\",\"list\":false,\"z\":{\"0\":\"key-like:value\",\"10\":1024,\"a\":true,\"with space\":0,\"with\\\\slash\":true}},\"with\\\\slash\":255,\"z\":true},\"with\\\\slash\":{\"A\":null,\"KEY\":{\"A\":[],\"list\":\"back\\\\slash\",\"value\":\"newline\\nhere\",\"with space\":false,\"with\\\\slash\":[true,false]}}}"
+  },
+  {
+    "input": [],
+    "canonical": "[]"
+  },
+  {
+    "input": {
+      "0": "mixed \"\\/\b\f\n\r\t end",
+      "with space": "emoji 😀💡",
+      "list": false,
+      "z": [],
+      "c": {
+        "2": null,
+        "Z": {
+          "c": false
+        },
+        "with space": 1,
+        "b": "quote \" inside"
+      }
+    },
+    "canonical": "{\"0\":\"mixed \\\"\\\\/\\b\\f\\n\\r\\t end\",\"c\":{\"2\":null,\"Z\":{\"c\":false},\"b\":\"quote \\\" inside\",\"with space\":1},\"list\":false,\"with space\":\"emoji 😀💡\",\"z\":[]}"
+  },
+  {
+    "input": {
+      "A": false,
+      "with space": null
+    },
+    "canonical": "{\"A\":false,\"with space\":null}"
+  },
+  {
+    "input": [
+      null
+    ],
+    "canonical": "[null]"
+  },
+  {
+    "input": {
+      "2": {
+        "with\"quote": [
+          []
+        ],
+        "nested": "quote \" inside",
+        "b": null
+      },
+      "nested": 2147483647,
+      "Z": -1,
+      "with\\slash": 0,
+      "A": true
+    },
+    "canonical": "{\"2\":{\"b\":null,\"nested\":\"quote \\\" inside\",\"with\\\"quote\":[[]]},\"A\":true,\"Z\":-1,\"nested\":2147483647,\"with\\\\slash\":0}"
+  },
+  {
+    "input": {
+      "c": true,
+      "b": -1024
+    },
+    "canonical": "{\"b\":-1024,\"c\":true}"
+  },
+  {
+    "input": [
+      "carriage\rreturn",
+      false
+    ],
+    "canonical": "[\"carriage\\rreturn\",false]"
+  },
+  {
+    "input": {
+      "0": "tab\there",
+      "2": 255
+    },
+    "canonical": "{\"0\":\"tab\\there\",\"2\":255}"
+  },
+  {
+    "input": {
+      "list": -42,
+      "b": true,
+      "KEY": "emoji 😀💡"
+    },
+    "canonical": "{\"KEY\":\"emoji 😀💡\",\"b\":true,\"list\":-42}"
+  },
+  {
+    "input": [
+      {
+        "0": 1024,
+        "10": true,
+        "nested": "",
+        "with space": [
+          "unicode éü☃",
+          false,
+          "tab\there"
+        ]
+      },
+      null,
+      null
+    ],
+    "canonical": "[{\"0\":1024,\"10\":true,\"nested\":\"\",\"with space\":[\"unicode éü☃\",false,\"tab\\there\"]},null,null]"
+  },
+  {
+    "input": {
+      "with\"quote": {
+        "0": 255,
+        "list": true,
+        "nested": false,
+        "KEY": false
+      }
+    },
+    "canonical": "{\"with\\\"quote\":{\"0\":255,\"KEY\":false,\"list\":true,\"nested\":false}}"
+  },
+  {
+    "input": {
+      "10": [
+        false,
+        [
+          -42,
+          0
+        ]
+      ],
+      "with\"quote": "[1,2,3]"
+    },
+    "canonical": "{\"10\":[false,[-42,0]],\"with\\\"quote\":\"[1,2,3]\"}"
+  },
+  {
+    "input": [
+      {
+        "KEY": "newline\nhere",
+        "with space": {
+          "2": false,
+          "10": "key-like:value",
+          "KEY": null,
+          "a": null,
+          "b": null
+        }
+      },
+      null,
+      "emoji 😀💡",
+      null
+    ],
+    "canonical": "[{\"KEY\":\"newline\\nhere\",\"with space\":{\"10\":\"key-like:value\",\"2\":false,\"KEY\":null,\"a\":null,\"b\":null}},null,\"emoji 😀💡\",null]"
+  },
+  {
+    "input": {
+      "list": [
+        {
+          "z": true
+        },
+        null,
+        null
+      ]
+    },
+    "canonical": "{\"list\":[{\"z\":true},null,null]}"
+  },
+  {
+    "input": {
+      "0": null,
+      "b": null,
+      "Z": {
+        "2": [],
+        "10": false,
+        "a": false
+      },
+      "z": -2147483648,
+      "é": {
+        "10": 0
+      }
+    },
+    "canonical": "{\"0\":null,\"Z\":{\"10\":false,\"2\":[],\"a\":false},\"b\":null,\"z\":-2147483648,\"é\":{\"10\":0}}"
+  },
+  {
+    "input": [
+      255,
+      -42,
+      true
+    ],
+    "canonical": "[255,-42,true]"
+  },
+  {
+    "input": {
+      "0": null,
+      "10": -100,
+      "with space": [
+        null,
+        false,
+        {
+          "10": [
+            false,
+            "tab\there",
+            false
+          ],
+          "é": {
+            "10": null,
+            "c": true
+          },
+          "with space": {
+            "nested": null
+          },
+          "a": []
+        }
+      ],
+      "with\\slash": "{not json}",
+      "é": null
+    },
+    "canonical": "{\"0\":null,\"10\":-100,\"with space\":[null,false,{\"10\":[false,\"tab\\there\",false],\"a\":[],\"with space\":{\"nested\":null},\"é\":{\"10\":null,\"c\":true}}],\"with\\\\slash\":\"{not json}\",\"é\":null}"
+  },
+  {
+    "input": {
+      "value": 1,
+      "b": true
+    },
+    "canonical": "{\"b\":true,\"value\":1}"
+  },
+  {
+    "input": [
+      null,
+      -1,
+      null
+    ],
+    "canonical": "[null,-1,null]"
+  },
+  {
+    "input": {
+      "with\\slash": true,
+      "c": true,
+      "list": [
+        "a b c"
+      ],
+      "A": false
+    },
+    "canonical": "{\"A\":false,\"c\":true,\"list\":[\"a b c\"],\"with\\\\slash\":true}"
+  },
+  {
+    "input": {
+      "with\"quote": 100
+    },
+    "canonical": "{\"with\\\"quote\":100}"
+  },
+  {
+    "input": [
+      null,
+      false,
+      2
+    ],
+    "canonical": "[null,false,2]"
+  },
+  {
+    "input": {
+      "list": {
+        "Z": null,
+        "with\\slash": true
+      },
+      "key": -1024,
+      "Z": [
+        "plain text",
+        "unicode éü☃",
+        {
+          "10": true,
+          "a": [
+            null,
+            false,
+            null
+          ]
+        },
+        -1024
+      ],
+      "with\\slash": -42
+    },
+    "canonical": "{\"Z\":[\"plain text\",\"unicode éü☃\",{\"10\":true,\"a\":[null,false,null]},-1024],\"key\":-1024,\"list\":{\"Z\":null,\"with\\\\slash\":true},\"with\\\\slash\":-42}"
+  },
+  {
+    "input": {
+      "b": {
+        "2": "emoji 😀💡",
+        "with\\slash": "back\\slash",
+        "list": {
+          "b": -42,
+          "value": [
+            true,
+            null,
+            null
+          ]
+        }
+      },
+      "c": null
+    },
+    "canonical": "{\"b\":{\"2\":\"emoji 😀💡\",\"list\":{\"b\":-42,\"value\":[true,null,null]},\"with\\\\slash\":\"back\\\\slash\"},\"c\":null}"
+  },
+  {
+    "input": [
+      "key-like:value",
+      "a b c",
+      0,
+      "{not json}"
+    ],
+    "canonical": "[\"key-like:value\",\"a b c\",0,\"{not json}\"]"
+  },
+  {
+    "input": {
+      "with\\slash": true
+    },
+    "canonical": "{\"with\\\\slash\":true}"
+  },
+  {
+    "input": {
+      "0": [
+        {
+          "with\\slash": true,
+          "with\"quote": {
+            "list": -100,
+            "a": null,
+            "with\"quote": null,
+            "A": false
+          }
+        },
+        null,
+        [
+          true
+        ],
+        1024
+      ],
+      "z": [
+        "hi",
+        2147483647,
+        null,
+        "mixed \"\\/\b\f\n\r\t end"
+      ],
+      "nested": "carriage\rreturn",
+      "with\\slash": null,
+      "with\"quote": "tab\there"
+    },
+    "canonical": "{\"0\":[{\"with\\\"quote\":{\"A\":false,\"a\":null,\"list\":-100,\"with\\\"quote\":null},\"with\\\\slash\":true},null,[true],1024],\"nested\":\"carriage\\rreturn\",\"with\\\"quote\":\"tab\\there\",\"with\\\\slash\":null,\"z\":[\"hi\",2147483647,null,\"mixed \\\"\\\\/\\b\\f\\n\\r\\t end\"]}"
+  },
+  {
+    "input": [
+      [
+        true,
+        [
+          [
+            "hi",
+            false,
+            true
+          ],
+          true
+        ]
+      ],
+      [
+        [
+          null,
+          {
+            "c": "unicode éü☃",
+            "with space": "hi"
+          }
+        ],
+        false,
+        true,
+        {
+          "list": false,
+          "nested": [
+            true
+          ],
+          "key": true
+        }
+      ],
+      false
+    ],
+    "canonical": "[[true,[[\"hi\",false,true],true]],[[null,{\"c\":\"unicode éü☃\",\"with space\":\"hi\"}],false,true,{\"key\":true,\"list\":false,\"nested\":[true]}],false]"
+  },
+  {
+    "input": {
+      "10": {
+        "c": 255,
+        "list": [
+          [
+            false,
+            -42,
+            "carriage\rreturn",
+            false
+          ],
+          "unicode éü☃"
+        ],
+        "with space": 2147483647,
+        "A": null
+      },
+      "b": 255,
+      "nested": false
+    },
+    "canonical": "{\"10\":{\"A\":null,\"c\":255,\"list\":[[false,-42,\"carriage\\rreturn\",false],\"unicode éü☃\"],\"with space\":2147483647},\"b\":255,\"nested\":false}"
+  },
+  {
+    "input": {
+      "nested": null,
+      "c": false,
+      "with space": -2147483648,
+      "é": "tab\there"
+    },
+    "canonical": "{\"c\":false,\"nested\":null,\"with space\":-2147483648,\"é\":\"tab\\there\"}"
+  },
+  {
+    "input": [
+      [
+        "hi",
+        [
+          {
+            "0": "unicode éü☃",
+            "b": false,
+            "c": false,
+            "A": true
+          },
+          [],
+          0,
+          null
+        ]
+      ]
+    ],
+    "canonical": "[[\"hi\",[{\"0\":\"unicode éü☃\",\"A\":true,\"b\":false,\"c\":false},[],0,null]]]"
+  },
+  {
+    "input": {
+      "nested": -100,
+      "A": null,
+      "value": null,
+      "list": {
+        "b": true
+      }
+    },
+    "canonical": "{\"A\":null,\"list\":{\"b\":true},\"nested\":-100,\"value\":null}"
+  },
+  {
+    "input": {
+      "with space": {
+        "0": null,
+        "é": [
+          null,
+          [
+            2147483647,
+            false,
+            null,
+            "[1,2,3]"
+          ],
+          false,
+          {
+            "Z": 1024,
+            "key": true,
+            "nested": "[1,2,3]",
+            "c": 1024
+          }
+        ],
+        "value": {
+          "10": 0,
+          "Z": null,
+          "z": {
+            "é": null,
+            "value": 1024
+          }
+        },
+        "c": null,
+        "key": 2
+      },
+      "z": {
+        "value": false,
+        "nested": false
+      },
+      "KEY": "emoji 😀💡",
+      "list": -1024
+    },
+    "canonical": "{\"KEY\":\"emoji 😀💡\",\"list\":-1024,\"with space\":{\"0\":null,\"c\":null,\"key\":2,\"value\":{\"10\":0,\"Z\":null,\"z\":{\"value\":1024,\"é\":null}},\"é\":[null,[2147483647,false,null,\"[1,2,3]\"],false,{\"Z\":1024,\"c\":1024,\"key\":true,\"nested\":\"[1,2,3]\"}]},\"z\":{\"nested\":false,\"value\":false}}"
+  },
+  {
+    "input": [],
+    "canonical": "[]"
+  },
+  {
+    "input": {
+      "value": null,
+      "list": true
+    },
+    "canonical": "{\"list\":true,\"value\":null}"
+  },
+  {
+    "input": {
+      "c": {
+        "2": true,
+        "list": -100,
+        "c": [
+          "emoji 😀💡"
+        ],
+        "A": {
+          "value": false
+        }
+      }
+    },
+    "canonical": "{\"c\":{\"2\":true,\"A\":{\"value\":false},\"c\":[\"emoji 😀💡\"],\"list\":-100}}"
+  },
+  {
+    "input": [
+      [
+        true,
+        2147483647
+      ],
+      null,
+      ""
+    ],
+    "canonical": "[[true,2147483647],null,\"\"]"
+  },
+  {
+    "input": {
+      "é": "tab\there",
+      "value": {
+        "A": "quote \" inside",
+        "a": -100
+      },
+      "c": {
+        "z": null
+      },
+      "b": {
+        "0": 1024,
+        "10": null,
+        "list": [
+          100
+        ],
+        "with\"quote": true,
+        "key": "mixed \"\\/\b\f\n\r\t end"
+      }
+    },
+    "canonical": "{\"b\":{\"0\":1024,\"10\":null,\"key\":\"mixed \\\"\\\\/\\b\\f\\n\\r\\t end\",\"list\":[100],\"with\\\"quote\":true},\"c\":{\"z\":null},\"value\":{\"A\":\"quote \\\" inside\",\"a\":-100},\"é\":\"tab\\there\"}"
+  },
+  {
+    "input": {
+      "b": [
+        false,
+        null,
+        "carriage\rreturn",
+        false
+      ],
+      "KEY": "mixed \"\\/\b\f\n\r\t end",
+      "Z": null,
+      "key": null,
+      "list": "quote \" inside"
+    },
+    "canonical": "{\"KEY\":\"mixed \\\"\\\\/\\b\\f\\n\\r\\t end\",\"Z\":null,\"b\":[false,null,\"carriage\\rreturn\",false],\"key\":null,\"list\":\"quote \\\" inside\"}"
+  },
+  {
+    "input": [
+      -42,
+      [
+        true,
+        -42
+      ]
+    ],
+    "canonical": "[-42,[true,-42]]"
+  },
+  {
+    "input": {
+      "2": {
+        "list": "quote \" inside",
+        "Z": {
+          "0": "newline\nhere",
+          "with space": [
+            null,
+            null,
+            -2147483648,
+            null
+          ],
+          "Z": -1
+        },
+        "KEY": null,
+        "z": {
+          "0": 42,
+          "nested": null,
+          "with\\slash": false,
+          "b": null,
+          "list": 2
+        },
+        "nested": {
+          "0": "hi",
+          "Z": true,
+          "key": null
+        }
+      }
+    },
+    "canonical": "{\"2\":{\"KEY\":null,\"Z\":{\"0\":\"newline\\nhere\",\"Z\":-1,\"with space\":[null,null,-2147483648,null]},\"list\":\"quote \\\" inside\",\"nested\":{\"0\":\"hi\",\"Z\":true,\"key\":null},\"z\":{\"0\":42,\"b\":null,\"list\":2,\"nested\":null,\"with\\\\slash\":false}}}"
+  },
+  {
+    "input": {
+      "10": null
+    },
+    "canonical": "{\"10\":null}"
+  },
+  {
+    "input": [
+      null
+    ],
+    "canonical": "[null]"
+  },
+  {
+    "input": {
+      "with space": {
+        "nested": false
+      }
+    },
+    "canonical": "{\"with space\":{\"nested\":false}}"
+  },
+  {
+    "input": {
+      "2": 255,
+      "10": {
+        "A": null,
+        "nested": null
+      },
+      "list": null
+    },
+    "canonical": "{\"10\":{\"A\":null,\"nested\":null},\"2\":255,\"list\":null}"
+  },
+  {
+    "input": [
+      [
+        -100,
+        "quote \" inside"
+      ],
+      true,
+      true,
+      false
+    ],
+    "canonical": "[[-100,\"quote \\\" inside\"],true,true,false]"
+  },
+  {
+    "input": {
+      "0": null,
+      "list": -2147483648,
+      "value": [
+        true
+      ],
+      "b": false,
+      "nested": {
+        "é": 1
+      }
+    },
+    "canonical": "{\"0\":null,\"b\":false,\"list\":-2147483648,\"nested\":{\"é\":1},\"value\":[true]}"
+  },
+  {
+    "input": {
+      "value": null,
+      "nested": "hi",
+      "Z": -1
+    },
+    "canonical": "{\"Z\":-1,\"nested\":\"hi\",\"value\":null}"
+  },
+  {
+    "input": [],
+    "canonical": "[]"
+  },
+  {
+    "input": {
+      "10": null,
+      "with\\slash": null,
+      "c": false,
+      "z": [
+        null,
+        true
+      ],
+      "with\"quote": {
+        "10": [
+          null,
+          null
+        ],
+        "with\"quote": [
+          100
+        ],
+        "with\\slash": "hi"
+      }
+    },
+    "canonical": "{\"10\":null,\"c\":false,\"with\\\"quote\":{\"10\":[null,null],\"with\\\"quote\":[100],\"with\\\\slash\":\"hi\"},\"with\\\\slash\":null,\"z\":[null,true]}"
+  },
+  {
+    "input": {
+      "2": "tab\there",
+      "with space": null,
+      "value": true
+    },
+    "canonical": "{\"2\":\"tab\\there\",\"value\":true,\"with space\":null}"
+  },
+  {
+    "input": [],
+    "canonical": "[]"
+  },
+  {
+    "input": {
+      "key": {
+        "with\\slash": "quote \" inside",
+        "key": [
+          {
+            "10": null,
+            "with space": 42,
+            "c": null
+          }
+        ],
+        "é": "hi"
+      },
+      "nested": {
+        "with\\slash": null
+      },
+      "list": -100
+    },
+    "canonical": "{\"key\":{\"key\":[{\"10\":null,\"c\":null,\"with space\":42}],\"with\\\\slash\":\"quote \\\" inside\",\"é\":\"hi\"},\"list\":-100,\"nested\":{\"with\\\\slash\":null}}"
+  },
+  {
+    "input": {
+      "with\\slash": -1024,
+      "c": [
+        "a b c",
+        {
+          "with\"quote": {
+            "0": "tab\there",
+            "10": "unicode éü☃",
+            "with space": -2147483648,
+            "c": null
+          }
+        }
+      ],
+      "b": "key-like:value",
+      "A": true
+    },
+    "canonical": "{\"A\":true,\"b\":\"key-like:value\",\"c\":[\"a b c\",{\"with\\\"quote\":{\"0\":\"tab\\there\",\"10\":\"unicode éü☃\",\"c\":null,\"with space\":-2147483648}}],\"with\\\\slash\":-1024}"
+  },
+  {
+    "input": [
+      "unicode éü☃",
+      {
+        "b": -42,
+        "with\"quote": null,
+        "Z": false
+      }
+    ],
+    "canonical": "[\"unicode éü☃\",{\"Z\":false,\"b\":-42,\"with\\\"quote\":null}]"
+  },
+  {
+    "input": {
+      "a": [
+        "newline\nhere",
+        2147483647
+      ],
+      "KEY": {
+        "Z": "[1,2,3]",
+        "z": [
+          -42,
+          {
+            "é": false
+          },
+          false
+        ],
+        "value": [
+          {
+            "z": -42,
+            "KEY": "back\\slash",
+            "a": "mixed \"\\/\b\f\n\r\t end"
+          }
+        ]
+      },
+      "c": null,
+      "Z": {
+        "list": {
+          "10": true,
+          "Z": "plain text",
+          "list": null
+        }
+      }
+    },
+    "canonical": "{\"KEY\":{\"Z\":\"[1,2,3]\",\"value\":[{\"KEY\":\"back\\\\slash\",\"a\":\"mixed \\\"\\\\/\\b\\f\\n\\r\\t end\",\"z\":-42}],\"z\":[-42,{\"é\":false},false]},\"Z\":{\"list\":{\"10\":true,\"Z\":\"plain text\",\"list\":null}},\"a\":[\"newline\\nhere\",2147483647],\"c\":null}"
+  },
+  {
+    "input": {
+      "value": [
+        [
+          false,
+          [
+            false,
+            null
+          ],
+          null
+        ]
+      ],
+      "nested": null,
+      "list": {
+        "10": false,
+        "nested": false,
+        "KEY": {
+          "2": {
+            "2": null,
+            "b": null,
+            "A": false
+          },
+          "b": false,
+          "c": 255,
+          "A": true,
+          "with\\slash": -42
+        },
+        "with space": "{not json}",
+        "Z": "carriage\rreturn"
+      }
+    },
+    "canonical": "{\"list\":{\"10\":false,\"KEY\":{\"2\":{\"2\":null,\"A\":false,\"b\":null},\"A\":true,\"b\":false,\"c\":255,\"with\\\\slash\":-42},\"Z\":\"carriage\\rreturn\",\"nested\":false,\"with space\":\"{not json}\"},\"nested\":null,\"value\":[[false,[false,null],null]]}"
+  },
+  {
+    "input": [
+      1,
+      {
+        "a": {
+          "0": "newline\nhere",
+          "list": 42,
+          "key": false
+        },
+        "KEY": [
+          -1,
+          [],
+          {
+            "0": null,
+            "2": true,
+            "value": null,
+            "A": null,
+            "a": null
+          },
+          true
+        ],
+        "value": true
+      }
+    ],
+    "canonical": "[1,{\"KEY\":[-1,[],{\"0\":null,\"2\":true,\"A\":null,\"a\":null,\"value\":null},true],\"a\":{\"0\":\"newline\\nhere\",\"key\":false,\"list\":42},\"value\":true}]"
+  },
+  {
+    "input": {
+      "key": false,
+      "with\\slash": "hi"
+    },
+    "canonical": "{\"key\":false,\"with\\\\slash\":\"hi\"}"
+  },
+  {
+    "input": {
+      "10": {
+        "10": null,
+        "with\\slash": 42,
+        "A": -2147483648,
+        "key": [
+          2,
+          42
+        ],
+        "nested": 2
+      },
+      "z": {
+        "0": true,
+        "KEY": [
+          {
+            "2": null,
+            "nested": 42
+          },
+          null,
+          {
+            "2": "plain text",
+            "with\"quote": true,
+            "with\\slash": "[1,2,3]",
+            "b": "hi",
+            "A": "key-like:value"
+          }
+        ]
+      },
+      "c": 0
+    },
+    "canonical": "{\"10\":{\"10\":null,\"A\":-2147483648,\"key\":[2,42],\"nested\":2,\"with\\\\slash\":42},\"c\":0,\"z\":{\"0\":true,\"KEY\":[{\"2\":null,\"nested\":42},null,{\"2\":\"plain text\",\"A\":\"key-like:value\",\"b\":\"hi\",\"with\\\"quote\":true,\"with\\\\slash\":\"[1,2,3]\"}]}}"
+  },
+  {
+    "input": [
+      [
+        {
+          "with\"quote": {
+            "a": "hi"
+          }
+        },
+        null
+      ],
+      [
+        "plain text"
+      ],
+      [
+        "plain text",
+        null,
+        {
+          "0": "",
+          "A": []
+        },
+        42
+      ],
+      true
+    ],
+    "canonical": "[[{\"with\\\"quote\":{\"a\":\"hi\"}},null],[\"plain text\"],[\"plain text\",null,{\"0\":\"\",\"A\":[]},42],true]"
+  },
+  {
+    "input": {
+      "0": "emoji 😀💡",
+      "2": [
+        {
+          "with\"quote": false,
+          "a": false,
+          "z": false,
+          "Z": [],
+          "with space": false
+        },
+        false
+      ],
+      "b": {
+        "c": null
+      },
+      "key": -42
+    },
+    "canonical": "{\"0\":\"emoji 😀💡\",\"2\":[{\"Z\":[],\"a\":false,\"with space\":false,\"with\\\"quote\":false,\"z\":false},false],\"b\":{\"c\":null},\"key\":-42}"
+  },
+  {
+    "input": {
+      "0": null
+    },
+    "canonical": "{\"0\":null}"
+  },
+  {
+    "input": [
+      -42,
+      true,
+      0
+    ],
+    "canonical": "[-42,true,0]"
+  },
+  {
+    "input": {
+      "0": 1,
+      "2": "emoji 😀💡",
+      "with space": {
+        "0": "tab\there",
+        "with\\slash": {
+          "a": false
+        },
+        "é": 2147483647
+      }
+    },
+    "canonical": "{\"0\":1,\"2\":\"emoji 😀💡\",\"with space\":{\"0\":\"tab\\there\",\"with\\\\slash\":{\"a\":false},\"é\":2147483647}}"
+  },
+  {
+    "input": {
+      "with\\slash": null,
+      "z": []
+    },
+    "canonical": "{\"with\\\\slash\":null,\"z\":[]}"
+  },
+  {
+    "input": [
+      [
+        []
+      ],
+      true
+    ],
+    "canonical": "[[[]],true]"
+  },
+  {
+    "input": {
+      "0": null,
+      "b": -100,
+      "a": [
+        "newline\nhere"
+      ],
+      "value": "emoji 😀💡"
+    },
+    "canonical": "{\"0\":null,\"a\":[\"newline\\nhere\"],\"b\":-100,\"value\":\"emoji 😀💡\"}"
+  },
+  {
+    "input": {
+      "0": null,
+      "with space": null,
+      "KEY": "{not json}",
+      "with\\slash": "[1,2,3]",
+      "a": 255
+    },
+    "canonical": "{\"0\":null,\"KEY\":\"{not json}\",\"a\":255,\"with space\":null,\"with\\\\slash\":\"[1,2,3]\"}"
+  },
+  {
+    "input": [
+      true
+    ],
+    "canonical": "[true]"
+  },
+  {
+    "input": {
+      "with\"quote": {
+        "2": [
+          {
+            "2": null,
+            "10": -2147483648,
+            "with space": 1,
+            "nested": "mixed \"\\/\b\f\n\r\t end",
+            "b": null
+          }
+        ],
+        "é": false,
+        "with\\slash": null
+      },
+      "KEY": null,
+      "list": null
+    },
+    "canonical": "{\"KEY\":null,\"list\":null,\"with\\\"quote\":{\"2\":[{\"10\":-2147483648,\"2\":null,\"b\":null,\"nested\":\"mixed \\\"\\\\/\\b\\f\\n\\r\\t end\",\"with space\":1}],\"with\\\\slash\":null,\"é\":false}}"
+  },
+  {
+    "input": {
+      "z": {
+        "10": null,
+        "z": null
+      },
+      "key": [
+        42,
+        {
+          "2": "quote \" inside",
+          "with space": {
+            "2": 0,
+            "é": null,
+            "with space": null,
+            "list": "a b c",
+            "key": 1
+          },
+          "with\\slash": 2
+        },
+        true
+      ],
+      "with space": null
+    },
+    "canonical": "{\"key\":[42,{\"2\":\"quote \\\" inside\",\"with space\":{\"2\":0,\"key\":1,\"list\":\"a b c\",\"with space\":null,\"é\":null},\"with\\\\slash\":2},true],\"with space\":null,\"z\":{\"10\":null,\"z\":null}}"
+  },
+  {
+    "input": [
+      -1024,
+      null,
+      "",
+      {
+        "0": false,
+        "a": true,
+        "c": {
+          "0": "tab\there",
+          "10": false,
+          "é": {
+            "10": true,
+            "c": false,
+            "z": "key-like:value",
+            "key": null,
+            "KEY": false
+          },
+          "with\\slash": "tab\there",
+          "A": [
+            2147483647,
+            0
+          ]
+        },
+        "value": true,
+        "with\"quote": null
+      }
+    ],
+    "canonical": "[-1024,null,\"\",{\"0\":false,\"a\":true,\"c\":{\"0\":\"tab\\there\",\"10\":false,\"A\":[2147483647,0],\"with\\\\slash\":\"tab\\there\",\"é\":{\"10\":true,\"KEY\":false,\"c\":false,\"key\":null,\"z\":\"key-like:value\"}},\"value\":true,\"with\\\"quote\":null}]"
+  },
+  {
+    "input": {
+      "KEY": null,
+      "with\\slash": null,
+      "key": 1
+    },
+    "canonical": "{\"KEY\":null,\"key\":1,\"with\\\\slash\":null}"
+  },
+  {
+    "input": {
+      "Z": true
+    },
+    "canonical": "{\"Z\":true}"
+  },
+  {
+    "input": [
+      [
+        false
+      ],
+      false
+    ],
+    "canonical": "[[false],false]"
+  },
+  {
+    "input": {
+      "with space": [
+        {
+          "nested": {
+            "KEY": null,
+            "é": false,
+            "with space": 1
+          },
+          "value": "[1,2,3]"
+        },
+        -1024,
+        false,
+        "[1,2,3]"
+      ],
+      "b": null
+    },
+    "canonical": "{\"b\":null,\"with space\":[{\"nested\":{\"KEY\":null,\"with space\":1,\"é\":false},\"value\":\"[1,2,3]\"},-1024,false,\"[1,2,3]\"]}"
+  },
+  {
+    "input": {
+      "Z": "newline\nhere",
+      "key": {
+        "with space": false,
+        "A": 42
+      },
+      "nested": [
+        [
+          "hi",
+          null,
+          "tab\there",
+          100
+        ],
+        true,
+        [
+          [],
+          2147483647,
+          "emoji 😀💡"
+        ]
+      ],
+      "KEY": "tab\there"
+    },
+    "canonical": "{\"KEY\":\"tab\\there\",\"Z\":\"newline\\nhere\",\"key\":{\"A\":42,\"with space\":false},\"nested\":[[\"hi\",null,\"tab\\there\",100],true,[[],2147483647,\"emoji 😀💡\"]]}"
+  },
+  {
+    "input": [
+      "back\\slash",
+      null,
+      [
+        null,
+        true
+      ]
+    ],
+    "canonical": "[\"back\\\\slash\",null,[null,true]]"
+  },
+  {
+    "input": {
+      "0": [
+        "plain text",
+        null
+      ]
+    },
+    "canonical": "{\"0\":[\"plain text\",null]}"
+  },
+  {
+    "input": {
+      "c": -1024
+    },
+    "canonical": "{\"c\":-1024}"
+  },
+  {
+    "input": [
+      "hi"
+    ],
+    "canonical": "[\"hi\"]"
+  },
+  {
+    "input": {
+      "0": -1,
+      "KEY": 42,
+      "value": null,
+      "with\"quote": [
+        [
+          {
+            "Z": 1,
+            "key": null,
+            "é": null
+          },
+          {
+            "with space": "tab\there",
+            "b": null,
+            "value": true,
+            "A": "unicode éü☃"
+          }
+        ],
+        [
+          42,
+          [
+            null
+          ],
+          "carriage\rreturn"
+        ]
+      ],
+      "a": -1
+    },
+    "canonical": "{\"0\":-1,\"KEY\":42,\"a\":-1,\"value\":null,\"with\\\"quote\":[[{\"Z\":1,\"key\":null,\"é\":null},{\"A\":\"unicode éü☃\",\"b\":null,\"value\":true,\"with space\":\"tab\\there\"}],[42,[null],\"carriage\\rreturn\"]]}"
+  },
+  {
+    "input": {
+      "0": "key-like:value",
+      "with space": "mixed \"\\/\b\f\n\r\t end",
+      "Z": {
+        "2": {
+          "0": 2,
+          "10": "",
+          "Z": null,
+          "KEY": 0
+        },
+        "with\\slash": [
+          "quote \" inside",
+          null,
+          null,
+          [
+            null,
+            "a b c",
+            2147483647,
+            42
+          ]
+        ],
+        "with\"quote": -1,
+        "é": 42,
+        "nested": 255
+      },
+      "with\"quote": 2
+    },
+    "canonical": "{\"0\":\"key-like:value\",\"Z\":{\"2\":{\"0\":2,\"10\":\"\",\"KEY\":0,\"Z\":null},\"nested\":255,\"with\\\"quote\":-1,\"with\\\\slash\":[\"quote \\\" inside\",null,null,[null,\"a b c\",2147483647,42]],\"é\":42},\"with space\":\"mixed \\\"\\\\/\\b\\f\\n\\r\\t end\",\"with\\\"quote\":2}"
+  },
+  {
+    "input": [
+      {
+        "0": [
+          -42,
+          "[1,2,3]",
+          [
+            null
+          ]
+        ],
+        "nested": true,
+        "with space": null,
+        "list": false
+      },
+      null,
+      {
+        "value": "",
+        "list": false,
+        "a": [
+          -1,
+          null,
+          "carriage\rreturn"
+        ],
+        "é": null
+      }
+    ],
+    "canonical": "[{\"0\":[-42,\"[1,2,3]\",[null]],\"list\":false,\"nested\":true,\"with space\":null},null,{\"a\":[-1,null,\"carriage\\rreturn\"],\"list\":false,\"value\":\"\",\"é\":null}]"
+  },
+  {
+    "input": {
+      "10": [],
+      "with\\slash": {
+        "0": "plain text",
+        "2": 42,
+        "value": null,
+        "with\"quote": false
+      },
+      "A": {
+        "2": [
+          1024,
+          "tab\there"
+        ],
+        "with\\slash": [],
+        "z": null,
+        "value": 2
+      },
+      "Z": null,
+      "list": "[1,2,3]"
+    },
+    "canonical": "{\"10\":[],\"A\":{\"2\":[1024,\"tab\\there\"],\"value\":2,\"with\\\\slash\":[],\"z\":null},\"Z\":null,\"list\":\"[1,2,3]\",\"with\\\\slash\":{\"0\":\"plain text\",\"2\":42,\"value\":null,\"with\\\"quote\":false}}"
+  },
+  {
+    "input": {
+      "Z": {
+        "10": 1,
+        "é": [],
+        "z": true,
+        "b": 0
+      },
+      "a": true,
+      "with\"quote": null
+    },
+    "canonical": "{\"Z\":{\"10\":1,\"b\":0,\"z\":true,\"é\":[]},\"a\":true,\"with\\\"quote\":null}"
+  },
+  {
+    "input": [
+      "",
+      null
+    ],
+    "canonical": "[\"\",null]"
+  },
+  {
+    "input": {
+      "0": -100,
+      "2": [
+        [
+          true,
+          "carriage\rreturn",
+          {
+            "z": true,
+            "nested": null,
+            "a": null
+          }
+        ],
+        {
+          "z": [
+            "{not json}"
+          ]
+        }
+      ],
+      "10": {
+        "c": false,
+        "é": {
+          "0": {
+            "key": null,
+            "A": null,
+            "nested": "key-like:value"
+          },
+          "value": [
+            false,
+            null,
+            2147483647
+          ]
+        },
+        "KEY": null,
+        "list": [
+          {
+            "with space": true
+          },
+          null,
+          {
+            "with space": true,
+            "z": 1
+          }
+        ],
+        "with\\slash": [
+          [
+            true,
+            "[1,2,3]",
+            null
+          ]
+        ]
+      },
+      "list": [
+        [
+          [
+            false
+          ],
+          false,
+          false,
+          [
+            "[1,2,3]",
+            true,
+            -1024,
+            "{not json}"
+          ]
+        ]
+      ],
+      "c": -1
+    },
+    "canonical": "{\"0\":-100,\"10\":{\"KEY\":null,\"c\":false,\"list\":[{\"with space\":true},null,{\"with space\":true,\"z\":1}],\"with\\\\slash\":[[true,\"[1,2,3]\",null]],\"é\":{\"0\":{\"A\":null,\"key\":null,\"nested\":\"key-like:value\"},\"value\":[false,null,2147483647]}},\"2\":[[true,\"carriage\\rreturn\",{\"a\":null,\"nested\":null,\"z\":true}],{\"z\":[\"{not json}\"]}],\"c\":-1,\"list\":[[[false],false,false,[\"[1,2,3]\",true,-1024,\"{not json}\"]]]}"
+  },
+  {
+    "input": {
+      "z": {
+        "2": [
+          1
+        ]
+      },
+      "a": false,
+      "key": {
+        "0": 42,
+        "2": {
+          "b": "[1,2,3]",
+          "nested": [
+            true,
+            null,
+            "quote \" inside",
+            null
+          ],
+          "Z": {
+            "nested": -100
+          }
+        }
+      },
+      "KEY": 1024,
+      "with\"quote": {
+        "list": "[1,2,3]",
+        "A": [
+          [
+            "newline\nhere",
+            null
+          ],
+          "hi",
+          null
+        ],
+        "z": 2,
+        "b": "newline\nhere"
+      }
+    },
+    "canonical": "{\"KEY\":1024,\"a\":false,\"key\":{\"0\":42,\"2\":{\"Z\":{\"nested\":-100},\"b\":\"[1,2,3]\",\"nested\":[true,null,\"quote \\\" inside\",null]}},\"with\\\"quote\":{\"A\":[[\"newline\\nhere\",null],\"hi\",null],\"b\":\"newline\\nhere\",\"list\":\"[1,2,3]\",\"z\":2},\"z\":{\"2\":[1]}}"
+  },
+  {
+    "input": [
+      false,
+      [
+        {
+          "2": {
+            "b": false
+          },
+          "value": {
+            "A": 42,
+            "é": null,
+            "c": null,
+            "with space": null,
+            "nested": -100
+          },
+          "with space": -1024,
+          "with\\slash": "hi",
+          "KEY": null
+        },
+        {
+          "key": [],
+          "nested": {
+            "b": -2147483648,
+            "with space": 0,
+            "KEY": false,
+            "with\\slash": 42
+          }
+        },
+        "key-like:value",
+        {
+          "with\"quote": {
+            "0": "back\\slash",
+            "with space": false,
+            "b": "tab\there"
+          },
+          "KEY": {
+            "0": false,
+            "nested": 2,
+            "with\"quote": true
+          },
+          "é": 2147483647
+        }
+      ],
+      {
+        "A": false,
+        "KEY": {
+          "A": {
+            "c": false
+          },
+          "value": -100
+        },
+        "key": false,
+        "with\\slash": [
+          [
+            null,
+            -2147483648,
+            "[1,2,3]",
+            true
+          ],
+          "tab\there",
+          false
+        ]
+      }
+    ],
+    "canonical": "[false,[{\"2\":{\"b\":false},\"KEY\":null,\"value\":{\"A\":42,\"c\":null,\"nested\":-100,\"with space\":null,\"é\":null},\"with space\":-1024,\"with\\\\slash\":\"hi\"},{\"key\":[],\"nested\":{\"KEY\":false,\"b\":-2147483648,\"with space\":0,\"with\\\\slash\":42}},\"key-like:value\",{\"KEY\":{\"0\":false,\"nested\":2,\"with\\\"quote\":true},\"with\\\"quote\":{\"0\":\"back\\\\slash\",\"b\":\"tab\\there\",\"with space\":false},\"é\":2147483647}],{\"A\":false,\"KEY\":{\"A\":{\"c\":false},\"value\":-100},\"key\":false,\"with\\\\slash\":[[null,-2147483648,\"[1,2,3]\",true],\"tab\\there\",false]}]"
+  },
+  {
+    "input": {
+      "Z": [
+        {
+          "with\"quote": 255,
+          "list": false,
+          "with space": null,
+          "b": 0,
+          "Z": 1
+        },
+        false,
+        "a b c",
+        "tab\there"
+      ],
+      "with space": "emoji 😀💡"
+    },
+    "canonical": "{\"Z\":[{\"Z\":1,\"b\":0,\"list\":false,\"with space\":null,\"with\\\"quote\":255},false,\"a b c\",\"tab\\there\"],\"with space\":\"emoji 😀💡\"}"
+  },
+  {
+    "input": {
+      "é": -42,
+      "with space": "key-like:value"
+    },
+    "canonical": "{\"with space\":\"key-like:value\",\"é\":-42}"
+  },
+  {
+    "input": [],
+    "canonical": "[]"
+  },
+  {
+    "input": {
+      "0": {
+        "list": true
+      },
+      "KEY": {
+        "b": {
+          "0": [
+            "carriage\rreturn",
+            null,
+            true
+          ],
+          "c": [
+            "plain text",
+            "carriage\rreturn"
+          ],
+          "KEY": true,
+          "A": {
+            "nested": false,
+            "value": false,
+            "Z": null,
+            "é": false,
+            "KEY": "key-like:value"
+          },
+          "é": {
+            "A": "unicode éü☃",
+            "with\\slash": false
+          }
+        }
+      },
+      "é": "back\\slash"
+    },
+    "canonical": "{\"0\":{\"list\":true},\"KEY\":{\"b\":{\"0\":[\"carriage\\rreturn\",null,true],\"A\":{\"KEY\":\"key-like:value\",\"Z\":null,\"nested\":false,\"value\":false,\"é\":false},\"KEY\":true,\"c\":[\"plain text\",\"carriage\\rreturn\"],\"é\":{\"A\":\"unicode éü☃\",\"with\\\\slash\":false}}},\"é\":\"back\\\\slash\"}"
+  },
+  {
+    "input": {
+      "with space": "hi"
+    },
+    "canonical": "{\"with space\":\"hi\"}"
+  },
+  {
+    "input": [
+      [],
+      null,
+      false,
+      -1
+    ],
+    "canonical": "[[],null,false,-1]"
+  },
+  {
+    "input": {
+      "2": 1,
+      "list": "plain text"
+    },
+    "canonical": "{\"2\":1,\"list\":\"plain text\"}"
+  },
+  {
+    "input": {
+      "0": "{not json}",
+      "10": -2147483648,
+      "é": false
+    },
+    "canonical": "{\"0\":\"{not json}\",\"10\":-2147483648,\"é\":false}"
+  },
+  {
+    "input": [
+      true,
+      "quote \" inside",
+      {
+        "z": "emoji 😀💡",
+        "a": {
+          "0": true,
+          "with space": null,
+          "key": false,
+          "list": 1024,
+          "b": [
+            false
+          ]
+        }
+      },
+      [
+        true
+      ]
+    ],
+    "canonical": "[true,\"quote \\\" inside\",{\"a\":{\"0\":true,\"b\":[false],\"key\":false,\"list\":1024,\"with space\":null},\"z\":\"emoji 😀💡\"},[true]]"
+  },
+  {
+    "input": {
+      "a": {
+        "0": [],
+        "key": 100,
+        "é": null
+      },
+      "value": 2147483647,
+      "z": {
+        "with\\slash": false
+      },
+      "list": [],
+      "Z": []
+    },
+    "canonical": "{\"Z\":[],\"a\":{\"0\":[],\"key\":100,\"é\":null},\"list\":[],\"value\":2147483647,\"z\":{\"with\\\\slash\":false}}"
+  },
+  {
+    "input": {
+      "list": 1,
+      "z": 42,
+      "with\\slash": {
+        "2": false,
+        "with\\slash": false,
+        "z": -2147483648,
+        "list": [
+          [
+            -1024,
+            true
+          ],
+          null,
+          true,
+          false
+        ],
+        "a": 2
+      },
+      "KEY": "emoji 😀💡",
+      "nested": {
+        "Z": false
+      }
+    },
+    "canonical": "{\"KEY\":\"emoji 😀💡\",\"list\":1,\"nested\":{\"Z\":false},\"with\\\\slash\":{\"2\":false,\"a\":2,\"list\":[[-1024,true],null,true,false],\"with\\\\slash\":false,\"z\":-2147483648},\"z\":42}"
+  },
+  {
+    "input": [
+      null,
+      42
+    ],
+    "canonical": "[null,42]"
+  },
+  {
+    "input": {
+      "c": -42,
+      "with\"quote": -100
+    },
+    "canonical": "{\"c\":-42,\"with\\\"quote\":-100}"
+  },
+  {
+    "input": {
+      "10": false,
+      "KEY": null
+    },
+    "canonical": "{\"10\":false,\"KEY\":null}"
+  },
+  {
+    "input": [
+      null,
+      null
+    ],
+    "canonical": "[null,null]"
+  },
+  {
+    "input": {
+      "list": null,
+      "value": 2,
+      "Z": {
+        "A": {
+          "with space": true
+        },
+        "value": "key-like:value",
+        "z": true
+      },
+      "KEY": null,
+      "c": "tab\there"
+    },
+    "canonical": "{\"KEY\":null,\"Z\":{\"A\":{\"with space\":true},\"value\":\"key-like:value\",\"z\":true},\"c\":\"tab\\there\",\"list\":null,\"value\":2}"
+  },
+  {
+    "input": {
+      "list": null
+    },
+    "canonical": "{\"list\":null}"
+  },
+  {
+    "input": [],
+    "canonical": "[]"
+  },
+  {
+    "input": {
+      "A": "{not json}",
+      "with\"quote": false
+    },
+    "canonical": "{\"A\":\"{not json}\",\"with\\\"quote\":false}"
+  },
+  {
+    "input": {
+      "a": null
+    },
+    "canonical": "{\"a\":null}"
+  },
+  {
+    "input": [
+      [
+        255,
+        "emoji 😀💡",
+        null,
+        null
+      ]
+    ],
+    "canonical": "[[255,\"emoji 😀💡\",null,null]]"
+  },
+  {
+    "input": {
+      "0": null,
+      "with space": {
+        "KEY": {
+          "2": {
+            "10": null,
+            "z": "carriage\rreturn",
+            "nested": 100
+          },
+          "é": -1024,
+          "Z": [],
+          "c": null,
+          "list": 2
+        },
+        "a": null,
+        "z": null
+      }
+    },
+    "canonical": "{\"0\":null,\"with space\":{\"KEY\":{\"2\":{\"10\":null,\"nested\":100,\"z\":\"carriage\\rreturn\"},\"Z\":[],\"c\":null,\"list\":2,\"é\":-1024},\"a\":null,\"z\":null}}"
+  },
+  {
+    "input": {
+      "a": null,
+      "with space": null,
+      "KEY": true
+    },
+    "canonical": "{\"KEY\":true,\"a\":null,\"with space\":null}"
+  },
+  {
+    "input": [
+      "emoji 😀💡",
+      "unicode éü☃",
+      null
+    ],
+    "canonical": "[\"emoji 😀💡\",\"unicode éü☃\",null]"
+  },
+  {
+    "input": {
+      "Z": 42,
+      "with space": {
+        "0": true,
+        "2": false,
+        "key": [
+          false,
+          1
+        ],
+        "z": [
+          null
+        ]
+      },
+      "z": true
+    },
+    "canonical": "{\"Z\":42,\"with space\":{\"0\":true,\"2\":false,\"key\":[false,1],\"z\":[null]},\"z\":true}"
+  },
+  {
+    "input": {
+      "nested": "quote \" inside",
+      "value": false,
+      "a": {
+        "Z": "plain text",
+        "with\"quote": {
+          "2": [
+            -42,
+            true,
+            "plain text"
+          ]
+        },
+        "b": "mixed \"\\/\b\f\n\r\t end",
+        "KEY": true
+      }
+    },
+    "canonical": "{\"a\":{\"KEY\":true,\"Z\":\"plain text\",\"b\":\"mixed \\\"\\\\/\\b\\f\\n\\r\\t end\",\"with\\\"quote\":{\"2\":[-42,true,\"plain text\"]}},\"nested\":\"quote \\\" inside\",\"value\":false}"
+  },
+  {
+    "input": [
+      false,
+      [
+        "unicode éü☃",
+        {
+          "Z": {
+            "nested": 2147483647,
+            "with\"quote": null,
+            "c": null
+          },
+          "KEY": [
+            -42,
+            0
+          ]
+        }
+      ],
+      true
+    ],
+    "canonical": "[false,[\"unicode éü☃\",{\"KEY\":[-42,0],\"Z\":{\"c\":null,\"nested\":2147483647,\"with\\\"quote\":null}}],true]"
+  },
+  {
+    "input": {
+      "10": [
+        {
+          "10": null
+        },
+        [
+          {
+            "2": -42
+          },
+          {
+            "with space": false
+          },
+          "unicode éü☃"
+        ],
+        true,
+        [
+          true,
+          -1,
+          1024
+        ]
+      ],
+      "c": null,
+      "b": false,
+      "é": [
+        [
+          {
+            "z": "key-like:value",
+            "list": null
+          },
+          true
+        ],
+        42,
+        1024,
+        "plain text"
+      ]
+    },
+    "canonical": "{\"10\":[{\"10\":null},[{\"2\":-42},{\"with space\":false},\"unicode éü☃\"],true,[true,-1,1024]],\"b\":false,\"c\":null,\"é\":[[{\"list\":null,\"z\":\"key-like:value\"},true],42,1024,\"plain text\"]}"
+  },
+  {
+    "input": {
+      "KEY": "newline\nhere",
+      "with\"quote": [
+        {
+          "A": null,
+          "é": 1024
+        },
+        {
+          "10": {
+            "z": null
+          }
+        }
+      ]
+    },
+    "canonical": "{\"KEY\":\"newline\\nhere\",\"with\\\"quote\":[{\"A\":null,\"é\":1024},{\"10\":{\"z\":null}}]}"
+  },
+  {
+    "input": [],
+    "canonical": "[]"
+  },
+  {
+    "input": {
+      "2": true,
+      "value": 255,
+      "with\"quote": true,
+      "list": [
+        [
+          false
+        ]
+      ]
+    },
+    "canonical": "{\"2\":true,\"list\":[[false]],\"value\":255,\"with\\\"quote\":true}"
+  },
+  {
+    "input": {
+      "10": true,
+      "nested": "newline\nhere"
+    },
+    "canonical": "{\"10\":true,\"nested\":\"newline\\nhere\"}"
+  },
+  {
+    "input": [
+      255,
+      1
+    ],
+    "canonical": "[255,1]"
+  },
+  {
+    "input": {
+      "z": {
+        "a": false,
+        "list": null
+      },
+      "with space": "newline\nhere",
+      "with\\slash": false
+    },
+    "canonical": "{\"with space\":\"newline\\nhere\",\"with\\\\slash\":false,\"z\":{\"a\":false,\"list\":null}}"
+  },
+  {
+    "input": {
+      "0": null,
+      "nested": 0,
+      "z": null
+    },
+    "canonical": "{\"0\":null,\"nested\":0,\"z\":null}"
+  },
+  {
+    "input": [
+      true,
+      "key-like:value",
+      1024,
+      {
+        "with\\slash": null,
+        "nested": [
+          null,
+          true
+        ],
+        "b": null,
+        "Z": true,
+        "c": 100
+      }
+    ],
+    "canonical": "[true,\"key-like:value\",1024,{\"Z\":true,\"b\":null,\"c\":100,\"nested\":[null,true],\"with\\\\slash\":null}]"
+  },
+  {
+    "input": {
+      "2": false,
+      "é": 1,
+      "with space": null,
+      "z": false,
+      "A": "hi"
+    },
+    "canonical": "{\"2\":false,\"A\":\"hi\",\"with space\":null,\"z\":false,\"é\":1}"
+  },
+  {
+    "input": {
+      "a": true,
+      "list": {
+        "0": true,
+        "KEY": true
+      }
+    },
+    "canonical": "{\"a\":true,\"list\":{\"0\":true,\"KEY\":true}}"
+  },
+  {
+    "input": [
+      "emoji 😀💡",
+      null,
+      null,
+      42
+    ],
+    "canonical": "[\"emoji 😀💡\",null,null,42]"
+  },
+  {
+    "input": {
+      "nested": 1024,
+      "A": true,
+      "z": -42,
+      "with space": null
+    },
+    "canonical": "{\"A\":true,\"nested\":1024,\"with space\":null,\"z\":-42}"
+  },
+  {
+    "input": {
+      "A": "mixed \"\\/\b\f\n\r\t end",
+      "é": -100,
+      "key": {
+        "2": null,
+        "10": "emoji 😀💡",
+        "é": {
+          "with\\slash": "key-like:value",
+          "A": {
+            "a": 1024,
+            "with\\slash": 1024,
+            "value": "{not json}"
+          },
+          "a": false,
+          "with space": "quote \" inside",
+          "list": "emoji 😀💡"
+        },
+        "with\\slash": 2,
+        "list": [
+          [
+            false,
+            -42
+          ],
+          [
+            null,
+            1024
+          ],
+          2,
+          "back\\slash"
+        ]
+      },
+      "a": {
+        "key": [
+          null
+        ],
+        "a": {
+          "c": "carriage\rreturn",
+          "a": "newline\nhere",
+          "key": null,
+          "with\\slash": "[1,2,3]",
+          "KEY": {
+            "c": null,
+            "Z": true,
+            "with\"quote": true,
+            "A": -1024
+          }
+        }
+      }
+    },
+    "canonical": "{\"A\":\"mixed \\\"\\\\/\\b\\f\\n\\r\\t end\",\"a\":{\"a\":{\"KEY\":{\"A\":-1024,\"Z\":true,\"c\":null,\"with\\\"quote\":true},\"a\":\"newline\\nhere\",\"c\":\"carriage\\rreturn\",\"key\":null,\"with\\\\slash\":\"[1,2,3]\"},\"key\":[null]},\"key\":{\"10\":\"emoji 😀💡\",\"2\":null,\"list\":[[false,-42],[null,1024],2,\"back\\\\slash\"],\"with\\\\slash\":2,\"é\":{\"A\":{\"a\":1024,\"value\":\"{not json}\",\"with\\\\slash\":1024},\"a\":false,\"list\":\"emoji 😀💡\",\"with space\":\"quote \\\" inside\",\"with\\\\slash\":\"key-like:value\"}},\"é\":-100}"
+  },
+  {
+    "input": [],
+    "canonical": "[]"
+  },
+  {
+    "input": {
+      "list": [
+        "plain text",
+        null
+      ],
+      "value": "plain text",
+      "é": {
+        "list": true,
+        "with\\slash": null
+      }
+    },
+    "canonical": "{\"list\":[\"plain text\",null],\"value\":\"plain text\",\"é\":{\"list\":true,\"with\\\\slash\":null}}"
+  },
+  {
+    "input": {
+      "2": "key-like:value",
+      "nested": {
+        "0": false,
+        "10": [
+          [
+            true,
+            0
+          ],
+          -1,
+          null,
+          false
+        ],
+        "Z": null,
+        "with\"quote": {
+          "10": true,
+          "A": 100,
+          "with\"quote": -42,
+          "z": null
+        }
+      }
+    },
+    "canonical": "{\"2\":\"key-like:value\",\"nested\":{\"0\":false,\"10\":[[true,0],-1,null,false],\"Z\":null,\"with\\\"quote\":{\"10\":true,\"A\":100,\"with\\\"quote\":-42,\"z\":null}}}"
+  },
+  {
+    "input": [
+      false,
+      null
+    ],
+    "canonical": "[false,null]"
+  },
+  {
+    "input": {
+      "é": null,
+      "b": 42,
+      "A": {
+        "Z": false
+      }
+    },
+    "canonical": "{\"A\":{\"Z\":false},\"b\":42,\"é\":null}"
+  },
+  {
+    "input": {
+      "with\\slash": 0,
+      "é": [
+        2147483647
+      ]
+    },
+    "canonical": "{\"with\\\\slash\":0,\"é\":[2147483647]}"
+  },
+  {
+    "input": [
+      42,
+      {
+        "0": [
+          true,
+          "",
+          false
+        ],
+        "key": false,
+        "a": true
+      },
+      null,
+      false
+    ],
+    "canonical": "[42,{\"0\":[true,\"\",false],\"a\":true,\"key\":false},null,false]"
+  },
+  {
+    "input": {
+      "KEY": null
+    },
+    "canonical": "{\"KEY\":null}"
+  },
+  {
+    "input": {
+      "10": "key-like:value",
+      "list": null,
+      "c": "carriage\rreturn",
+      "with\\slash": null
+    },
+    "canonical": "{\"10\":\"key-like:value\",\"c\":\"carriage\\rreturn\",\"list\":null,\"with\\\\slash\":null}"
+  },
+  {
+    "input": [
+      "hi",
+      null,
+      null,
+      [
+        false
+      ]
+    ],
+    "canonical": "[\"hi\",null,null,[false]]"
+  },
+  {
+    "input": {
+      "b": "emoji 😀💡",
+      "KEY": -100,
+      "a": null
+    },
+    "canonical": "{\"KEY\":-100,\"a\":null,\"b\":\"emoji 😀💡\"}"
+  },
+  {
+    "input": {
+      "KEY": [
+        "mixed \"\\/\b\f\n\r\t end",
+        null
+      ],
+      "with space": {
+        "Z": 1,
+        "é": [
+          {
+            "10": false,
+            "nested": null,
+            "KEY": true
+          }
+        ],
+        "key": "carriage\rreturn",
+        "with\\slash": false
+      },
+      "b": "key-like:value",
+      "Z": 2,
+      "A": null
+    },
+    "canonical": "{\"A\":null,\"KEY\":[\"mixed \\\"\\\\/\\b\\f\\n\\r\\t end\",null],\"Z\":2,\"b\":\"key-like:value\",\"with space\":{\"Z\":1,\"key\":\"carriage\\rreturn\",\"with\\\\slash\":false,\"é\":[{\"10\":false,\"KEY\":true,\"nested\":null}]}}"
+  },
+  {
+    "input": [
+      true,
+      true
+    ],
+    "canonical": "[true,true]"
+  },
+  {
+    "input": {
+      "list": null,
+      "A": [
+        null,
+        true,
+        -2147483648,
+        null
+      ],
+      "with\\slash": null
+    },
+    "canonical": "{\"A\":[null,true,-2147483648,null],\"list\":null,\"with\\\\slash\":null}"
+  },
+  {
+    "input": {
+      "a": false,
+      "b": 1,
+      "key": 100
+    },
+    "canonical": "{\"a\":false,\"b\":1,\"key\":100}"
+  },
+  {
+    "input": [],
+    "canonical": "[]"
+  },
+  {
+    "input": {
+      "key": true,
+      "z": 100
+    },
+    "canonical": "{\"key\":true,\"z\":100}"
+  },
+  {
+    "input": {
+      "2": false,
+      "z": {
+        "10": null,
+        "b": null,
+        "with\"quote": false,
+        "nested": false
+      },
+      "c": {
+        "0": {
+          "nested": null,
+          "value": "back\\slash",
+          "with space": true
+        },
+        "2": [
+          null,
+          {
+            "0": 100,
+            "with space": false,
+            "value": -1024,
+            "Z": null,
+            "list": null
+          },
+          "",
+          true
+        ],
+        "c": true,
+        "with\"quote": [
+          null
+        ]
+      },
+      "with\\slash": "key-like:value"
+    },
+    "canonical": "{\"2\":false,\"c\":{\"0\":{\"nested\":null,\"value\":\"back\\\\slash\",\"with space\":true},\"2\":[null,{\"0\":100,\"Z\":null,\"list\":null,\"value\":-1024,\"with space\":false},\"\",true],\"c\":true,\"with\\\"quote\":[null]},\"with\\\\slash\":\"key-like:value\",\"z\":{\"10\":null,\"b\":null,\"nested\":false,\"with\\\"quote\":false}}"
+  },
+  {
+    "input": [
+      [
+        null,
+        "unicode éü☃"
+      ],
+      null,
+      {
+        "nested": null,
+        "b": {
+          "A": [
+            -42,
+            false
+          ]
+        }
+      },
+      false
+    ],
+    "canonical": "[[null,\"unicode éü☃\"],null,{\"b\":{\"A\":[-42,false]},\"nested\":null},false]"
+  },
+  {
+    "input": {
+      "0": true,
+      "value": "a b c",
+      "c": {
+        "nested": false
+      },
+      "list": {
+        "10": {
+          "nested": {
+            "with space": -2147483648
+          },
+          "é": {
+            "z": null,
+            "with\\slash": 100,
+            "nested": "key-like:value",
+            "Z": false
+          },
+          "KEY": false
+        },
+        "Z": null,
+        "nested": 42,
+        "KEY": true,
+        "b": []
+      }
+    },
+    "canonical": "{\"0\":true,\"c\":{\"nested\":false},\"list\":{\"10\":{\"KEY\":false,\"nested\":{\"with space\":-2147483648},\"é\":{\"Z\":false,\"nested\":\"key-like:value\",\"with\\\\slash\":100,\"z\":null}},\"KEY\":true,\"Z\":null,\"b\":[],\"nested\":42},\"value\":\"a b c\"}"
+  },
+  {
+    "input": {
+      "b": [
+        255,
+        null
+      ],
+      "list": [],
+      "c": 255,
+      "é": "mixed \"\\/\b\f\n\r\t end"
+    },
+    "canonical": "{\"b\":[255,null],\"c\":255,\"list\":[],\"é\":\"mixed \\\"\\\\/\\b\\f\\n\\r\\t end\"}"
+  },
+  {
+    "input": [
+      "carriage\rreturn",
+      true,
+      null,
+      null
+    ],
+    "canonical": "[\"carriage\\rreturn\",true,null,null]"
+  },
+  {
+    "input": {
+      "with\\slash": true
+    },
+    "canonical": "{\"with\\\\slash\":true}"
+  },
+  {
+    "input": {
+      "KEY": 100,
+      "a": [
+        {
+          "with\\slash": [
+            100,
+            null
+          ],
+          "A": 2
+        },
+        -42,
+        0,
+        null
+      ],
+      "c": null
+    },
+    "canonical": "{\"KEY\":100,\"a\":[{\"A\":2,\"with\\\\slash\":[100,null]},-42,0,null],\"c\":null}"
+  },
+  {
+    "input": [],
+    "canonical": "[]"
+  },
+  {
+    "input": {
+      "2": [
+        {
+          "2": null,
+          "nested": [
+            -1,
+            -100,
+            false
+          ]
+        },
+        [
+          true,
+          255,
+          {
+            "c": 255,
+            "with space": 42
+          }
+        ]
+      ],
+      "10": {
+        "a": -2147483648,
+        "with space": "key-like:value"
+      },
+      "key": null,
+      "A": true
+    },
+    "canonical": "{\"10\":{\"a\":-2147483648,\"with space\":\"key-like:value\"},\"2\":[{\"2\":null,\"nested\":[-1,-100,false]},[true,255,{\"c\":255,\"with space\":42}]],\"A\":true,\"key\":null}"
+  },
+  {
+    "input": {
+      "2": [
+        null,
+        [
+          "back\\slash"
+        ],
+        [
+          false,
+          {
+            "0": null,
+            "c": 1024
+          },
+          42
+        ]
+      ],
+      "b": "back\\slash",
+      "key": [],
+      "c": null
+    },
+    "canonical": "{\"2\":[null,[\"back\\\\slash\"],[false,{\"0\":null,\"c\":1024},42]],\"b\":\"back\\\\slash\",\"c\":null,\"key\":[]}"
+  },
+  {
+    "input": [
+      {
+        "0": "key-like:value",
+        "KEY": [
+          "",
+          [],
+          2147483647,
+          false
+        ]
+      },
+      {
+        "with\"quote": [
+          [
+            null,
+            2147483647,
+            false,
+            -2147483648
+          ],
+          -42,
+          [
+            2,
+            null
+          ],
+          1024
+        ],
+        "é": 1,
+        "with\\slash": null,
+        "c": "key-like:value",
+        "nested": {
+          "2": [
+            "unicode éü☃",
+            true,
+            null
+          ]
+        }
+      }
+    ],
+    "canonical": "[{\"0\":\"key-like:value\",\"KEY\":[\"\",[],2147483647,false]},{\"c\":\"key-like:value\",\"nested\":{\"2\":[\"unicode éü☃\",true,null]},\"with\\\"quote\":[[null,2147483647,false,-2147483648],-42,[2,null],1024],\"with\\\\slash\":null,\"é\":1}]"
+  },
+  {
+    "input": {
+      "b": true
+    },
+    "canonical": "{\"b\":true}"
+  },
+  {
+    "input": {
+      "list": true,
+      "with\\slash": ""
+    },
+    "canonical": "{\"list\":true,\"with\\\\slash\":\"\"}"
+  },
+  {
+    "input": [
+      null,
+      {
+        "é": "hi",
+        "with\\slash": {
+          "list": {
+            "c": true,
+            "with\"quote": true,
+            "with\\slash": 42,
+            "with space": false
+          },
+          "KEY": false,
+          "with\"quote": true,
+          "with space": false,
+          "with\\slash": {
+            "0": false,
+            "nested": 42,
+            "z": false,
+            "Z": null,
+            "key": "quote \" inside"
+          }
+        },
+        "a": 2147483647,
+        "z": "emoji 😀💡",
+        "value": {
+          "value": "tab\there",
+          "with\"quote": -2147483648
+        }
+      }
+    ],
+    "canonical": "[null,{\"a\":2147483647,\"value\":{\"value\":\"tab\\there\",\"with\\\"quote\":-2147483648},\"with\\\\slash\":{\"KEY\":false,\"list\":{\"c\":true,\"with space\":false,\"with\\\"quote\":true,\"with\\\\slash\":42},\"with space\":false,\"with\\\"quote\":true,\"with\\\\slash\":{\"0\":false,\"Z\":null,\"key\":\"quote \\\" inside\",\"nested\":42,\"z\":false}},\"z\":\"emoji 😀💡\",\"é\":\"hi\"}]"
+  },
+  {
+    "input": {
+      "2": "back\\slash",
+      "z": 42,
+      "Z": {
+        "c": false,
+        "z": 2
+      },
+      "A": -1,
+      "c": null
+    },
+    "canonical": "{\"2\":\"back\\\\slash\",\"A\":-1,\"Z\":{\"c\":false,\"z\":2},\"c\":null,\"z\":42}"
+  },
+  {
+    "input": {
+      "2": {
+        "z": {
+          "KEY": [
+            -100,
+            true
+          ],
+          "z": null,
+          "c": "emoji 😀💡",
+          "value": null
+        }
+      },
+      "b": 42,
+      "c": true
+    },
+    "canonical": "{\"2\":{\"z\":{\"KEY\":[-100,true],\"c\":\"emoji 😀💡\",\"value\":null,\"z\":null}},\"b\":42,\"c\":true}"
+  },
+  {
+    "input": [
+      [
+        null
+      ]
+    ],
+    "canonical": "[[null]]"
+  },
+  {
+    "input": {
+      "10": [
+        null,
+        [
+          false,
+          "{not json}",
+          null,
+          0
+        ],
+        "hi"
+      ]
+    },
+    "canonical": "{\"10\":[null,[false,\"{not json}\",null,0],\"hi\"]}"
+  },
+  {
+    "input": {
+      "z": null,
+      "list": "newline\nhere",
+      "b": null,
+      "with\\slash": null,
+      "é": -42
+    },
+    "canonical": "{\"b\":null,\"list\":\"newline\\nhere\",\"with\\\\slash\":null,\"z\":null,\"é\":-42}"
+  },
+  {
+    "input": [],
+    "canonical": "[]"
+  },
+  {
+    "input": {
+      "nested": 1
+    },
+    "canonical": "{\"nested\":1}"
+  },
+  {
+    "input": {
+      "z": false,
+      "list": {
+        "KEY": {
+          "KEY": "tab\there",
+          "a": "tab\there",
+          "with space": [
+            "key-like:value",
+            null
+          ]
+        }
+      },
+      "nested": {
+        "b": -1,
+        "list": 2,
+        "value": false
+      },
+      "value": {
+        "Z": [],
+        "a": -100
+      }
+    },
+    "canonical": "{\"list\":{\"KEY\":{\"KEY\":\"tab\\there\",\"a\":\"tab\\there\",\"with space\":[\"key-like:value\",null]}},\"nested\":{\"b\":-1,\"list\":2,\"value\":false},\"value\":{\"Z\":[],\"a\":-100},\"z\":false}"
+  },
+  {
+    "input": [
+      [
+        null,
+        [
+          false,
+          null
+        ],
+        false,
+        null
+      ],
+      255
+    ],
+    "canonical": "[[null,[false,null],false,null],255]"
+  },
+  {
+    "input": {
+      "A": true,
+      "é": false
+    },
+    "canonical": "{\"A\":true,\"é\":false}"
+  },
+  {
+    "input": {
+      "list": {
+        "10": "unicode éü☃",
+        "nested": 255,
+        "with\"quote": "unicode éü☃"
+      },
+      "with\\slash": [
+        false,
+        true
+      ],
+      "é": "plain text",
+      "nested": "emoji 😀💡",
+      "Z": {
+        "2": [],
+        "nested": {
+          "2": true,
+          "KEY": true
+        },
+        "KEY": null,
+        "list": null,
+        "Z": [
+          "carriage\rreturn"
+        ]
+      }
+    },
+    "canonical": "{\"Z\":{\"2\":[],\"KEY\":null,\"Z\":[\"carriage\\rreturn\"],\"list\":null,\"nested\":{\"2\":true,\"KEY\":true}},\"list\":{\"10\":\"unicode éü☃\",\"nested\":255,\"with\\\"quote\":\"unicode éü☃\"},\"nested\":\"emoji 😀💡\",\"with\\\\slash\":[false,true],\"é\":\"plain text\"}"
+  },
+  {
+    "input": [
+      42,
+      {
+        "KEY": -2147483648,
+        "with space": null,
+        "nested": {
+          "0": false,
+          "2": null,
+          "é": false
+        }
+      },
+      [
+        false
+      ]
+    ],
+    "canonical": "[42,{\"KEY\":-2147483648,\"nested\":{\"0\":false,\"2\":null,\"é\":false},\"with space\":null},[false]]"
+  },
+  {
+    "input": {
+      "nested": false,
+      "A": "newline\nhere",
+      "z": {
+        "é": false,
+        "list": [],
+        "with space": [
+          42,
+          []
+        ],
+        "A": {
+          "10": null,
+          "list": null,
+          "a": "newline\nhere",
+          "KEY": true
+        },
+        "a": [
+          [
+            null,
+            null
+          ],
+          {
+            "10": null,
+            "z": -1024,
+            "with space": false,
+            "with\"quote": true
+          }
+        ]
+      },
+      "b": null,
+      "key": 42
+    },
+    "canonical": "{\"A\":\"newline\\nhere\",\"b\":null,\"key\":42,\"nested\":false,\"z\":{\"A\":{\"10\":null,\"KEY\":true,\"a\":\"newline\\nhere\",\"list\":null},\"a\":[[null,null],{\"10\":null,\"with space\":false,\"with\\\"quote\":true,\"z\":-1024}],\"list\":[],\"with space\":[42,[]],\"é\":false}}"
+  },
+  {
+    "input": {
+      "é": "unicode éü☃",
+      "A": "{not json}"
+    },
+    "canonical": "{\"A\":\"{not json}\",\"é\":\"unicode éü☃\"}"
+  },
+  {
+    "input": [
+      2147483647,
+      null
+    ],
+    "canonical": "[2147483647,null]"
+  },
+  {
+    "input": {
+      "0": {
+        "2": "key-like:value",
+        "z": {
+          "with\\slash": [
+            false,
+            null,
+            100,
+            null
+          ],
+          "c": null,
+          "z": false,
+          "Z": -100,
+          "A": true
+        },
+        "nested": false,
+        "c": {
+          "10": [
+            true,
+            "plain text",
+            "unicode éü☃"
+          ],
+          "key": null,
+          "with space": false
+        },
+        "value": 1
+      },
+      "with space": {
+        "list": 2147483647,
+        "c": "newline\nhere",
+        "value": null,
+        "with\"quote": {
+          "10": {
+            "key": "newline\nhere"
+          },
+          "value": [
+            2147483647
+          ],
+          "with\"quote": "key-like:value",
+          "c": 0,
+          "a": "unicode éü☃"
+        }
+      },
+      "list": 1,
+      "value": -42
+    },
+    "canonical": "{\"0\":{\"2\":\"key-like:value\",\"c\":{\"10\":[true,\"plain text\",\"unicode éü☃\"],\"key\":null,\"with space\":false},\"nested\":false,\"value\":1,\"z\":{\"A\":true,\"Z\":-100,\"c\":null,\"with\\\\slash\":[false,null,100,null],\"z\":false}},\"list\":1,\"value\":-42,\"with space\":{\"c\":\"newline\\nhere\",\"list\":2147483647,\"value\":null,\"with\\\"quote\":{\"10\":{\"key\":\"newline\\nhere\"},\"a\":\"unicode éü☃\",\"c\":0,\"value\":[2147483647],\"with\\\"quote\":\"key-like:value\"}}}"
+  },
+  {
+    "input": {
+      "2": true,
+      "value": null
+    },
+    "canonical": "{\"2\":true,\"value\":null}"
+  },
+  {
+    "input": [
+      null,
+      [
+        null
+      ],
+      2
+    ],
+    "canonical": "[null,[null],2]"
+  },
+  {
+    "input": {
+      "0": null,
+      "2": "unicode éü☃",
+      "with\"quote": false,
+      "key": null
+    },
+    "canonical": "{\"0\":null,\"2\":\"unicode éü☃\",\"key\":null,\"with\\\"quote\":false}"
+  },
+  {
+    "input": {
+      "KEY": {
+        "a": {
+          "10": "key-like:value"
+        }
+      },
+      "with space": null
+    },
+    "canonical": "{\"KEY\":{\"a\":{\"10\":\"key-like:value\"}},\"with space\":null}"
+  },
+  {
+    "input": [
+      [
+        255,
+        null,
+        [
+          true,
+          null
+        ]
+      ],
+      {
+        "0": "key-like:value",
+        "2": null,
+        "with\\slash": {
+          "c": [
+            null,
+            false,
+            false,
+            null
+          ],
+          "A": "back\\slash",
+          "Z": {
+            "c": "{not json}",
+            "b": true
+          }
+        },
+        "c": [
+          -1
+        ]
+      },
+      {
+        "key": 1024,
+        "A": null
+      }
+    ],
+    "canonical": "[[255,null,[true,null]],{\"0\":\"key-like:value\",\"2\":null,\"c\":[-1],\"with\\\\slash\":{\"A\":\"back\\\\slash\",\"Z\":{\"b\":true,\"c\":\"{not json}\"},\"c\":[null,false,false,null]}},{\"A\":null,\"key\":1024}]"
+  },
+  {
+    "input": {
+      "b": {
+        "with\"quote": null,
+        "a": "quote \" inside",
+        "Z": [
+          "newline\nhere"
+        ]
+      },
+      "key": {
+        "é": "emoji 😀💡",
+        "z": "carriage\rreturn"
+      }
+    },
+    "canonical": "{\"b\":{\"Z\":[\"newline\\nhere\"],\"a\":\"quote \\\" inside\",\"with\\\"quote\":null},\"key\":{\"z\":\"carriage\\rreturn\",\"é\":\"emoji 😀💡\"}}"
+  },
+  {
+    "input": {
+      "2": "tab\there"
+    },
+    "canonical": "{\"2\":\"tab\\there\"}"
+  },
+  {
+    "input": [],
+    "canonical": "[]"
+  },
+  {
+    "input": {
+      "A": null
+    },
+    "canonical": "{\"A\":null}"
+  },
+  {
+    "input": {
+      "with space": "a b c"
+    },
+    "canonical": "{\"with space\":\"a b c\"}"
+  },
+  {
+    "input": [
+      "emoji 😀💡",
+      true,
+      true,
+      -42
+    ],
+    "canonical": "[\"emoji 😀💡\",true,true,-42]"
+  },
+  {
+    "input": {
+      "0": true,
+      "list": "quote \" inside",
+      "a": false
+    },
+    "canonical": "{\"0\":true,\"a\":false,\"list\":\"quote \\\" inside\"}"
+  },
+  {
+    "input": {
+      "nested": false
+    },
+    "canonical": "{\"nested\":false}"
+  },
+  {
+    "input": [
+      false
+    ],
+    "canonical": "[false]"
+  },
+  {
+    "input": {
+      "key": {
+        "key": "newline\nhere",
+        "z": null
+      },
+      "nested": true,
+      "value": -42,
+      "with\\slash": 42,
+      "Z": -42
+    },
+    "canonical": "{\"Z\":-42,\"key\":{\"key\":\"newline\\nhere\",\"z\":null},\"nested\":true,\"value\":-42,\"with\\\\slash\":42}"
+  }
+]

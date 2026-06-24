@@ -6,7 +6,7 @@
 //! verifier interoperates byte-for-byte with the TS emitter: identical
 //! canonicalization, identical ed25519 message bytes, identical policy verdicts.
 
-use ed25519_dalek::{Signature, VerifyingKey};
+use ed25519_dalek::{Signature, Signer, SigningKey, VerifyingKey};
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 
@@ -85,6 +85,47 @@ pub fn verify_message(message: &str, public_key_hex: &str, signature_hex: &str) 
     };
     let sig = Signature::from_bytes(&sig_arr);
     key.verify_strict(message.as_bytes(), &sig).is_ok()
+}
+
+// ── Emitter (signer) ─────────────────────────────────────────────────────────
+
+/// Load an ed25519 signing key from a PKCS8 DER hex string (the persisted form
+/// emitted by the TS `exportAgentKey`). The 32-byte ed25519 seed is the trailing
+/// 32 bytes after the fixed PKCS8 prefix `302e020100300506032b657004220420`.
+/// Returns None if the hex is malformed or not the expected 48-byte PKCS8 shape.
+pub fn signing_key_from_pkcs8_hex(pkcs8_hex: &str) -> Option<SigningKey> {
+    const PKCS8_PREFIX: &str = "302e020100300506032b657004220420";
+    let lower = pkcs8_hex.to_ascii_lowercase();
+    let seed_hex = lower.strip_prefix(PKCS8_PREFIX)?;
+    let seed_bytes = hex::decode(seed_hex).ok()?;
+    let seed: [u8; 32] = seed_bytes.try_into().ok()?;
+    Some(SigningKey::from_bytes(&seed))
+}
+
+/// The raw 32-byte verifying (public) key as hex — the agentId + envelope publicKey.
+pub fn verifying_key_hex(signing_key: &SigningKey) -> String {
+    hex::encode(signing_key.verifying_key().to_bytes())
+}
+
+/// Sign an arbitrary UTF-8 message, returning the hex signature. Byte-identical to
+/// the reference `signMessage` (ed25519 over the message's UTF-8 bytes).
+pub fn sign_message(message: &str, signing_key: &SigningKey) -> String {
+    hex::encode(signing_key.sign(message.as_bytes()).to_bytes())
+}
+
+/// Sign a disclosure, producing the signed envelope. The signature is over
+/// `canonicalize(disclosure)`; `agentId` (inside the disclosure) and
+/// `signature.publicKey` both carry the derived verifying-key hex. Mirrors the TS
+/// `signDisclosure` so the resulting `signature.value` is byte-identical.
+pub fn sign_disclosure(disclosure: &Value, signing_key: &SigningKey) -> SignedDisclosure {
+    let public_key = verifying_key_hex(signing_key);
+    let value = sign_message(&canonicalize(disclosure), signing_key);
+    SignedDisclosure {
+        disclosure: disclosure.clone(),
+        signature_algorithm: "ed25519".to_string(),
+        signature_public_key: public_key,
+        signature_value: value,
+    }
 }
 
 // ── Signed disclosure types ──────────────────────────────────────────────────
@@ -552,6 +593,137 @@ fn parse_iso_millis(s: &str) -> Option<i64> {
     Some(((days * 24 + hour) * 60 + minute) * 60_000 + second * 1000 + millis)
 }
 
+// ── Redaction (selective disclosure) ─────────────────────────────────────────
+
+/// Commitment for a field: `sha256(canonicalize(value):salt)`. Byte-identical to
+/// the reference `commit` in `src/redaction.ts`.
+fn redaction_commit(value: &Value, salt: &str) -> String {
+    sha256_hex(&format!("{}:{}", canonicalize(value), salt))
+}
+
+/// Verify a redacted view (port of `verifyRedacted`):
+///   1. `meta.agentId == signature.publicKey` (identity binding),
+///   2. the signature covers `{meta, commitments}`,
+///   3. each revealed field recomputes to its committed value.
+///
+/// Returns `(ok, revealedFields)` — on success `revealedFields` is the sorted set
+/// of cryptographically-proven field names; on any failure it is empty.
+pub fn verify_redacted(view: &Value) -> (bool, Vec<String>) {
+    let meta = match view.get("meta") {
+        Some(m) => m,
+        None => return (false, Vec::new()),
+    };
+    let signature = match view.get("signature") {
+        Some(s) => s,
+        None => return (false, Vec::new()),
+    };
+    let agent_id = meta.get("agentId").and_then(|v| v.as_str());
+    let public_key = signature.get("publicKey").and_then(|v| v.as_str());
+    if agent_id.is_none() || agent_id != public_key {
+        return (false, Vec::new());
+    }
+    let commitments = match view.get("commitments") {
+        Some(c) => c,
+        None => return (false, Vec::new()),
+    };
+
+    let mut signed_obj = serde_json::Map::new();
+    signed_obj.insert("meta".into(), meta.clone());
+    signed_obj.insert("commitments".into(), commitments.clone());
+    let signed = canonicalize(&Value::Object(signed_obj));
+    let sig_value = signature.get("value").and_then(|v| v.as_str()).unwrap_or("");
+    if !verify_message(&signed, public_key.unwrap(), sig_value) {
+        return (false, Vec::new());
+    }
+
+    let revealed = match view.get("revealed").and_then(|v| v.as_object()) {
+        Some(r) => r,
+        None => return (true, Vec::new()),
+    };
+    let commitment_map = match commitments.as_object() {
+        Some(c) => c,
+        None => return (false, Vec::new()),
+    };
+
+    let mut revealed_fields: Vec<String> = Vec::new();
+    for (field, rv) in revealed {
+        let expected = match commitment_map.get(field).and_then(|v| v.as_str()) {
+            Some(e) => e,
+            None => return (false, Vec::new()),
+        };
+        let value = match rv.get("value") {
+            Some(v) => v,
+            None => return (false, Vec::new()),
+        };
+        let salt = rv.get("salt").and_then(|v| v.as_str()).unwrap_or("");
+        if redaction_commit(value, salt) != expected {
+            return (false, Vec::new());
+        }
+        revealed_fields.push(field.clone());
+    }
+    revealed_fields.sort();
+    (true, revealed_fields)
+}
+
+// ── Revocation ───────────────────────────────────────────────────────────────
+
+/// Verify a signed revocation record against its embedded public key (port of
+/// `verifyRevocation`): the signed bytes are `canonicalize({id, reason, revokedAt})`.
+pub fn verify_revocation(record: &Value) -> bool {
+    let get = |k: &str| record.get(k).and_then(|v| v.as_str());
+    let (id, reason, revoked_at, public_key, signature) = match (
+        get("id"),
+        get("reason"),
+        get("revokedAt"),
+        get("publicKey"),
+        get("signature"),
+    ) {
+        (Some(i), Some(r), Some(a), Some(p), Some(s)) => (i, r, a, p, s),
+        _ => return false,
+    };
+    let mut obj = serde_json::Map::new();
+    obj.insert("id".into(), Value::String(id.to_string()));
+    obj.insert("reason".into(), Value::String(reason.to_string()));
+    obj.insert("revokedAt".into(), Value::String(revoked_at.to_string()));
+    let message = canonicalize(&Value::Object(obj));
+    verify_message(&message, public_key, signature)
+}
+
+// ── Transparency (inclusion proof) ───────────────────────────────────────────
+
+/// Verify a transparency-log inclusion proof standalone (port of
+/// `verifyInclusionProof`): recompute the entry hash from its own fields and
+/// confirm it matches `entry.hash`. Hashed bytes are
+/// `canonicalize({index, disclosureDigest, agentId, issuedAt, prevHash})`.
+pub fn verify_inclusion_proof(entry: &Value) -> bool {
+    let index = match entry.get("index") {
+        Some(i) if i.is_number() => i.clone(),
+        _ => return false,
+    };
+    let get = |k: &str| entry.get(k).and_then(|v| v.as_str());
+    let (disclosure_digest, agent_id, issued_at, prev_hash, hash) = match (
+        get("disclosureDigest"),
+        get("agentId"),
+        get("issuedAt"),
+        get("prevHash"),
+        get("hash"),
+    ) {
+        (Some(d), Some(a), Some(i), Some(p), Some(h)) => (d, a, i, p, h),
+        _ => return false,
+    };
+    let mut obj = serde_json::Map::new();
+    obj.insert("index".into(), index);
+    obj.insert(
+        "disclosureDigest".into(),
+        Value::String(disclosure_digest.to_string()),
+    );
+    obj.insert("agentId".into(), Value::String(agent_id.to_string()));
+    obj.insert("issuedAt".into(), Value::String(issued_at.to_string()));
+    obj.insert("prevHash".into(), Value::String(prev_hash.to_string()));
+    let expected = sha256_hex(&canonicalize(&Value::Object(obj)));
+    expected == hash
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -573,6 +745,28 @@ mod tests {
             env!("CARGO_MANIFEST_DIR"),
             "/../conformance/interop.json"
         ))
+    }
+
+    fn fuzz() -> Value {
+        load(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../conformance/fuzz.json"
+        ))
+    }
+
+    // Replay the differential fuzz corpus produced by the TS reference
+    // (conformance/generate-fuzz.ts). Rust MUST reproduce each recorded canonical
+    // byte-for-byte: proof the two stacks agree on random inputs, not just vectors.
+    #[test]
+    fn fuzz_canonicalization() {
+        let f = fuzz();
+        let cases = f.as_array().unwrap();
+        assert!(cases.len() >= 200, "fuzz.json corpus missing or too small");
+        for (i, case) in cases.iter().enumerate() {
+            let got = canonicalize(&case["input"]);
+            let want = case["canonical"].as_str().unwrap();
+            assert_eq!(got, want, "fuzz[{i}] canonicalize mismatch");
+        }
     }
 
     #[test]
@@ -725,6 +919,132 @@ mod tests {
             let ok = verify_challenge_response(&response, &challenge, expected_agent_id, now).is_ok();
             let want = case["expect"].as_bool().unwrap();
             assert_eq!(ok, want, "handshake {name}");
+        }
+    }
+
+    fn fixed_signing_key() -> SigningKey {
+        let i = interop();
+        let pkcs8 = i["key"]["privateKeyHex"].as_str().unwrap();
+        signing_key_from_pkcs8_hex(pkcs8).expect("fixed key parses")
+    }
+
+    #[test]
+    fn emitter_derives_fixture_public_key() {
+        let i = interop();
+        let key = fixed_signing_key();
+        let want = i["key"]["publicKeyHex"].as_str().unwrap();
+        assert_eq!(verifying_key_hex(&key), want, "derived public key");
+    }
+
+    #[test]
+    fn emitter_byte_matches_ts_signer() {
+        // Re-sign each correctly-bound, non-tampered interop disclosure with the
+        // fixed key and assert the hex signature EQUALS the fixture's value. This
+        // proves the Rust signer produces byte-identical canonical bytes + ed25519
+        // output to the TS emitter. Tampered/forged cases are excluded: they fail
+        // the identity binding or carry a mismatched digest, so re-signing them
+        // would not (and must not) reproduce the fixture signature.
+        let i = interop();
+        let key = fixed_signing_key();
+        let mut signed_count = 0;
+        for case in i["disclosures"].as_array().unwrap() {
+            let name = case["name"].as_str().unwrap();
+            let failed: Vec<&str> = case["expect"]["failed"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|v| v.as_str().unwrap())
+                .collect();
+            if failed.contains(&"signature") {
+                continue;
+            }
+            let disclosure = &case["signed"]["disclosure"];
+            let emitted = sign_disclosure(disclosure, &key);
+            let want = case["signed"]["signature"]["value"].as_str().unwrap();
+            assert_eq!(emitted.signature_value, want, "signature bytes for {name}");
+            assert_eq!(
+                emitted.signature_public_key,
+                case["signed"]["signature"]["publicKey"].as_str().unwrap(),
+                "public key for {name}"
+            );
+            signed_count += 1;
+        }
+        assert!(signed_count > 0, "expected at least one byte-match case");
+    }
+
+    #[test]
+    fn emitter_round_trip_with_fresh_key() {
+        // Emit with a fresh key; the own verifier must accept (and the binding holds).
+        let seed: [u8; 32] = [7u8; 32];
+        let key = SigningKey::from_bytes(&seed);
+        let public_key = verifying_key_hex(&key);
+        let disclosure = serde_json::json!({
+            "version": 1,
+            "disclosureId": "disc_roundtrip",
+            "agentId": public_key,
+            "issuedAt": "2026-06-24T12:00:00.000Z",
+            "validUntil": "2026-06-24T13:00:00.000Z",
+            "nonce": "nonce_roundtrip",
+            "capital": { "mandates": [], "custody": "non_custodial" }
+        });
+        let emitted = sign_disclosure(&disclosure, &key);
+
+        let mut envelope = serde_json::Map::new();
+        envelope.insert("disclosure".into(), emitted.disclosure.clone());
+        let mut sig = serde_json::Map::new();
+        sig.insert("algorithm".into(), Value::String(emitted.signature_algorithm.clone()));
+        sig.insert("publicKey".into(), Value::String(emitted.signature_public_key.clone()));
+        sig.insert("value".into(), Value::String(emitted.signature_value.clone()));
+        envelope.insert("signature".into(), Value::Object(sig));
+
+        let parsed = SignedDisclosure::from_value(&Value::Object(envelope)).unwrap();
+        assert!(
+            verify_disclosure_signature(&parsed).is_ok(),
+            "own verifier accepts a freshly-emitted disclosure"
+        );
+    }
+
+    #[test]
+    fn interop_redactions() {
+        let i = interop();
+        let cases = i["redactions"].as_array().unwrap();
+        assert!(!cases.is_empty());
+        for case in cases {
+            let name = case["name"].as_str().unwrap();
+            let (ok, revealed) = verify_redacted(&case["view"]);
+            let want_ok = case["expect"]["ok"].as_bool().unwrap();
+            assert_eq!(ok, want_ok, "redaction ok for {name}");
+            let want_fields: Vec<String> = case["expect"]["revealedFields"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|v| v.as_str().unwrap().to_string())
+                .collect();
+            assert_eq!(revealed, want_fields, "redaction revealed fields for {name}");
+        }
+    }
+
+    #[test]
+    fn interop_revocations() {
+        let i = interop();
+        let cases = i["revocations"].as_array().unwrap();
+        assert!(!cases.is_empty());
+        for case in cases {
+            let name = case["name"].as_str().unwrap();
+            let ok = verify_revocation(&case["record"]);
+            assert_eq!(ok, case["expect"].as_bool().unwrap(), "revocation {name}");
+        }
+    }
+
+    #[test]
+    fn interop_transparency() {
+        let i = interop();
+        let cases = i["transparency"].as_array().unwrap();
+        assert!(!cases.is_empty());
+        for case in cases {
+            let name = case["name"].as_str().unwrap();
+            let ok = verify_inclusion_proof(&case["entry"]);
+            assert_eq!(ok, case["expect"].as_bool().unwrap(), "transparency {name}");
         }
     }
 }
