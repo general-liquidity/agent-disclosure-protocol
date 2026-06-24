@@ -8,8 +8,8 @@
 *Agents are starting to transact with each other with no way to answer the first question of commerce: who am I dealing with, and what are they committed to? ADP is the disclosure an agent publishes **before** it transacts - so a counterparty can verify and decide before value moves, not after a loss.*
 
 [![CI](https://img.shields.io/github/actions/workflow/status/general-liquidity/agent-disclosure-protocol/ci.yml?style=flat-square&label=CI)](https://github.com/general-liquidity/agent-disclosure-protocol/actions)
-[![tests](https://img.shields.io/badge/tests-43%20passing-success?style=flat-square)](#develop)
-[![conformance](https://img.shields.io/badge/conformance-10%20checks-success?style=flat-square)](#conformance)
+[![tests](https://img.shields.io/badge/tests-171%20passing-success?style=flat-square)](#develop)
+[![conformance](https://img.shields.io/badge/conformance-vectors%20%2B%20fuzz%20%2B%20adversarial-success?style=flat-square)](#conformance)
 [![interop](https://img.shields.io/badge/interop-5%20stacks-success?style=flat-square)](#conformance)
 [![node](https://img.shields.io/badge/node-%E2%89%A520-5FA04E?style=flat-square&logo=nodedotjs&logoColor=white)](#develop)
 [![runtime dep](https://img.shields.io/badge/runtime%20dep-zod-3E67B1?style=flat-square&logo=zod&logoColor=white)](#tech-stack)
@@ -30,7 +30,7 @@ ADP is **not** a wallet, a rail, or an identity registry. It is the vendor-neutr
 
 This is the "pluggable behavioural-trust layer" the rest of the agentic-commerce stack openly defers. ERC-8004 anchors an agent's identity to a wallet and names a verification layer it does not itself fill. ADP is that layer: not just *who is this agent*, but *what is it committed to, is that commitment enforced, and has it behaved* - checked before the transaction clears.
 
-The protocol has **one runtime dependency** (`zod`) and signs with `node:crypto` only, so any agent stack in any language can emit or verify a disclosure. [OpenSolvency](https://github.com/general-liquidity/opensolvency) is the reference implementation that populates a disclosure from a live, enforced governance gate.
+The protocol has **one runtime dependency** (`zod`) and signs with `node:crypto` only. It is not just claimed to be language-neutral, it is **proven** to be: native verifiers *and* emitters in **TypeScript, Go, Python, Rust, and C** all reproduce the canonicalization byte-for-byte and cross-verify each other's ed25519 signatures, gated by a shared conformance contract on every commit (see [Conformance](#conformance)). [OpenSolvency](https://github.com/general-liquidity/opensolvency) is the reference implementation that populates a disclosure from a live, enforced governance gate.
 
 ## Install
 
@@ -66,7 +66,16 @@ const key = generateAgentKeyPair();          // agentId === key.publicKeyHex
 const signed = signDisclosure(myDisclosure, key);   // an ed25519 envelope, verifiable with no shared secret
 ```
 
-Build `myDisclosure` from your own runtime, or use the OpenSolvency builders to populate it from a live gate, mandate set, and signed audit chain.
+Build `myDisclosure` from your own runtime (a fluent `DisclosureBuilder` is exported), or use the OpenSolvency builders to populate it from a live gate, mandate set, and signed audit chain.
+
+**Or from the CLI** (`agent-disclosure`, shipped in the package):
+
+```bash
+agent-disclosure keygen                                        # mint an ed25519 identity
+agent-disclosure sign --in disclosure.json --key key.hex       # sign a disclosure document
+agent-disclosure verify-file signed.json --require-enforced    # verify a file against a policy
+agent-disclosure verify-url https://agent.example              # fetch + verify a peer over HTTP
+```
 
 ## Disclose and verify
 
@@ -140,25 +149,38 @@ The disclosure is served at **`/.well-known/agent-disclosure`**, a well-known UR
 
 ## Conformance
 
-Canonicalization is the interoperability crux: the signed bytes must be byte-identical across implementations, or signatures will not verify across stacks. [`conformance/`](conformance/) is a portable suite any implementation must pass - golden canonicalization + digest vectors (defined by the protocol, not this code) plus behavioural invariants (signature + identity binding, ed25519 determinism, freshness boundaries, the handshake). [`SPEC.md`](SPEC.md) is the normative protocol; a conformant implementation reproduces the vectors and passes the checks.
+Canonicalization is the interoperability crux: the signed bytes must be byte-identical across implementations, or signatures will not verify across stacks. [`conformance/`](conformance/) is a portable contract that **five independent implementations** (TypeScript, [Go](go/), [Python](python/), [Rust](rust/), [C](c/)) all pass on every commit:
+
+| Layer | What it proves |
+|:--|:--|
+| **Canonicalization + digest vectors** ([`vectors.json`](conformance/vectors.json)) | Every stack reproduces the canonical bytes + sha256 digests exactly. |
+| **Differential fuzzer** ([`fuzz.json`](conformance/fuzz.json)) | 200 seeded-random values; all five stacks agree byte-for-byte. It already caught a real C-only divergence (embedded-NUL truncation). |
+| **Interop fixtures** ([`interop.json`](conformance/interop.json)) | TS-minted, ed25519-signed disclosures; native **verifiers** reproduce every verdict + handshake, and native **emitters** reproduce the signatures byte-for-byte (bidirectional interop, no shared secret). Plus redaction / revocation / transparency cases. |
+| **Adversarial corpus** ([`negative.json`](conformance/negative.json)) | A MUST-REJECT set (malformed, tampered, hostile input); every verifier rejects all of it and never crashes. It caught a real `signature.algorithm` check gap in two stacks. |
+| **Live cross-process** | A TS server serves a disclosure over a real socket; the TS, Go, and Python clients verify it against one live origin. |
+
+[`SPEC.md`](SPEC.md) is the normative protocol; [`docs/`](docs/) is a browsable mdBook; the canonicalization + signed-bytes format is frozen (see the [stability guarantees](docs/src/stability.md)).
 
 ```bash
-npm run conformance   # the portable vectors + behavioural invariants
+npm run conformance       # the TS conformance + fuzz + interop suite
+node --import tsx scripts/conformanceReport.ts   # a pass/fail report across suites
 ```
 
 ## Architecture
 
-The vendor-neutral core, one runtime dependency, no I/O in the protocol itself.
+The vendor-neutral core has **one runtime dependency** (`zod`); the ERC-8004 on-chain and ZK range-proof modules use optional `@noble` / `viem` deps behind dynamic imports, so they never weigh on the core.
 
-| Module | What it is |
+| Group | Modules |
 |:--|:--|
-| [`schema`](src/schema.ts) | The disclosure document + the `SignedDisclosure` envelope (zod schemas + inferred types). |
-| [`attestation`](src/attestation.ts) | ed25519 sign / verify, the deterministic canonicalization, the `agentId`-to-key binding, sha256 digests, and the freshness window. Keys export and reload so an agent's identity is stable across restarts. |
-| [`handshake`](src/handshake.ts) | The live challenge-response: sign a fresh nonce bound to the current audit head. Defeats identity replay. |
-| [`verify`](src/verify.ts) + [`client`](src/client.ts) | `VerificationPolicy` (the declarative language a verifier states its demands in), `evaluateDisclosure` (deterministic verdict + per-check breakdown), and `verifyCounterparty` (the over-the-wire loop). |
-| [`guard`](src/guard.ts) + [`cache`](src/cache.ts) | Outbound disclose-before-settle + mutual disclosure; tiered verification with a validity-window cache (the economic enabler). |
-| [`redaction`](src/redaction.ts) · [`revocation`](src/revocation.ts) · [`transparency`](src/transparency.ts) | Salted-commitment selective disclosure; a portable revocation status list; an append-only Certificate-Transparency-for-agents log. |
-| [`economics`](src/economics.ts) | The viability model - which agent-to-agent markets clear at verification cost C. |
+| **Core** | [`schema`](src/schema.ts) (document + signed envelope), [`attestation`](src/attestation.ts) (ed25519, deterministic canonicalization, the `agentId`-to-key binding, freshness, recursion-depth guard), [`versioning`](src/versioning.ts) (schema version negotiation). |
+| **Verify** | [`verify`](src/verify.ts) + [`client`](src/client.ts) (the policy language, deterministic verdict, the over-the-wire loop), [`cache`](src/cache.ts) (tiered + validity-window), [`guard`](src/guard.ts) + [`mutual`](src/mutual.ts) (disclose-before-settle, both-sides verification), [`adapters`](src/adapters.ts) (a verify-before-pay tool for any framework), [`verifierService`](src/verifierService.ts) (verify-as-a-service HTTP). |
+| **Handshake** | [`handshake`](src/handshake.ts) (live nonce challenge-response, defeats identity replay). |
+| **Selective disclosure + ZK** | [`redaction`](src/redaction.ts) (salted-commitment field hiding), [`negotiate`](src/negotiate.ts) (reveal exactly what a policy needs), [`zk`](src/zk.ts) (equality backend) + [`zkRange`](src/zkRange.ts) (real Pedersen + bit-decomposition range proofs over secp256k1). |
+| **Revocation + transparency** | [`revocation`](src/revocation.ts) + [`revocationTransport`](src/revocationTransport.ts) (status list + fetch/honor over the wire), [`transparency`](src/transparency.ts) + [`transparencyTransport`](src/transparencyTransport.ts) + [`witness`](src/witness.ts) (CT-for-agents log, inclusion proofs, split-view monitor). |
+| **Identity (ERC-8004)** | [`erc8004`](src/erc8004.ts) (agent-to-wallet binding), [`erc8004Onchain`](src/erc8004Onchain.ts) (secp256k1 EIP-191 recovery), [`erc8004Registry`](src/erc8004Registry.ts) (viem registry read), [`modelAttestation`](src/modelAttestation.ts) (declared model fingerprint). |
+| **Discovery + ops** | [`discovery`](src/discovery.ts) (.well-known fetcher + agent directory), [`keys`](src/keys.ts) (rotation, keyring, files), [`monitor`](src/monitor.ts) (disclosure diffing + downgrade alarm), [`statusList`](src/statusList.ts) (W3C StatusList revocation), [`builder`](src/builder.ts) (a fluent disclosure builder), [`economics`](src/economics.ts) (which markets clear at verification cost C). |
+| **CLI** | [`cli`](src/cli.ts) - `keygen` / `sign` / `verify-file` / `verify-url`. |
+| **Native implementations** | Verifiers + emitters in [`go/`](go/) · [`python/`](python/) · [`rust/`](rust/) · [`c/`](c/), each gated by the conformance contract. |
 
 The OpenSolvency-specific half (the field *builders* that populate a disclosure from a live gate / mandate set / audit chain / SpendTrust run) deliberately does **not** lift out; it is the reference implementation. Any other agent product implements its own builders against the same schema.
 
@@ -168,10 +190,19 @@ The OpenSolvency-specific half (the field *builders* that populate a disclosure 
 
 ```bash
 npm install
-npm test          # 43 tests - schema, attestation, handshake, verify, client, guard, cache, redaction, revocation, transparency, economics
-npm run conformance # 10 portable conformance checks
+npm test          # 171 TS tests across the protocol + every module
+npm run conformance # the conformance vectors + fuzz + interop suite
 npm run typecheck # tsc --noEmit, strict
 npm run build     # tsc -> dist
+```
+
+The native implementations carry their own suites, all gated in CI:
+
+```bash
+( cd go && go test ./... )
+( cd rust && cargo test )
+( cd python && python -m pytest )
+( cd c && make SODIUM_INC= SODIUM_LIB= LDLIBS=-lsodium test )   # needs libsodium
 ```
 
 ## Tech stack
@@ -182,7 +213,9 @@ npm run build     # tsc -> dist
 | <img height="14" align="top" src="https://cdn.simpleicons.org/nodedotjs/5FA04E" />&nbsp; [Node ≥ 20](https://nodejs.org) | `node:crypto` for ed25519; no native build step |
 | <img height="14" align="top" src="https://cdn.simpleicons.org/zod/3E67B1" />&nbsp; [Zod](https://zod.dev) | The single runtime dependency - schema validation + parse at the boundary |
 | **ed25519** | Asymmetric signing - a counterparty verifies with no shared secret |
-| <img height="14" align="top" src="https://cdn.simpleicons.org/githubactions/2088FF" />&nbsp; GitHub Actions | CI: lint · typecheck · build · tests · conformance |
+| <img height="14" align="top" src="https://cdn.simpleicons.org/go/00ADD8" />&nbsp; Go · <img height="14" align="top" src="https://cdn.simpleicons.org/python/3776AB" />&nbsp; Python · <img height="14" align="top" src="https://cdn.simpleicons.org/rust/000000" />&nbsp; Rust · <img height="14" align="top" src="https://cdn.simpleicons.org/c/A8B9CC" />&nbsp; C | Native verifiers + emitters, each gated by the conformance contract (crypto/ed25519 · cryptography · ed25519-dalek · libsodium) |
+| **@noble/curves · viem** | Optional, behind dynamic imports - secp256k1 (ERC-8004 + ZK range proofs) and the on-chain registry read |
+| <img height="14" align="top" src="https://cdn.simpleicons.org/githubactions/2088FF" />&nbsp; GitHub Actions | CI matrix: TypeScript · Go · Python · Rust · C · cross-process · mdBook |
 
 ## License
 
