@@ -724,6 +724,186 @@ pub fn verify_inclusion_proof(entry: &Value) -> bool {
     expected == hash
 }
 
+// ── Robust raw-input rejection ───────────────────────────────────────────────
+
+/// Strict structural + cryptographic acceptance check for an untrusted, raw JSON
+/// envelope. Returns `true` if the input is REJECTED (the safe default) and `false`
+/// only for a structurally valid, correctly-bound, validly-signed disclosure.
+///
+/// This is the hostile-input entry point: it parses with serde_json and runs the
+/// full verify pipeline, treating ANY failure — parse error, missing/extra fields,
+/// wrong types, non-hex material, an `agentId` that does not match
+/// `signature.publicKey`, or a signature that does not verify — as a rejection. It
+/// never panics: every step propagates through `Result`, so no `unwrap`/`expect`
+/// touches untrusted data. A malformed or tampered disclosure is never accepted.
+pub fn verify_raw(raw: &str) -> bool {
+    accept_raw(raw).is_err()
+}
+
+/// Internal: returns `Ok(())` only for an acceptable disclosure, `Err(reason)` for
+/// anything else. `verify_raw` is the negated public surface.
+fn accept_raw(raw: &str) -> Result<(), String> {
+    let value: Value = serde_json::from_str(raw).map_err(|e| format!("parse error: {e}"))?;
+    let envelope = value.as_object().ok_or("top-level value is not an object")?;
+    require_only_keys(envelope, &["disclosure", "signature"])?;
+
+    let disclosure = envelope
+        .get("disclosure")
+        .ok_or("missing disclosure")?
+        .as_object()
+        .ok_or("disclosure is not an object")?;
+    validate_disclosure(disclosure)?;
+
+    let signature = envelope
+        .get("signature")
+        .ok_or("missing signature")?
+        .as_object()
+        .ok_or("signature is not an object")?;
+    require_only_keys(signature, &["algorithm", "publicKey", "value"])?;
+    require_literal_str(signature, "algorithm", "ed25519")?;
+    let public_key = require_hex(signature, "publicKey")?;
+    let sig_value = require_hex(signature, "value")?;
+
+    let signed = SignedDisclosure {
+        disclosure: envelope["disclosure"].clone(),
+        signature_algorithm: "ed25519".to_string(),
+        signature_public_key: public_key,
+        signature_value: sig_value,
+    };
+    verify_disclosure_signature(&signed)
+}
+
+/// Reject if `obj` carries any key outside `allowed` (no extra fields).
+fn require_only_keys(
+    obj: &serde_json::Map<String, Value>,
+    allowed: &[&str],
+) -> Result<(), String> {
+    for key in obj.keys() {
+        if !allowed.contains(&key.as_str()) {
+            return Err(format!("unexpected field: {key}"));
+        }
+    }
+    Ok(())
+}
+
+fn require_str<'a>(
+    obj: &'a serde_json::Map<String, Value>,
+    key: &str,
+) -> Result<&'a str, String> {
+    obj.get(key)
+        .ok_or_else(|| format!("missing {key}"))?
+        .as_str()
+        .ok_or_else(|| format!("{key} is not a string"))
+}
+
+fn require_literal_str(
+    obj: &serde_json::Map<String, Value>,
+    key: &str,
+    want: &str,
+) -> Result<(), String> {
+    if require_str(obj, key)? == want {
+        Ok(())
+    } else {
+        Err(format!("{key} is not the expected literal {want:?}"))
+    }
+}
+
+fn is_hex(s: &str) -> bool {
+    !s.is_empty() && s.bytes().all(|b| b.is_ascii_hexdigit())
+}
+
+fn require_hex(
+    obj: &serde_json::Map<String, Value>,
+    key: &str,
+) -> Result<String, String> {
+    let s = require_str(obj, key)?;
+    if is_hex(s) {
+        Ok(s.to_string())
+    } else {
+        Err(format!("{key} is not a hex string"))
+    }
+}
+
+fn require_array<'a>(
+    obj: &'a serde_json::Map<String, Value>,
+    key: &str,
+) -> Result<&'a Vec<Value>, String> {
+    obj.get(key)
+        .ok_or_else(|| format!("missing {key}"))?
+        .as_array()
+        .ok_or_else(|| format!("{key} is not an array"))
+}
+
+fn require_object<'a>(
+    obj: &'a serde_json::Map<String, Value>,
+    key: &str,
+) -> Result<&'a serde_json::Map<String, Value>, String> {
+    obj.get(key)
+        .ok_or_else(|| format!("missing {key}"))?
+        .as_object()
+        .ok_or_else(|| format!("{key} is not an object"))
+}
+
+fn require_bool(obj: &serde_json::Map<String, Value>, key: &str) -> Result<bool, String> {
+    obj.get(key)
+        .ok_or_else(|| format!("missing {key}"))?
+        .as_bool()
+        .ok_or_else(|| format!("{key} is not a bool"))
+}
+
+/// Validate the disclosure document against the normative schema (mirror of the TS
+/// `AgentDisclosureSchema`): required typed fields, hex digests, and the version
+/// literal. Optional fields are only type-checked when present. Returns `Err` on the
+/// first violation so an invalid disclosure can never be accepted.
+fn validate_disclosure(d: &serde_json::Map<String, Value>) -> Result<(), String> {
+    if d.get("version").and_then(Value::as_u64) != Some(1) {
+        return Err("version must be the integer literal 1".to_string());
+    }
+    require_str(d, "disclosureId")?;
+    require_hex(d, "agentId")?;
+    require_str(d, "issuedAt")?;
+    require_str(d, "validUntil")?;
+    require_str(d, "nonce")?;
+
+    let system_prompt = require_object(d, "systemPrompt")?;
+    require_literal_str(system_prompt, "algorithm", "sha256")?;
+    require_hex(system_prompt, "digest")?;
+
+    let constitution = require_object(d, "constitution")?;
+    require_array(constitution, "hardConstraints")?;
+    require_hex(constitution, "digest")?;
+    require_bool(constitution, "enforced")?;
+
+    let tools = require_object(d, "tools")?;
+    require_array(tools, "tools")?;
+
+    let capital = require_object(d, "capital")?;
+    require_array(capital, "mandates")?;
+    let custody = require_str(capital, "custody")?;
+    if custody != "non_custodial" && custody != "custodial" {
+        return Err("capital.custody is not a valid enum value".to_string());
+    }
+
+    let operator = require_object(d, "operator")?;
+    require_str(operator, "operatorId")?;
+    require_object(operator, "attestation")?;
+    require_str(operator, "deniabilityBoundary")?;
+
+    let history = require_object(d, "history")?;
+    require_hex(history, "chainAnchor")?;
+    let summary = require_object(history, "summary")?;
+    for key in ["totalDecisions", "settledCount", "blockedCount"] {
+        if summary.get(key).and_then(Value::as_u64).is_none() {
+            return Err(format!("history.summary.{key} is not a non-negative integer"));
+        }
+    }
+
+    // `auditAnchor`, `redTeam`, `model`, `provenance` are optional; if a verifier
+    // policy demands them it checks them in `evaluate_disclosure`. The structural
+    // gate here mirrors the required core of the TS schema.
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1045,6 +1225,95 @@ mod tests {
             let name = case["name"].as_str().unwrap();
             let ok = verify_inclusion_proof(&case["entry"]);
             assert_eq!(ok, case["expect"].as_bool().unwrap(), "transparency {name}");
+        }
+    }
+
+    fn negative() -> Value {
+        load(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../conformance/negative.json"
+        ))
+    }
+
+    // The MUST-REJECT corpus: every case is a malformed, tampered, or forged
+    // envelope a verifier MUST refuse and MUST NOT crash on. We feed `verify_raw`
+    // the raw bytes (serialized JSON, or the literal string for `isRawString`) and
+    // assert rejection. A panic on any case fails the test by definition.
+    #[test]
+    fn negative_corpus_all_rejected() {
+        let n = negative();
+        let cases = n["cases"].as_array().unwrap();
+        assert!(!cases.is_empty(), "negative.json corpus missing");
+        for case in cases {
+            let name = case["name"].as_str().unwrap();
+            let raw: String = if case["isRawString"].as_bool().unwrap_or(false) {
+                case["raw"].as_str().unwrap().to_string()
+            } else {
+                serde_json::to_string(&case["raw"]).unwrap()
+            };
+            assert!(
+                verify_raw(&raw),
+                "negative case {name} MUST be rejected"
+            );
+        }
+    }
+
+    // A correctly-bound, validly-signed envelope is NOT rejected by `verify_raw` —
+    // proving the gate is a real accept/reject decision, not a blanket reject.
+    #[test]
+    fn verify_raw_accepts_valid_envelope() {
+        let seed: [u8; 32] = [9u8; 32];
+        let key = SigningKey::from_bytes(&seed);
+        let public_key = verifying_key_hex(&key);
+        let disclosure = serde_json::json!({
+            "version": 1,
+            "disclosureId": "disc_raw_ok",
+            "agentId": public_key,
+            "issuedAt": "2026-06-24T12:00:00.000Z",
+            "validUntil": "2026-06-24T13:00:00.000Z",
+            "nonce": "nonce_raw_ok",
+            "systemPrompt": { "algorithm": "sha256", "digest": "abcdef" },
+            "constitution": { "hardConstraints": [], "digest": "abcdef", "enforced": true },
+            "tools": { "tools": [] },
+            "capital": { "mandates": [], "custody": "non_custodial" },
+            "operator": {
+                "operatorId": "op",
+                "attestation": { "scheme": "none", "level": "none" },
+                "deniabilityBoundary": "x"
+            },
+            "history": {
+                "chainAnchor": "abcdef",
+                "summary": { "totalDecisions": 1, "settledCount": 1, "blockedCount": 0 }
+            }
+        });
+        let emitted = sign_disclosure(&disclosure, &key);
+        let envelope = serde_json::json!({
+            "disclosure": emitted.disclosure,
+            "signature": {
+                "algorithm": emitted.signature_algorithm,
+                "publicKey": emitted.signature_public_key,
+                "value": emitted.signature_value
+            }
+        });
+        let raw = serde_json::to_string(&envelope).unwrap();
+        assert!(!verify_raw(&raw), "valid envelope must NOT be rejected");
+    }
+
+    // verify_raw must survive arbitrary hostile bytes without panicking.
+    #[test]
+    fn verify_raw_never_panics_on_garbage() {
+        for raw in [
+            "",
+            "{",
+            "[[[[[[",
+            "null",
+            "\"a string\"",
+            "{\"disclosure\":{},\"signature\":{}}",
+            "{\"disclosure\":null,\"signature\":null}",
+            "1e999",
+            "{\"disclosure\":{\"version\":1},\"signature\":{\"algorithm\":\"ed25519\",\"publicKey\":1,\"value\":2}}",
+        ] {
+            assert!(verify_raw(raw), "garbage {raw:?} must be rejected");
         }
     }
 }

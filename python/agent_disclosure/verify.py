@@ -5,6 +5,7 @@ verdict with a per-check pass/fail map. Refuses if any required check fails;
 reports every failed check (sorted-name comparison is the conformance contract).
 """
 
+import json
 import time
 from dataclasses import dataclass, field
 from typing import Any, Callable, Optional
@@ -201,3 +202,67 @@ def evaluate_disclosure(signed: dict, policy: VerificationPolicy) -> Verdict:
         reasons=reasons,
         cost={"checksRun": len(checks), "wallMicros": wall_micros},
     )
+
+
+def evaluate_raw(raw: str, policy: Optional[VerificationPolicy] = None) -> Verdict:
+    """Parse an untrusted raw JSON string and evaluate it in one call.
+
+    Fail-closed mirror of the TS `verifyAndEvaluate`: any parse error or
+    structural defect is surfaced as a `refuse` verdict with a `schema` check
+    set to False, never an exception. `now` defaults to issue-time epoch so a
+    caller need not supply a policy just to reject garbage.
+    """
+    if policy is None:
+        policy = VerificationPolicy(now="1970-01-01T00:00:00.000Z")
+    try:
+        signed = json.loads(raw)
+    except Exception as e:  # noqa: BLE001 — fail closed on any parser fault
+        return Verdict(
+            decision="refuse",
+            checks={"schema": False},
+            reasons=[f"malformed disclosure: {e}"],
+            cost={"checksRun": 1, "wallMicros": 0},
+        )
+    try:
+        _require_envelope_shape(signed)
+        return evaluate_disclosure(signed, policy)
+    except Exception as e:  # noqa: BLE001 — any defect is a safe rejection
+        return Verdict(
+            decision="refuse",
+            checks={"schema": False},
+            reasons=[f"malformed disclosure: {e}"],
+            cost={"checksRun": 1, "wallMicros": 0},
+        )
+
+
+def _require_envelope_shape(signed: Any) -> None:
+    """Minimal structural gate so a defect raises here (caught by `evaluate_raw`)
+    rather than producing an undefined verdict. Deep field validation is left to
+    the signature check, which fails closed on any tamper or type error."""
+    if not isinstance(signed, dict):
+        raise TypeError("envelope must be a JSON object")
+    disclosure = signed.get("disclosure")
+    signature = signed.get("signature")
+    if not isinstance(disclosure, dict):
+        raise TypeError("missing or non-object 'disclosure'")
+    if not isinstance(signature, dict):
+        raise TypeError("missing or non-object 'signature'")
+    if signature.get("algorithm") != "ed25519":
+        raise ValueError("signature.algorithm must be 'ed25519'")
+    for key in ("publicKey", "value"):
+        if not isinstance(signature.get(key), str):
+            raise TypeError(f"signature.{key} must be a string")
+    if not isinstance(disclosure.get("agentId"), str):
+        raise TypeError("disclosure.agentId must be a string")
+    if disclosure["agentId"] != signature["publicKey"]:
+        raise ValueError("agentId does not match the signing public key")
+
+
+def verify_raw(raw: str, policy: Optional[VerificationPolicy] = None) -> bool:
+    """Returns True if the raw input is REJECTED (refused), False if it would
+    transact. Never raises on any input — JSON parse error, missing keys, wrong
+    types, agentId/publicKey mismatch, non-hex or bad signature all reject."""
+    try:
+        return evaluate_raw(raw, policy).decision != "transact"
+    except Exception:  # noqa: BLE001 — last-resort guard; rejection is always safe
+        return True

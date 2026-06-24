@@ -382,6 +382,46 @@ static void run_interop_handshakes(const cJSON *root) {
     total_fail += fail;
 }
 
+/* ── MUST-REJECT corpus (../conformance/negative.json) ─────────────────────────
+ * Feed each case's raw input to adp_verify_raw and assert it is REJECTED. For an
+ * object/array/number/null `raw`, serialize the cJSON value back to a string with
+ * cJSON_PrintUnformatted; for `isRawString` cases, feed the literal string verbatim
+ * (it is intentionally not valid JSON). Any accepted input fails the suite — the
+ * whole point of the corpus is that the verifier defaults to refusal. */
+static void run_negative(const cJSON *root) {
+    const cJSON *arr = cJSON_GetObjectItemCaseSensitive(root, "cases");
+    int pass = 0, fail = 0;
+    const cJSON *tc;
+    cJSON_ArrayForEach(tc, arr) {
+        const cJSON *name = cJSON_GetObjectItemCaseSensitive(tc, "name");
+        const cJSON *raw = cJSON_GetObjectItemCaseSensitive(tc, "raw");
+        const cJSON *isRawString = cJSON_GetObjectItemCaseSensitive(tc, "isRawString");
+
+        char *serialized = NULL;
+        const char *feed;
+        if (cJSON_IsTrue(isRawString)) {
+            /* literal byte string, deliberately not valid JSON */
+            feed = cJSON_IsString(raw) ? raw->valuestring : "";
+        } else {
+            serialized = cJSON_PrintUnformatted(raw);
+            feed = serialized; /* may be NULL → adp_verify_raw rejects NULL */
+        }
+
+        int rejected = adp_verify_raw(feed);
+        if (rejected == 1) {
+            pass++;
+        } else {
+            fail++;
+            printf("  [FAIL] negative '%s': input was ACCEPTED (must reject)\n",
+                   cJSON_IsString(name) ? name->valuestring : "?");
+        }
+        if (serialized) cJSON_free(serialized);
+    }
+    printf("negative (must-reject): %d passed, %d failed\n", pass, fail);
+    total_pass += pass;
+    total_fail += fail;
+}
+
 int main(void) {
     if (sodium_init() < 0) {
         fprintf(stderr, "libsodium init failed\n");
@@ -391,16 +431,19 @@ int main(void) {
     char *vectors_raw = read_file("../conformance/vectors.json");
     char *interop_raw = read_file("../conformance/interop.json");
     char *fuzz_raw = read_file("../conformance/fuzz.json");
-    if (!vectors_raw || !interop_raw || !fuzz_raw) {
+    char *negative_raw = read_file("../conformance/negative.json");
+    if (!vectors_raw || !interop_raw || !fuzz_raw || !negative_raw) {
         free(vectors_raw);
         free(interop_raw);
         free(fuzz_raw);
+        free(negative_raw);
         return 2;
     }
     cJSON *vectors = cJSON_Parse(vectors_raw);
     cJSON *interop = cJSON_Parse(interop_raw);
     cJSON *fuzz = cJSON_Parse(fuzz_raw);
-    if (!vectors || !interop || !fuzz) {
+    cJSON *negative = cJSON_Parse(negative_raw);
+    if (!vectors || !interop || !fuzz || !negative) {
         fprintf(stderr, "failed to parse conformance JSON\n");
         return 2;
     }
@@ -415,6 +458,7 @@ int main(void) {
     run_revocations(interop);
     run_transparency(interop);
     run_interop_handshakes(interop);
+    run_negative(negative);
 
     printf("-------------------------\n");
     printf("TOTAL: %d passed, %d failed\n", total_pass, total_fail);
@@ -422,8 +466,10 @@ int main(void) {
     cJSON_Delete(vectors);
     cJSON_Delete(interop);
     cJSON_Delete(fuzz);
+    cJSON_Delete(negative);
     free(vectors_raw);
     free(interop_raw);
     free(fuzz_raw);
+    free(negative_raw);
     return total_fail == 0 ? 0 : 1;
 }

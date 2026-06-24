@@ -241,10 +241,20 @@ bool adp_verify_disclosure_signature(const cJSON *signed_env, const char **reaso
         return false;
     }
     const cJSON *agentId = cJSON_GetObjectItemCaseSensitive(disclosure, "agentId");
+    const cJSON *algorithm = cJSON_GetObjectItemCaseSensitive(signature, "algorithm");
     const cJSON *publicKey = cJSON_GetObjectItemCaseSensitive(signature, "publicKey");
     const cJSON *value = cJSON_GetObjectItemCaseSensitive(signature, "value");
     if (!cJSON_IsString(agentId) || !cJSON_IsString(publicKey) || !cJSON_IsString(value)) {
         if (reason) *reason = "malformed envelope";
+        return false;
+    }
+
+    /* The signature scheme is fixed at ed25519 (signature.algorithm is z.literal in
+     * the TS schema). An envelope declaring any other algorithm — even one carrying a
+     * valid-looking ed25519 publicKey/value — must be refused, not silently
+     * ed25519-verified. */
+    if (!cJSON_IsString(algorithm) || strcmp(algorithm->valuestring, "ed25519") != 0) {
+        if (reason) *reason = "unsupported signature algorithm";
         return false;
     }
 
@@ -290,6 +300,29 @@ bool adp_is_fresh(const cJSON *disclosure, const char *now) {
         return false;
     return strcmp(now, issuedAt->valuestring) >= 0 &&
            strcmp(now, validUntil->valuestring) <= 0;
+}
+
+/* ── robust raw-input gate ─────────────────────────────────────────────────────
+ * The verification path here is adp_verify_disclosure_signature, which already
+ * guards every member access (cJSON_GetObjectItemCaseSensitive returns NULL for a
+ * missing key OR a non-object container, and every value is type-checked before
+ * dereference). So the only extra work is parsing untrusted bytes and treating a
+ * parse failure — or any non-accepting verdict — as a rejection. Accept (return 0)
+ * ONLY when the signature verifies and the identity binding holds. */
+int adp_verify_raw(const char *raw) {
+    if (!raw) return 1;
+    cJSON *parsed = cJSON_Parse(raw);
+    if (!parsed) return 1; /* not JSON / truncated / malformed → reject */
+    /* A top-level non-object (null, number, array, string) has no disclosure /
+     * signature members; adp_verify_disclosure_signature handles that safely and
+     * returns false, but short-circuit for clarity. */
+    int rejected = 1;
+    if (cJSON_IsObject(parsed)) {
+        const char *reason = NULL;
+        rejected = adp_verify_disclosure_signature(parsed, &reason) ? 0 : 1;
+    }
+    cJSON_Delete(parsed);
+    return rejected;
 }
 
 /* ── verify a UTF-8 message signature against a hex public key ──────────────── */

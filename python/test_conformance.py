@@ -19,6 +19,7 @@ from agent_disclosure import (
     agent_key_from_private_hex,
     generate_agent_key,
     sign_disclosure,
+    verify_raw,
     verify_redacted,
     verify_revocation,
     verify_inclusion_proof,
@@ -29,6 +30,7 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 VECTORS = json.loads((ROOT / "conformance" / "vectors.json").read_text(encoding="utf-8"))
 INTEROP = json.loads((ROOT / "conformance" / "interop.json").read_text(encoding="utf-8"))
 FUZZ = json.loads((ROOT / "conformance" / "fuzz.json").read_text(encoding="utf-8"))
+NEGATIVE = json.loads((ROOT / "conformance" / "negative.json").read_text(encoding="utf-8"))
 
 
 class TestCanonicalization(unittest.TestCase):
@@ -132,6 +134,34 @@ class TestInteropTransparency(unittest.TestCase):
     def test_cases(self):
         for case in INTEROP["transparency"]:
             self.assertEqual(verify_inclusion_proof(case["entry"]), case["expect"], msg=case["name"])
+
+
+class TestNegativeCorpus(unittest.TestCase):
+    """MUST-REJECT corpus: every hostile/malformed raw input must reject (verify_raw
+    returns True) and no exception may escape. The adversarial half of conformance."""
+
+    def test_every_case_rejects_without_raising(self):
+        cases = NEGATIVE["cases"]
+        self.assertGreater(len(cases), 0, "negative.json corpus is empty")
+        policy = VerificationPolicy(now="2026-06-24T12:00:00.000Z")
+        for case in cases:
+            # Feed verify_raw a STRING: for isRawString feed the literal bytes,
+            # otherwise json.dumps the structured value into raw JSON text.
+            if case.get("isRawString"):
+                raw = case["raw"]
+            else:
+                raw = json.dumps(case["raw"])
+            try:
+                rejected = verify_raw(raw, policy)
+            except Exception as e:  # noqa: BLE001 — the whole point is nothing escapes
+                self.fail(f"{case['name']}: verify_raw raised {e!r}")
+            self.assertTrue(rejected, msg=f"{case['name']}: not rejected")
+
+    def test_default_policy_also_rejects(self):
+        # verify_raw must reject even with no policy supplied (fail-closed default).
+        for case in NEGATIVE["cases"]:
+            raw = case["raw"] if case.get("isRawString") else json.dumps(case["raw"])
+            self.assertTrue(verify_raw(raw), msg=f"{case['name']}: not rejected (default policy)")
 
 
 if __name__ == "__main__":

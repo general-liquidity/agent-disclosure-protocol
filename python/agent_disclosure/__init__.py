@@ -8,7 +8,13 @@ counterparty verdict + challenge-response handshake the conformance contract pin
 
 from .canonical import canonicalize, sha256_hex
 from .attestation import verify_disclosure_signature, is_fresh
-from .verify import evaluate_disclosure, Verdict, VerificationPolicy
+from .verify import (
+    evaluate_disclosure,
+    evaluate_raw,
+    verify_raw,
+    Verdict,
+    VerificationPolicy,
+)
 from .handshake import verify_challenge_response
 from .emit import (
     AgentKey,
@@ -25,6 +31,8 @@ __all__ = [
     "verify_disclosure_signature",
     "is_fresh",
     "evaluate_disclosure",
+    "evaluate_raw",
+    "verify_raw",
     "Verdict",
     "VerificationPolicy",
     "verify_challenge_response",

@@ -47,6 +47,16 @@ bool adp_verify_disclosure_signature(const cJSON *signed_env, const char **reaso
  * `disclosure` is the inner disclosure object. */
 bool adp_is_fresh(const cJSON *disclosure, const char *now);
 
+/* ── Robust raw-input gate ─────────────────────────────────────────────────────
+ * Parse `raw` (untrusted bytes) and run the verification pipeline, treating ANY
+ * malformed / tampered / missing input as rejected. Returns 1 if the input is
+ * REJECTED (the safe default), 0 only if it would be accepted (parses to a
+ * well-formed envelope whose ed25519 signature verifies and whose agentId binds to
+ * the signing public key). Guards every field access — a NULL/non-object/wrong-typed
+ * member never gets dereferenced — and MUST NOT crash on any input, including
+ * non-JSON, NULL, JSON null/arrays/numbers, or a missing signature/disclosure. */
+int adp_verify_raw(const char *raw);
+
 /* ── Emitter: ed25519 signing (SPEC.md §5) ─────────────────────────────────────
  * The seed is the trailing 32 bytes of the PKCS8 DER private key (after the
  * `302e020100300506032b657004220420` prefix). adp_seed_from_pkcs8_hex() extracts
