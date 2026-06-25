@@ -9,6 +9,27 @@ The interoperability contract (the canonicalization algorithm and the signed
 disclosure-document bytes) is frozen at v1.0; see [Stability guarantees](docs/src/stability.md)
 for what may and may not change without a version bump.
 
+## [Unreleased]
+
+### Added
+
+- **A2A Agent Card bridge** (`src/a2a.ts`). Carry, extract, and verify an ADP
+  `SignedDisclosure` on an [A2A](https://a2a-protocol.org) Agent Card via a
+  `capabilities.extensions[]` entry under `ADP_A2A_EXTENSION_URI`
+  (`https://adp.dev/a2a/agent-disclosure/v1`). `disclosureExtension` /
+  `withDisclosureExtension` embed (or link, `embed:false`) the disclosure;
+  `findDisclosureExtension` / `extractDisclosure` lift it back out. `verifyCardDisclosure`
+  enforces a dual-signature trust model: the disclosure's own ed25519 envelope is the
+  required trust root (`verifyDisclosureSignature`), while the card's optional RFC 7515
+  `signatures[]` JWS (A2A §8.4) are best-effort origin tamper-evidence — reported via
+  `cardSignatureChecked` / `boundToCardSigner`, never required. `signAgentCard` produces a
+  self-signed card JWS (default EdDSA over the ADP agent key → signer == agentId);
+  `verifyAgentCardSignature` implements §8.4.3 (JCS over the card without `signatures`,
+  EdDSA native + ES256/RS256 via a `resolveKey` callback, graceful unsupported-alg). No new
+  runtime dependency (zod + `node:crypto`).
+
+---
+
 ## [0.1.1]
 
 First CI-automated release — published via OIDC trusted publishing

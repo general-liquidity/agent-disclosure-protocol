@@ -109,3 +109,7 @@ export * from "./vc.ts";
 // SD-JWT-VC bridge (a disclosure as a selective-disclosure JWT VC: hidden field names,
 // decoy digests, and KB-JWT presentation-to-verifier binding).
 export * from "./sdjwtvc.ts";
+
+// A2A Agent Card bridge (carry/extract/verify a disclosure on an A2A agent-discovery card;
+// the disclosure envelope is the trust root, the card JWS is origin tamper-evidence).
+export * from "./a2a.ts";

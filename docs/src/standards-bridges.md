@@ -71,3 +71,44 @@ the exact presented bytes.
 
 This is additive: a disclosure can be carried as the native `SignedDisclosure` / `RedactedView`
 or as an SD-JWT-VC string, by content negotiation.
+
+## A2A Agent Card (`src/a2a.ts`)
+
+[A2A](https://a2a-protocol.org) (Agent2Agent) publishes an unauthenticated **Agent Card** at
+`/.well-known/agent-card.json` that advertises an agent's capabilities, skills, and — via
+`capabilities.extensions[]` — protocol extensions a counterparty can opt into. This bridge
+defines one such extension so an ADP disclosure travels with A2A discovery.
+
+**The extension.** `disclosureExtension(signed, opts)` builds an `AgentExtension` under the
+URI `https://adp.dev/a2a/agent-disclosure/v1` (`ADP_A2A_EXTENSION_URI`). By default it
+**embeds** the full `SignedDisclosure` in `params.disclosure` (with `params.agentId`), so a
+counterparty verifies with no second fetch; an optional `params.url` points at a
+`.well-known/agent-disclosure` for fetch-based flows. With `embed: false` the extension carries
+only `{ agentId, url }` (and `url` is then required). `withDisclosureExtension(card, signed)`
+returns a copy of the card with the extension appended to `capabilities.extensions` (dedup by
+URI); `findDisclosureExtension` / `extractDisclosure` locate it and lift the embedded disclosure
+back out (re-validated against `SignedDisclosureSchema`).
+
+**Dual-signature trust model.** An Agent Card MAY itself carry `signatures[]` —
+[RFC 7515](https://www.rfc-editor.org/rfc/rfc7515) JWS in flattened-JSON form, each
+`{ protected, signature, header? }`. The signed payload is the card with `signatures` removed,
+[RFC 8785 (JCS)](./canonicalization.md)-canonicalized, with the A2A §8.4.1 default-value
+omission applied; the signing input is `BASE64URL(protected) + "." + BASE64URL(JCS(payload))`.
+That JWS is **tamper-evidence on the card origin**, not the trust root. The trust root is the
+disclosure's **own ed25519 envelope**, which a counterparty verifies with the agent's public key
+alone — the same guarantee the bare disclosure carries.
+
+So `verifyCardDisclosure(card, opts?)` **requires** the disclosure envelope to verify
+(`verifyDisclosureSignature`) and only **reports** the card-signature result: it returns
+`{ ok, agentId, cardSignatureChecked, boundToCardSigner }`, where a card-signature failure does
+**not** fail `ok`, but a verified card signature whose signer key resolves to the disclosure
+`agentId` (directly or via that key's did:key form) sets `boundToCardSigner`. `signAgentCard`
+defaults to **EdDSA over the ADP ed25519 agent key**, so an ADP agent can publish a self-signed
+card whose signer == agentId → a strong, provable binding. `verifyAgentCardSignature` implements
+§8.4.3: it verifies EdDSA natively against an OKP/Ed25519 `jwk` in the signature header (or a
+resolver-supplied key), and ES256/RS256 when a `resolveKey` callback supplies the key; an
+algorithm it cannot handle returns a graceful `{ ok:false, reason:"unsupported alg" }` rather
+than throwing.
+
+Like the other bridges, this is dependency-free (zod + `node:crypto`) and additive — a fuller,
+real `AgentCard` round-trips through these helpers unchanged (unknown fields pass through).
