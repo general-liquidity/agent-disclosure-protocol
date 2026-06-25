@@ -9,7 +9,7 @@ The interoperability contract (the canonicalization algorithm and the signed
 disclosure-document bytes) is frozen at v1.0; see [Stability guarantees](docs/src/stability.md)
 for what may and may not change without a version bump.
 
-## [Unreleased]
+## [0.1.5] - 2026-06-25
 
 ### Added
 
