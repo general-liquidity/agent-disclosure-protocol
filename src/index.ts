@@ -147,3 +147,11 @@ export * from "./worldagent.ts";
 // Human Passport (Gitcoin) attestation scheme - a Unique Humanity Score as an operator
 // attestation (structural validation + an injected scorer seam; score bands map to a level).
 export * from "./humanpassport.ts";
+
+// OPTIONAL jose-backed verifier for the v2 flattened-JWS envelope - proves a stock JOSE
+// library verifies the bespoke-signed envelope. Default verify path stays node:crypto.
+export * from "./joseEnvelope.ts";
+
+// Concrete OPTIONAL reference implementations of the four injected attestation seams
+// (Self / World ID / Human Passport / World Agent), so adopters don't hand-wire them.
+export * from "./referenceVerifiers.ts";

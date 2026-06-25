@@ -184,3 +184,124 @@ export function didWeb(domain: string, path?: string): string {
     .map((s) => encodeURIComponent(s));
   return `did:web:${host}:${segments.join(":")}`;
 }
+
+/** Translate a `did:web:...` identifier to the HTTPS URL its DID document is served at.
+ *  Per the did:web method: no path → `https://<host>/.well-known/did.json`; with
+ *  `:`-separated path segments → `https://<host>/<seg>/.../did.json`. Inverse of `didWeb`
+ *  for URL construction. Throws if the input is not a did:web. */
+export function didWebToUrl(did: string): string {
+  const prefix = "did:web:";
+  if (!did.startsWith(prefix)) throw new Error("not a did:web identifier");
+  const parts = did.slice(prefix.length).split(":").map(decodeURIComponent);
+  const host = parts[0];
+  if (!host) throw new Error("did:web is missing a host");
+  if (parts.length === 1) return `https://${host}/.well-known/did.json`;
+  return `https://${host}/${parts.slice(1).join("/")}/did.json`;
+}
+
+// ── did:web resolution (optional, via web-did-resolver/did-resolver) ──────────
+//
+// `didWeb` / `agentIdToDidDocument` only CONSTRUCT a did:web; actually RESOLVING one
+// means fetching the domain's did.json. ADP stays dep-light by default — the bespoke
+// `resolveDidWebFetch` uses only `fetch` (built into Node ≥20). When the consumer wants
+// the canonical W3C resolver (caching, did:web edge cases, a uniform `DIDResolver`
+// surface), `resolveDidWebWithResolver` dynamically imports the OPTIONAL
+// `web-did-resolver` + `did-resolver` packages. Neither is a required dependency.
+
+export interface ResolveDidWebOptions {
+  /** override the network fetch (tests / custom transports). Defaults to global `fetch`. */
+  fetchImpl?: typeof fetch;
+}
+
+export interface DidWebResolution {
+  ok: boolean;
+  /** the resolved DID document (when ok). */
+  document?: DidDocument;
+  reason?: string;
+}
+
+/** Resolve a did:web with the built-in `fetch` only — no optional dep. Fetches the
+ *  method's did.json URL and returns the parsed document. The returned `id` MUST equal
+ *  the requested DID (binds the document to the identifier it was fetched for). */
+export async function resolveDidWebFetch(
+  did: string,
+  opts: ResolveDidWebOptions = {},
+): Promise<DidWebResolution> {
+  let url: string;
+  try {
+    url = didWebToUrl(did);
+  } catch (e) {
+    return { ok: false, reason: (e as Error).message };
+  }
+  const doFetch = opts.fetchImpl ?? (globalThis.fetch as typeof fetch | undefined);
+  if (!doFetch) return { ok: false, reason: "no fetch implementation available" };
+
+  let res: Response;
+  try {
+    res = await doFetch(url);
+  } catch (e) {
+    return { ok: false, reason: `did:web fetch failed: ${(e as Error).message}` };
+  }
+  if (!res.ok) return { ok: false, reason: `did:web fetch returned HTTP ${res.status}` };
+
+  let document: DidDocument;
+  try {
+    document = (await res.json()) as DidDocument;
+  } catch (e) {
+    return { ok: false, reason: `did:web document is not valid JSON: ${(e as Error).message}` };
+  }
+  if (document.id !== did) {
+    return { ok: false, reason: `did:web document id '${document.id}' does not match '${did}'` };
+  }
+  return { ok: true, document };
+}
+
+const DID_RESOLVER_HINT =
+  "did:web resolution via the standard resolver needs web-did-resolver and did-resolver. " +
+  "Install them: `npm install web-did-resolver did-resolver` (optional extras), or use " +
+  "`resolveDidWebFetch` for the dep-free fetch path.";
+
+// Overridable loader so tests can supply a mock without installing the optional packages.
+type WebDidResolverModule = { getResolver: () => Record<string, unknown> };
+type DidResolverModule = {
+  Resolver: new (registry: Record<string, unknown>) => {
+    resolve: (did: string) => Promise<{
+      didDocument: DidDocument | null;
+      didResolutionMetadata: { error?: string };
+    }>;
+  };
+};
+
+let webDidResolverLoader: () => Promise<WebDidResolverModule> = () =>
+  import("web-did-resolver") as unknown as Promise<WebDidResolverModule>;
+let didResolverLoader: () => Promise<DidResolverModule> = () =>
+  import("did-resolver") as unknown as Promise<DidResolverModule>;
+
+/** Test seam: inject mock `web-did-resolver` / `did-resolver` modules (so the optional
+ *  path is exercised without installing them). Pass `undefined` to restore the real loaders. */
+export function __setDidResolverLoaders(loaders: {
+  webDidResolver?: () => Promise<WebDidResolverModule>;
+  didResolver?: () => Promise<DidResolverModule>;
+}): void {
+  if (loaders.webDidResolver) webDidResolverLoader = loaders.webDidResolver;
+  if (loaders.didResolver) didResolverLoader = loaders.didResolver;
+}
+
+/** Resolve a did:web via the OPTIONAL `web-did-resolver` + `did-resolver` packages — the
+ *  canonical W3C `DIDResolver` surface. Same result shape as `resolveDidWebFetch`. Throws
+ *  with an install hint if the optional deps are absent. */
+export async function resolveDidWebWithResolver(did: string): Promise<DidWebResolution> {
+  let webDid: WebDidResolverModule;
+  let didRes: DidResolverModule;
+  try {
+    [webDid, didRes] = await Promise.all([webDidResolverLoader(), didResolverLoader()]);
+  } catch {
+    throw new Error(DID_RESOLVER_HINT);
+  }
+  const resolver = new didRes.Resolver(webDid.getResolver());
+  const { didDocument, didResolutionMetadata } = await resolver.resolve(did);
+  if (didResolutionMetadata.error || !didDocument) {
+    return { ok: false, reason: didResolutionMetadata.error ?? "did:web resolution returned no document" };
+  }
+  return { ok: true, document: didDocument };
+}
