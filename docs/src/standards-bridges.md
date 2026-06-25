@@ -224,6 +224,39 @@ bookkeeping on the structurally-valid claim. **With** `opts.verifier` (the consu
 unique-human credential) and any other verified level to `signed`; a non-verified proof is `none`.
 The scheme is the reverse-domain `org.world` (`WORLDID_ATTESTATION_SCHEME`).
 
+### World Agent / human-backed agent (`src/worldagent.ts`)
+
+[worldcoin/agentkit](https://github.com/worldcoin/agentkit) verifies that an autonomous agent is
+**backed by a real, World ID-verified human**. The agent's wallet is registered — via a World ID
+proof — in an on-chain **AgentBook** that maps the agent wallet to the **nullifier of the unique
+human** who registered it. Accountability flow: a server challenges the agent to sign a **CAIP-122
+/ SIWE (EIP-4361)** message; the verifier recovers the signer (EIP-191 / `personal_sign`), requires
+it to equal the claimed agent wallet, then looks the wallet up in AgentBook to confirm it is
+human-backed and to surface the human nullifier. This is agent↔human accountability — ADP's exact
+thesis. (Distinct from World ID above: World ID proves *a human*; World Agent proves *an agent has a
+human behind it*, recorded on-chain — hence the sibling scheme id `org.world.agent`.)
+
+Recovering the signer needs secp256k1 + keccak (the same optional `@noble` extras `erc8004Onchain.ts`
+uses — `recoverWalletAddress` is reused directly), and the AgentBook lookup
+(`lookupHuman(address) -> uint256`, `0` ⇒ unregistered) is an on-chain `eth_call` — **not** something
+ADP bundles. So this bridge does **structural** validation (`validateWorldAgentStructural`: the
+`WorldAgent` scheme, a `0x`+40-hex `address`, a 65-byte `signature`, a non-empty `message`), EIP-191
+**signer recovery** against the claimed wallet, and an **injected `AgentBookResolver` seam** for the
+human-backing read.
+
+`verifyWorldAgent(att, opts?)` returns `{ structural, valid, address?, humanBacked, nullifier?, reason? }`.
+The signature half always runs (dep-permitting) — a malformed signature or a signer mismatch is
+`{ valid: false }`, never a throw. **Without** a resolver the signature can be valid (the agent
+controls the wallet) but `humanBacked` is `false` — the on-chain registration is unconfirmed.
+**With** `opts.resolver` (the consumer wiring the AgentBook `lookupHuman` `eth_call`), a
+`registered: true` result sets `humanBacked: true` and surfaces the registering human's nullifier.
+`worldAgentToOperatorAttestation` maps a human-backed agent to `registry_attested` (a real human is
+recorded on-chain behind it), a wallet-controlled-but-unregistered one to `signed`, and a
+non-recovering signature to `none`. The scheme is the reverse-domain `org.world.agent`
+(`WORLDAGENT_ATTESTATION_SCHEME`); `AGENT_BOOK_ADDRESS`
+(`0xA23aB2712eA7BBa896930544C7d6636a96b944dA`, World Chain) and `WORLDCHAIN_ID` (480) are exported
+for a consumer defaulting the resolver to the canonical deployment.
+
 ### Human Passport / humanity score (`src/humanpassport.ts`)
 
 [Human Passport](https://passport.human.tech) (formerly Gitcoin Passport) aggregates many

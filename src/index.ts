@@ -126,6 +126,11 @@ export * from "./self.ts";
 // (structural validation of the Groth16/Semaphore proof shape + an injected verifier seam).
 export * from "./worldid.ts";
 
+// World Agent (worldcoin/agentkit) attestation scheme - "this agent is backed by a World
+// ID-verified human" as an operator attestation (CAIP-122/SIWE structural validation + EIP-191
+// signer recovery + an injected AgentBook `lookupHuman` resolver for the human-backing read).
+export * from "./worldagent.ts";
+
 // Human Passport (Gitcoin) attestation scheme - a Unique Humanity Score as an operator
 // attestation (structural validation + an injected scorer seam; score bands map to a level).
 export * from "./humanpassport.ts";

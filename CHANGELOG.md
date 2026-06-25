@@ -9,6 +9,33 @@ The interoperability contract (the canonicalization algorithm and the signed
 disclosure-document bytes) is frozen at v1.0; see [Stability guarantees](docs/src/stability.md)
 for what may and may not change without a version bump.
 
+## [Unreleased]
+
+### Added
+
+- **World Agent (worldcoin/agentkit) attestation scheme** (`src/worldagent.ts`). Recognizes a
+  worldcoin/agentkit **human-backed agent** — an agent wallet registered, via a World ID proof, in
+  the on-chain **AgentBook** that maps the wallet to the registering human's nullifier — as an
+  operator-attestation scheme, without bundling a chain client. The agent signs a **CAIP-122 / SIWE
+  (EIP-4361)** challenge; ADP does STRUCTURAL validation of the message + address/signature
+  (`validateWorldAgentStructural`: the `WorldAgent` scheme, a `0x`+40-hex `address`, a 65-byte
+  `signature`, a non-empty `message`), **EIP-191-recovers** the signer (reusing
+  `recoverWalletAddress` from `erc8004Onchain.ts`) and requires it to equal the claimed agent
+  wallet, then delegates the AgentBook `lookupHuman(address) -> uint256` on-chain read to an
+  injected `AgentBookResolver` seam. `verifyWorldAgent` returns
+  `{ structural, valid, address?, humanBacked, nullifier?, reason? }` — without a resolver the
+  signature can be valid but `humanBacked` is `false` (the on-chain registration is unconfirmed),
+  and it never throws on a missing resolver or a malformed signature. `worldAgentToOperatorAttestation`
+  maps a human-backed agent to `registry_attested`, a wallet-controlled-but-unregistered one to
+  `signed`, and a non-recovering signature to `none`, under the reverse-domain scheme
+  `org.world.agent` (`WORLDAGENT_ATTESTATION_SCHEME`) — the frozen attestation `scheme` enum in
+  `schema.ts` is untouched. Exports the canonical `AGENT_BOOK_ADDRESS`
+  (`0xA23aB2712eA7BBa896930544C7d6636a96b944dA`, World Chain) and `WORLDCHAIN_ID` (480). No new
+  runtime dependency (the secp256k1 recovery reuses the optional `@noble` extras, loaded
+  dynamically).
+
+---
+
 ## [0.1.4] - 2026-06-25
 
 ### Added
