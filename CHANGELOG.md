@@ -9,7 +9,20 @@ The interoperability contract (the canonicalization algorithm and the signed
 disclosure-document bytes) is frozen at v1.0; see [Stability guarantees](docs/src/stability.md)
 for what may and may not change without a version bump.
 
-## [Unreleased]
+## [0.1.1]
+
+First CI-automated release — published via OIDC trusted publishing
+(`.github/workflows/release.yml`), tokenless and with provenance. The published package
+contents (`dist/` + docs) are **unchanged** from `0.1.0`; the specification-version-2
+additions below shipped in the `0.1.0` tarball and are recorded here for completeness.
+
+### Added (tooling)
+
+- `.github/workflows/release.yml` + `RELEASING.md`: tag-triggered, OIDC trusted publishing
+  to npm (and, behind opt-in flags, PyPI and crates.io), mirroring the OpenSolvency
+  release pattern.
+
+---
 
 Specification version 2 — a wire-layer hardening that brings ADP into line with the
 standards it interoperates with. It is **additive**: the disclosure-document structure,
@@ -136,4 +149,5 @@ interop contract, and a portable conformance suite.
 - `conformance/vectors.json` and `conformance/interop.json` - the language-neutral
   fixtures the native verifiers load.
 
+[0.1.1]: https://github.com/general-liquidity/agent-disclosure-protocol/releases/tag/v0.1.1
 [0.1.0]: https://github.com/general-liquidity/agent-disclosure-protocol/releases/tag/v0.1.0
