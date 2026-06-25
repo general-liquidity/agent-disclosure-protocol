@@ -10,13 +10,17 @@ import { fileURLToPath } from "node:url";
 
 import { buildArtifacts } from "../scripts/generate-schema.ts";
 
+// Compare content, not line endings: on Windows `core.autocrlf` checks the committed
+// schema/*.json out as CRLF while the generator emits LF, so normalize before diffing.
+const lf = (s: string) => s.replace(/\r\n/g, "\n");
+
 test("schema artifacts are in sync with the zod source", () => {
   const root = new URL("..", import.meta.url);
   for (const [rel, expected] of Object.entries(buildArtifacts())) {
     const committed = readFileSync(fileURLToPath(new URL(rel, root)), "utf8");
     assert.equal(
-      committed,
-      expected,
+      lf(committed),
+      lf(expected),
       `${rel} is out of sync with src/schema.ts — regenerate: node --import tsx scripts/generate-schema.ts`,
     );
   }
