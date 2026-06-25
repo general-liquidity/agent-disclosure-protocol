@@ -9,6 +9,31 @@ The interoperability contract (the canonicalization algorithm and the signed
 disclosure-document bytes) is frozen at v1.0; see [Stability guarantees](docs/src/stability.md)
 for what may and may not change without a version bump.
 
+## [0.1.6] - 2026-06-26
+
+### Added
+
+- **Proof-of-Enforcement verifier** (`src/enforcement.ts`). Makes the `enforced` claim
+  *cryptographically falsifiable*: `verifyEnforcement(disclosure, attestation, opts?)` checks the
+  disclosed `policyHash` is **bound** to the live attestation, that it's **fresh** (the audit head
+  advances the disclosed anchor), and — given an injected `replay` seam (OpenSolvency's pure
+  `replayDecision`) — **replays** sampled real decisions: any mismatch ⇒ `replayed:"FAILED"` ⇒
+  `ok:false`, so a gate that does *not* enforce what it discloses is detected, not just asserted.
+  `computePolicyHash` is byte-identical to the OpenSolvency emitter (cross-repo tested); ADP imports
+  zero OS code — the replay is an injected seam. Reads the binding from the `com.opensolvency.enforcement`
+  extension or the schema-stable `constitution.enforcementEvidence`. Frozen disclosure schema untouched.
+- **ADP-as-ERC-8004-validator** (`src/erc8004Validator.ts`). Fills ERC-8004's named-but-unfilled
+  validation hook: expresses an ADP verification verdict as an on-chain `validationResponse` attestation
+  (score + evidence hash), with an injected on-chain reader seam.
+- **Visa TAP interop** (`src/visatap.ts`). Surfaces an ADP disclosure inside a Visa Trusted Agent
+  Protocol RFC-9421 signed request (`signTapRequest`/`verifyTapRequest`), reusing ADP's ed25519 + RFC-9421
+  handshake; grounded in the TAP reference implementation.
+- **Optional library paths + reference verifiers** (build-vs-buy). Optional `@sd-jwt/sd-jwt-vc`, `jose`
+  (`src/joseEnvelope.ts`), and `web-did-resolver` paths alongside the bespoke defaults; plus
+  `src/referenceVerifiers.ts` — concrete cloud/on-chain impls of the Self / World ID / Human Passport /
+  World Agent injected seams. All optional/dynamic — the 1-runtime-dep (zod) + 5-language byte-identical
+  proof is unchanged, and the default path + conformance vectors are untouched.
+
 ## [0.1.5] - 2026-06-25
 
 ### Added
