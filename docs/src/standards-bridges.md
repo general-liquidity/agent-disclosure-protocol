@@ -113,6 +113,82 @@ than throwing.
 Like the other bridges, this is dependency-free (zod + `node:crypto`) and additive — a fuller,
 real `AgentCard` round-trips through these helpers unchanged (unknown fields pass through).
 
+## Sign-In-With-Agent / SIWA (`src/siwa.ts`)
+
+[SIWE (EIP-4361)](https://eips.ethereum.org/EIPS/eip-4361) is "Sign-In With Ethereum" — a
+human-readable message a wallet signs to authenticate to a relying party. **SIWA** is the
+same shape with an *agent* account as the subject: its `(address, agentRegistry, agentId)`
+triple is exactly an [ERC-8004 binding](./signing-and-identity.md) — the operational wallet, the CAIP-10
+registry (`eip155:<chainId>:<registry>`), and the ERC-721 `agentId` tokenId. ADP already owns
+that binding (`erc8004.ts` mints the agent→wallet claim, `erc8004Onchain.ts` recovers a wallet
+from an EIP-191 signature, `erc8004Registry.ts` reads `ownerOf`), so it both **mints** a SIWA
+message describing a disclosed agent and **verifies** one the wallet signed.
+
+`formatSiwaMessage` / `parseSiwaMessage` render and parse the signed text:
+
+```
+{domain} wants you to sign in with your Agent account:
+{address}
+
+{statement}
+
+URI: {uri}
+Version: 1
+Agent ID: {agentId}
+Agent Registry: eip155:{chainId}:{registry}
+Chain ID: {chainId}
+Nonce: {nonce}
+Issued At: {issuedAt}
+```
+
+with optional `Expiration Time:`, `Not Before:`, `Request ID:` lines appended after `Issued At`.
+`disclosureToSiwaMessage(signed, opts)` builds the structured message from the agent's binding
+fields (wallet / registry / tokenId) carried in `opts`.
+
+`verifySiwa(msg, signature, opts)` does the structural checks (domain matches `expectedDomain`,
+the nonce is ≥ 8 alphanumeric chars **and** accepted by `opts.nonceValid`, the registry is a
+CAIP-10 `eip155` id, `issuedAt` / `expirationTime` / `notBefore` bound the window), then
+**EIP-191 recovers** the signer (reusing `erc8004Onchain`'s secp256k1 path) and requires it
+equals the message `address` → **`signed`**. When an `opts.resolveRegistry` (`ownerOf`) seam is
+injected and the registry's owner for the agentId equals the signer, the result escalates to
+**`registry_attested`**. `verifySiwaAgainstDisclosure` additionally asserts the SIWA `address`
+and `agentId` match the disclosure's ERC-8004 binding, so a counterparty knows the login and the
+disclosure describe **one** agent, not two stitched together.
+
+The secp256k1 recovery is the optional `@noble` extra (lazy import, the same pattern as the rest
+of the on-chain surface); minting and parsing are pure, and the registry tier is an injected seam
+— ADP bundles no chain client.
+
+## Self / proof-of-personhood (`src/self.ts`)
+
+[Self](https://self.xyz) (self.xyz) proves a real human is behind an identity with a
+zero-knowledge proof over a government passport/ID (NFC read + zk-SNARK), disclosing only
+selected predicates — "over 18", "nationality", "not on an OFAC list" — without revealing the
+document. Its agent path (`selfxyz/self-agent-id`) is itself ERC-8004-based, so the on-chain
+reference reuses the same registry seam ADP already has.
+
+Full verification (the Groth16 proof + a Celo on-chain `isVerifiedAgent` read) needs
+`@selfxyz/core` + an RPC — **not** dep-light. So this bridge does **light recognition + an
+injected verifier seam**, exactly how ADP treats ERC-8004. Two attestation shapes are modeled:
+`SelfOnchainRef` (a chain registry reference — `chainId`, `registry`, `agentId`, `nullifier`)
+and `SelfOffchainResult` (an off-chain proof result — `attestationId`, `scope`, `nullifier`,
+`isValidDetails`, and the disclosed attributes).
+
+`verifySelfAttestation(att, opts?)` does **structural** validation always: required fields
+present, shapes correct, and for an off-chain result the embedded `isValidDetails.isValid` must
+be true. **The OFAC flag is inverted** — `isOfacValid === true` means the subject **IS** on a
+sanctions list — so a sanctioned subject is **rejected** (`ok: false`). An on-chain ref carries
+no self-contained proof, so without a verifier it is shape-only and not accepted. When
+`opts.verifier` is supplied (the consumer wiring `@selfxyz/core` or an `isVerifiedAgent` reader),
+its `valid === true` is additionally required and its `nullifier` surfaced. On success the
+nullifier and disclosed attributes are returned.
+
+`selfToOperatorAttestation(att, result)` maps a verified attestation into ADP's
+`operator.attestation` field: a verified on-chain ref is `registry_attested`, a verified
+off-chain result is `signed`, a failure is `none`. The scheme is the reverse-domain
+`xyz.self` (`SELF_ATTESTATION_SCHEME`) — the attestation `scheme` enum in `schema.ts` is frozen,
+so Self is recognized through the schema's open reverse-domain arm, **not** a core enum edit.
+
 ## Other ecosystem standards (no new code)
 
 Three further agent-ecosystem standards relate to ADP but need **no new bridge** — they either

@@ -113,3 +113,11 @@ export * from "./sdjwtvc.ts";
 // A2A Agent Card bridge (carry/extract/verify a disclosure on an A2A agent-discovery card;
 // the disclosure envelope is the trust root, the card JWS is origin tamper-evidence).
 export * from "./a2a.ts";
+
+// Sign-In-With-Agent (SIWA) bridge - a SIWE-style login message anchored to an ERC-8004
+// binding; EIP-191 recover + an injected ownerOf resolver -> signed / registry_attested.
+export * from "./siwa.ts";
+
+// Self (self.xyz) attestation scheme - ZK proof-of-personhood as an operator attestation
+// (structural validation + an injected ZK/onchain verifier seam; the OFAC flag is inverted).
+export * from "./self.ts";

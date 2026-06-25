@@ -9,6 +9,34 @@ The interoperability contract (the canonicalization algorithm and the signed
 disclosure-document bytes) is frozen at v1.0; see [Stability guarantees](docs/src/stability.md)
 for what may and may not change without a version bump.
 
+## [Unreleased]
+
+### Added
+
+- **SIWA (Sign-In-With-Agent) bridge** (`src/siwa.ts`). A SIWE/EIP-4361 login message whose
+  subject is an *agent* account: its `(address, agentRegistry, agentId)` triple is exactly an
+  ERC-8004 binding. `formatSiwaMessage` / `parseSiwaMessage` render and parse the signed text;
+  `disclosureToSiwaMessage` mints a message describing a disclosed agent from its binding;
+  `verifySiwa` EIP-191-recovers the signer (reusing the `erc8004Onchain` secp256k1 path) and
+  checks domain / nonce / expiry / not-before → `signed`, escalating to `registry_attested`
+  when an injected `ownerOf` resolver confirms the registry binds the agentId to that signer;
+  `verifySiwaAgainstDisclosure` additionally cross-checks that the SIWA address + agentId match
+  the disclosure's ERC-8004 binding (so the login and the disclosure describe one agent). The
+  secp256k1 recovery is the optional `@noble` extra (lazy import); minting + parsing are pure,
+  the registry tier is an injected seam. No new runtime dependency.
+- **Self (self.xyz) attestation scheme** (`src/self.ts`). Recognizes Self — ZK
+  proof-of-personhood — as an operator-attestation scheme without a chain client. ADP does
+  STRUCTURAL validation of Self's `SelfOnchainRef` (chain registry ref) and `SelfOffchainResult`
+  (proof + disclosed predicates) and delegates the heavy Groth16 / Celo `isVerifiedAgent`
+  verification to an injected `verifier` seam — exactly how it treats ERC-8004. The **inverted
+  OFAC** semantics are documented and enforced: `isOfacValid === true` means the subject IS on a
+  sanctions list, so a sanctioned subject fails. `selfToOperatorAttestation` maps a verified
+  attestation into ADP's `operator.attestation` field under the reverse-domain scheme `xyz.self`
+  (`SELF_ATTESTATION_SCHEME`) — the frozen attestation `scheme` enum in `schema.ts` is untouched.
+  No new runtime dependency (zod + `node:crypto`; optional `@noble` reused for the SIWA recovery).
+
+---
+
 ## [0.1.2] - 2026-06-25
 
 ### Added
