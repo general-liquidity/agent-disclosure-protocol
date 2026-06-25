@@ -112,3 +112,27 @@ than throwing.
 
 Like the other bridges, this is dependency-free (zod + `node:crypto`) and additive — a fuller,
 real `AgentCard` round-trips through these helpers unchanged (unknown fields pass through).
+
+## Other ecosystem standards (no new code)
+
+Three further agent-ecosystem standards relate to ADP but need **no new bridge** — they either
+already resolve through the bridges above, or are orthogonal. They are recorded here so the
+positioning is explicit.
+
+- **Eclipse LMOS** resolves agents via **`did:web`** and defines a `VerifiableCredentialService`
+  entry in the agent's DID document. ADP already emits both halves — [`did`](./signing-and-identity.md)
+  (`didWeb` + the DID document with an `AgentDisclosure` service entry) and [`vc`](#w3c-verifiable-credential-20-srcvcts)
+  (the disclosure as a W3C VC). So an ADP disclosure is a **drop-in credential** for LMOS's slot:
+  ADP supplies the *disclosure schema* (capital / custody / operator / attestation), LMOS supplies
+  the *identity envelope*. No new module — wire `toVerifiableCredential` output into the
+  LMOS `VerifiableCredentialService` endpoint.
+- **IAB Tech Lab AAMP** (Agentic Advertising Management Protocols) declares agent identity through a
+  **centralized hosted Agent Registry** and carries no capital/custody/financial-attestation fields.
+  ADP is the **decentralized, self-served, cryptographically-signed complement** — "`sellers.json`
+  for autonomous agents, but signed at `/.well-known/agent-disclosure`." An AAMP registry entry can
+  *reference and verify against* an ADP disclosure for the financial-trust dimension the registry
+  omits; no protocol change is required on either side.
+- **Agora** standardizes only a runtime-negotiated, SHA-1-referenced *communication* layer (protocol
+  documents) with **no identity, attestation, or payment surface**. It is **orthogonal** to ADP —
+  there is nothing to bridge; ADP's disclosure check sits above whatever transport (Agora included)
+  two agents negotiate.
