@@ -11,6 +11,9 @@ as PKCS8 DER hex. For ed25519 the DER is the fixed prefix
 the trailing 32 bytes and `Ed25519PrivateKey.from_private_bytes` reconstructs it.
 """
 
+import base64
+import json
+
 from cryptography.hazmat.primitives.asymmetric import ed25519
 from cryptography.hazmat.primitives import serialization
 
@@ -61,4 +64,34 @@ def sign_disclosure(disclosure: dict, priv: AgentKey) -> dict:
             "publicKey": priv.public_key_hex,
             "value": sign_message(canonicalize(disclosure), priv),
         },
+    }
+
+
+# v2 protected header: { alg, typ }. JSON serialized with the same key order and
+# separators as the TS reference (`JSON.stringify`) so the base64url bytes match.
+_JWS_PROTECTED_HEADER = {"alg": "EdDSA", "typ": "application/adp+json"}
+
+
+def _b64u(b: bytes) -> str:
+    return base64.urlsafe_b64encode(b).rstrip(b"=").decode("ascii")
+
+
+def sign_disclosure_jws(disclosure: dict, priv: AgentKey) -> dict:
+    """Sign a disclosure as a flattened JWS (EdDSA) envelope (the v2 JOSE-interoperable
+    wrapping). Mirrors `signDisclosureJws`: the signature covers
+    ASCII(b64u(protected) + "." + b64u(payload)) so the protected header (carrying
+    `alg`) is integrity-protected. Payload is the same JCS canonical document."""
+    protected_b64 = _b64u(
+        json.dumps(_JWS_PROTECTED_HEADER, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+    )
+    payload_b64 = _b64u(canonicalize(disclosure).encode("utf-8"))
+    signing_input = f"{protected_b64}.{payload_b64}".encode("ascii")
+    signature = _b64u(priv.private_key.sign(signing_input))
+    return {
+        "payload": payload_b64,
+        "protected": protected_b64,
+        "header": {
+            "jwk": {"kty": "OKP", "crv": "Ed25519", "x": _b64u(bytes.fromhex(priv.public_key_hex))}
+        },
+        "signature": signature,
     }

@@ -120,15 +120,80 @@ static void sb_put_number(sb *s, double d) {
     sb_puts(s, tmp);
 }
 
-/* ── key sorting ───────────────────────────────────────────────────────────────
- * Sort object member keys lexicographically by byte order (strcmp). All ADP schema
- * keys are ASCII, for which UTF-8 byte order equals JS's UTF-16 code-unit order. */
+/* ── key sorting (RFC 8785 / JCS: UTF-16 code-unit order) ───────────────────────
+ * JCS sorts object member keys by their UTF-16 code units, NOT by UTF-8 byte order
+ * and NOT by Unicode code point. The three orders agree on the Basic Multilingual
+ * Plane (where one code point is one code unit and UTF-8 byte order preserves code-
+ * point order), but DIVERGE for supplementary characters (U+10000+): UTF-8 encodes
+ * them with a lead byte >= 0xF0 (sorting them AFTER any 3-byte BMP char), while UTF-16
+ * encodes them as a surrogate pair whose lead unit is 0xD800..0xDBFF (sorting them
+ * BEFORE BMP chars >= 0xE000). The conformance vector { "😀": 1, "דּ": 2 } is exactly
+ * this case: 😀 (U+1F600 → surrogate lead 0xD83D) must sort BEFORE דּ (U+FB33). A
+ * byte-order strcmp would reverse them and break cross-stack signatures.
+ *
+ * next_code_unit() walks a UTF-8 string and yields the next UTF-16 code unit (advancing
+ * over a 1–4 byte sequence; a supplementary code point yields its lead surrogate first,
+ * then its trail surrogate on the following call). Returns 0 at end of string. Malformed
+ * bytes are passed through as their raw value so the comparison stays total and never
+ * reads out of bounds. */
+static unsigned int next_code_unit(const unsigned char **pp, int *pending_trail) {
+    if (*pending_trail >= 0) {
+        unsigned int t = (unsigned int)*pending_trail;
+        *pending_trail = -1;
+        return t;
+    }
+    const unsigned char *p = *pp;
+    unsigned char c = *p;
+    if (c == 0) return 0;
+    unsigned int cp;
+    if (c < 0x80) {
+        cp = c;
+        p += 1;
+    } else if ((c & 0xE0) == 0xC0 && (p[1] & 0xC0) == 0x80) {
+        cp = ((unsigned int)(c & 0x1F) << 6) | (p[1] & 0x3F);
+        p += 2;
+    } else if ((c & 0xF0) == 0xE0 && (p[1] & 0xC0) == 0x80 && (p[2] & 0xC0) == 0x80) {
+        cp = ((unsigned int)(c & 0x0F) << 12) | ((unsigned int)(p[1] & 0x3F) << 6) | (p[2] & 0x3F);
+        p += 3;
+    } else if ((c & 0xF8) == 0xF0 && (p[1] & 0xC0) == 0x80 && (p[2] & 0xC0) == 0x80 &&
+               (p[3] & 0xC0) == 0x80) {
+        cp = ((unsigned int)(c & 0x07) << 18) | ((unsigned int)(p[1] & 0x3F) << 12) |
+             ((unsigned int)(p[2] & 0x3F) << 6) | (p[3] & 0x3F);
+        p += 4;
+    } else {
+        /* malformed lead byte: pass it through so the scan still terminates. */
+        *pp = p + 1;
+        return c;
+    }
+    *pp = p;
+    if (cp >= 0x10000) {
+        /* supplementary: emit lead surrogate now, stash trail for the next call. */
+        cp -= 0x10000;
+        *pending_trail = (int)(0xDC00 + (cp & 0x3FF));
+        return 0xD800 + (cp >> 10);
+    }
+    return cp;
+}
+
+/* Compare two UTF-8 keys by UTF-16 code-unit sequence (lexicographic). */
+static int utf16_key_cmp(const char *a, const char *b) {
+    const unsigned char *pa = (const unsigned char *)a;
+    const unsigned char *pb = (const unsigned char *)b;
+    int ta = -1, tb = -1;
+    for (;;) {
+        unsigned int ua = next_code_unit(&pa, &ta);
+        unsigned int ub = next_code_unit(&pb, &tb);
+        if (ua != ub) return ua < ub ? -1 : 1;
+        if (ua == 0) return 0; /* both ended together */
+    }
+}
+
 static int key_cmp(const void *a, const void *b) {
     const cJSON *ca = *(const cJSON *const *)a;
     const cJSON *cb = *(const cJSON *const *)b;
     const char *ka = ca->string ? ca->string : "";
     const char *kb = cb->string ? cb->string : "";
-    return strcmp(ka, kb);
+    return utf16_key_cmp(ka, kb);
 }
 
 static void canon_into(const cJSON *v, sb *s);
@@ -232,6 +297,121 @@ static int hex_decode(const char *hex, unsigned char *out, size_t out_max, size_
     return 0;
 }
 
+/* ── unpadded URL-safe base64 decode (RFC 4648 §5, no padding) ──────────────────
+ * JOSE base64url: alphabet A–Z a–z 0–9 '-' '_', no '=' padding. Decodes `in` (length
+ * `inlen`) into a freshly malloc'd buffer; *outlen receives the byte count. Returns the
+ * buffer (caller frees) or NULL on a malformed character / illegal length / OOM. An
+ * input length of 1 mod 4 is invalid (cannot encode any whole byte). */
+static unsigned char *b64url_decode(const char *in, size_t inlen, size_t *outlen) {
+    static signed char T[256];
+    static int inited = 0;
+    if (!inited) {
+        for (int i = 0; i < 256; i++) T[i] = -1;
+        for (int i = 'A'; i <= 'Z'; i++) T[i] = (signed char)(i - 'A');
+        for (int i = 'a'; i <= 'z'; i++) T[i] = (signed char)(i - 'a' + 26);
+        for (int i = '0'; i <= '9'; i++) T[i] = (signed char)(i - '0' + 52);
+        T[(unsigned char)'-'] = 62;
+        T[(unsigned char)'_'] = 63;
+        inited = 1;
+    }
+    if (inlen % 4 == 1) return NULL;
+    size_t cap = inlen / 4 * 3 + 3;
+    unsigned char *out = (unsigned char *)malloc(cap ? cap : 1);
+    if (!out) return NULL;
+    size_t o = 0;
+    uint32_t acc = 0;
+    int bits = 0;
+    for (size_t i = 0; i < inlen; i++) {
+        signed char v = T[(unsigned char)in[i]];
+        if (v < 0) {
+            free(out);
+            return NULL;
+        }
+        acc = (acc << 6) | (uint32_t)v;
+        bits += 6;
+        if (bits >= 8) {
+            bits -= 8;
+            out[o++] = (unsigned char)((acc >> bits) & 0xFF);
+        }
+    }
+    *outlen = o;
+    return out;
+}
+
+/* Reverse-domain id check: ^[a-z0-9]+(\.[a-z0-9-]+)+$ — at least one dot, each label
+ * lowercase-alnum (hyphen allowed only in non-leading labels), matching ReverseDomain in
+ * src/schema.ts. So "Unknown" (no dot, uppercase) fails; "com.visa.tap" passes. */
+static bool is_reverse_domain(const char *s) {
+    if (!s || !*s) return false;
+    size_t label_len = 0;
+    int dots = 0;
+    int first_label = 1;
+    for (const char *p = s; *p; p++) {
+        char c = *p;
+        if (c == '.') {
+            if (label_len == 0) return false; /* empty label (leading/double dot) */
+            dots++;
+            label_len = 0;
+            first_label = 0;
+        } else if ((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9')) {
+            label_len++;
+        } else if (c == '-') {
+            /* hyphen permitted only in a non-first label (regex: first group has no '-') */
+            if (first_label) return false;
+            label_len++;
+        } else {
+            return false;
+        }
+    }
+    if (label_len == 0) return false; /* trailing dot */
+    return dots >= 1;
+}
+
+/* ── schema validation (SPEC.md §3) ─────────────────────────────────────────── */
+bool adp_disclosure_schema_valid(const cJSON *disclosure) {
+    if (!cJSON_IsObject(disclosure)) return false;
+
+    /* version: z.literal(1) — must be the number 1 (string "1" or 9999 are rejected). */
+    const cJSON *version = cJSON_GetObjectItemCaseSensitive(disclosure, "version");
+    if (!cJSON_IsNumber(version) || version->valuedouble != 1.0) return false;
+
+    /* systemPrompt.algorithm: z.literal("sha256"). */
+    const cJSON *sp = cJSON_GetObjectItemCaseSensitive(disclosure, "systemPrompt");
+    const cJSON *sp_alg = cJSON_GetObjectItemCaseSensitive(sp, "algorithm");
+    if (!cJSON_IsString(sp_alg) || strcmp(sp_alg->valuestring, "sha256") != 0) return false;
+
+    /* capital.custody: z.enum(["non_custodial","custodial"]). */
+    const cJSON *cap = cJSON_GetObjectItemCaseSensitive(disclosure, "capital");
+    const cJSON *custody = cJSON_GetObjectItemCaseSensitive(cap, "custody");
+    if (!cJSON_IsString(custody) ||
+        (strcmp(custody->valuestring, "non_custodial") != 0 &&
+         strcmp(custody->valuestring, "custodial") != 0))
+        return false;
+
+    /* operator.attestation.scheme: known enum OR reverse-domain id. */
+    const cJSON *op = cJSON_GetObjectItemCaseSensitive(disclosure, "operator");
+    const cJSON *att = cJSON_GetObjectItemCaseSensitive(op, "attestation");
+    const cJSON *scheme = cJSON_GetObjectItemCaseSensitive(att, "scheme");
+    if (!cJSON_IsString(scheme)) return false;
+    {
+        const char *sv = scheme->valuestring;
+        int known = (strcmp(sv, "AIP") == 0 || strcmp(sv, "VisaTAP") == 0 ||
+                     strcmp(sv, "ERC8004") == 0 || strcmp(sv, "DID") == 0 ||
+                     strcmp(sv, "none") == 0);
+        if (!known && !is_reverse_domain(sv)) return false;
+    }
+
+    /* operator.attestation.level: z.enum(["none","signed","registry_attested"]). */
+    const cJSON *level = cJSON_GetObjectItemCaseSensitive(att, "level");
+    if (!cJSON_IsString(level) ||
+        (strcmp(level->valuestring, "none") != 0 &&
+         strcmp(level->valuestring, "signed") != 0 &&
+         strcmp(level->valuestring, "registry_attested") != 0))
+        return false;
+
+    return true;
+}
+
 /* ── signature + identity binding (SPEC.md §5) ─────────────────────────────── */
 bool adp_verify_disclosure_signature(const cJSON *signed_env, const char **reason) {
     const cJSON *disclosure = cJSON_GetObjectItemCaseSensitive(signed_env, "disclosure");
@@ -292,6 +472,139 @@ bool adp_verify_disclosure_signature(const cJSON *signed_env, const char **reaso
     return true;
 }
 
+/* ── v2 JWS-EdDSA envelope (SPEC.md §5) ─────────────────────────────────────── */
+bool adp_is_jws_envelope(const cJSON *signed_env) {
+    const cJSON *payload = cJSON_GetObjectItemCaseSensitive(signed_env, "payload");
+    const cJSON *prot = cJSON_GetObjectItemCaseSensitive(signed_env, "protected");
+    return cJSON_IsString(payload) && cJSON_IsString(prot);
+}
+
+bool adp_verify_disclosure_jws(const cJSON *signed_env, const char **reason) {
+    const cJSON *payload = cJSON_GetObjectItemCaseSensitive(signed_env, "payload");
+    const cJSON *prot = cJSON_GetObjectItemCaseSensitive(signed_env, "protected");
+    const cJSON *header = cJSON_GetObjectItemCaseSensitive(signed_env, "header");
+    const cJSON *sig = cJSON_GetObjectItemCaseSensitive(signed_env, "signature");
+    if (!cJSON_IsString(payload) || !cJSON_IsString(prot) ||
+        !cJSON_IsObject(header) || !cJSON_IsString(sig)) {
+        if (reason) *reason = "malformed jws envelope";
+        return false;
+    }
+    const cJSON *jwk = cJSON_GetObjectItemCaseSensitive(header, "jwk");
+    const cJSON *x = cJSON_GetObjectItemCaseSensitive(jwk, "x");
+    if (!cJSON_IsString(x)) {
+        if (reason) *reason = "malformed jwk";
+        return false;
+    }
+
+    /* protected header must declare alg == "EdDSA". */
+    size_t prot_len = 0;
+    unsigned char *prot_json = b64url_decode(prot->valuestring, strlen(prot->valuestring), &prot_len);
+    if (!prot_json) {
+        if (reason) *reason = "unreadable protected header";
+        return false;
+    }
+    cJSON *prot_obj = cJSON_ParseWithLength((const char *)prot_json, prot_len);
+    free(prot_json);
+    if (!prot_obj) {
+        if (reason) *reason = "unreadable protected header";
+        return false;
+    }
+    const cJSON *alg = cJSON_GetObjectItemCaseSensitive(prot_obj, "alg");
+    int alg_ok = cJSON_IsString(alg) && strcmp(alg->valuestring, "EdDSA") == 0;
+    cJSON_Delete(prot_obj);
+    if (!alg_ok) {
+        if (reason) *reason = "unsupported JWS alg";
+        return false;
+    }
+
+    /* jwk.x → 32-byte ed25519 public key. */
+    size_t pk_len = 0;
+    unsigned char *pk = b64url_decode(x->valuestring, strlen(x->valuestring), &pk_len);
+    if (!pk || pk_len != crypto_sign_PUBLICKEYBYTES) {
+        free(pk);
+        if (reason) *reason = "jwk.x is not a 32-byte ed25519 key";
+        return false;
+    }
+
+    /* signature over ASCII(protected + "." + payload). */
+    size_t sig_len = 0;
+    unsigned char *sig_bytes = b64url_decode(sig->valuestring, strlen(sig->valuestring), &sig_len);
+    if (!sig_bytes || sig_len != crypto_sign_BYTES) {
+        free(pk);
+        free(sig_bytes);
+        if (reason) *reason = "jws signature mismatch";
+        return false;
+    }
+    size_t plen = strlen(prot->valuestring);
+    size_t paylen = strlen(payload->valuestring);
+    size_t total = plen + 1 + paylen;
+    unsigned char *signing_input = (unsigned char *)malloc(total);
+    if (!signing_input) {
+        free(pk);
+        free(sig_bytes);
+        if (reason) *reason = "out of memory";
+        return false;
+    }
+    memcpy(signing_input, prot->valuestring, plen);
+    signing_input[plen] = '.';
+    memcpy(signing_input + plen + 1, payload->valuestring, paylen);
+    int sig_ok = crypto_sign_verify_detached(sig_bytes, signing_input, total, pk) == 0;
+    free(signing_input);
+    free(sig_bytes);
+    if (!sig_ok) {
+        free(pk);
+        if (reason) *reason = "jws signature mismatch";
+        return false;
+    }
+
+    /* binding: decode the JCS payload, confirm its agentId == the JWK key (hex). The TS
+     * reference also accepts did:key(key) or a rotation chain; ALL interop JWS fixtures
+     * use the direct hex form, so did:key/base58 is scoped OUT of the C port (no fixture
+     * exercises it; documented in the deliverable). */
+    char pk_hex[2 * crypto_sign_PUBLICKEYBYTES + 1];
+    sodium_bin2hex(pk_hex, sizeof(pk_hex), pk, pk_len);
+    free(pk);
+
+    size_t pay_dec_len = 0;
+    unsigned char *pay_json = b64url_decode(payload->valuestring, paylen, &pay_dec_len);
+    if (!pay_json) {
+        if (reason) *reason = "unreadable payload";
+        return false;
+    }
+    cJSON *doc = cJSON_ParseWithLength((const char *)pay_json, pay_dec_len);
+    free(pay_json);
+    if (!doc) {
+        if (reason) *reason = "unreadable payload";
+        return false;
+    }
+    const cJSON *agentId = cJSON_GetObjectItemCaseSensitive(doc, "agentId");
+    int bound = cJSON_IsString(agentId) && strcmp(agentId->valuestring, pk_hex) == 0;
+    cJSON_Delete(doc);
+    if (!bound) {
+        if (reason) *reason = "agentId does not match the signing public key";
+        return false;
+    }
+    if (reason) *reason = NULL;
+    return true;
+}
+
+/* Decode the disclosure document from either envelope shape. */
+cJSON *adp_get_disclosure(const cJSON *signed_env, int *owned) {
+    if (owned) *owned = 0;
+    if (adp_is_jws_envelope(signed_env)) {
+        const cJSON *payload = cJSON_GetObjectItemCaseSensitive(signed_env, "payload");
+        size_t dec_len = 0;
+        unsigned char *json = b64url_decode(payload->valuestring, strlen(payload->valuestring), &dec_len);
+        if (!json) return NULL;
+        cJSON *doc = cJSON_ParseWithLength((const char *)json, dec_len);
+        free(json);
+        if (owned) *owned = 1;
+        return doc;
+    }
+    cJSON *d = cJSON_GetObjectItemCaseSensitive(signed_env, "disclosure");
+    return cJSON_IsObject(d) ? d : NULL;
+}
+
 /* ── freshness (SPEC.md §6): ISO-8601 lexical comparison ───────────────────── */
 bool adp_is_fresh(const cJSON *disclosure, const char *now) {
     const cJSON *issuedAt = cJSON_GetObjectItemCaseSensitive(disclosure, "issuedAt");
@@ -318,8 +631,21 @@ int adp_verify_raw(const char *raw) {
      * returns false, but short-circuit for clarity. */
     int rejected = 1;
     if (cJSON_IsObject(parsed)) {
-        const char *reason = NULL;
-        rejected = adp_verify_disclosure_signature(parsed, &reason) ? 0 : 1;
+        /* Structural schema validation comes FIRST (mirrors parseAnySignedDisclosure →
+         * zod in verifyAndEvaluate): a signed-but-schema-invalid envelope (valid ed25519
+         * signature over a bad enum / literal) MUST be rejected on schema grounds, not
+         * silently accepted because the signature checks out. Decode the disclosure from
+         * whichever envelope shape, validate the grammar, then verify the signature. */
+        int owned = 0;
+        cJSON *disclosure = adp_get_disclosure(parsed, &owned);
+        if (adp_disclosure_schema_valid(disclosure)) {
+            const char *reason = NULL;
+            int sig_ok = adp_is_jws_envelope(parsed)
+                             ? adp_verify_disclosure_jws(parsed, &reason)
+                             : adp_verify_disclosure_signature(parsed, &reason);
+            rejected = sig_ok ? 0 : 1;
+        }
+        if (owned && disclosure) cJSON_Delete(disclosure);
     }
     cJSON_Delete(parsed);
     return rejected;
@@ -379,6 +705,82 @@ static int parse_iso_ms(const char *s, int64_t *out_ms) {
     return 0;
 }
 
+/* ── RFC 9421 (HTTP Message Signatures) handshake base ──────────────────────────
+ * The handshake response signs over an RFC 9421 *signature base*: covered-component
+ * lines then an @signature-params line. Mirrors signatureBase() in src/handshake.ts.
+ * This is the non-HTTP profile — every covered component is an `adp-*` derived
+ * component. ADP deviations: `created` is the ISO-8601 string (not unix-seconds) and the
+ * signature bytes are hex (not the sf-binary :base64: wrapper). `disclosure_version` may
+ * be NULL (no version line / not in the covered set) or a decimal string; `verifier_id`
+ * may be NULL (no `;tag=`). Returns a freshly malloc'd base (caller frees) or NULL. */
+static char *handshake_signature_base(const char *agent_id, const char *audit_head,
+                                      const char *signed_at, const char *nonce,
+                                      const char *verifier_id,
+                                      const char *disclosure_version) {
+    sb s;
+    sb_init(&s);
+
+    /* covered-component lines */
+    sb_puts(&s, "\"adp-agent-id\": ");
+    sb_puts(&s, agent_id);
+    sb_puts(&s, "\n\"adp-audit-head\": ");
+    sb_puts(&s, audit_head);
+    if (disclosure_version) {
+        sb_puts(&s, "\n\"adp-disclosure-version\": ");
+        sb_puts(&s, disclosure_version);
+    }
+
+    /* @signature-params line: (<inner quoted names>);created=...;keyid=...;alg;nonce[;tag] */
+    sb_puts(&s, "\n\"@signature-params\": (\"adp-agent-id\" \"adp-audit-head\"");
+    if (disclosure_version) sb_puts(&s, " \"adp-disclosure-version\"");
+    sb_puts(&s, ");created=\"");
+    sb_puts(&s, signed_at);
+    sb_puts(&s, "\";keyid=\"");
+    sb_puts(&s, agent_id);
+    sb_puts(&s, "\";alg=\"ed25519\";nonce=\"");
+    sb_puts(&s, nonce);
+    sb_putc(&s, '"');
+    if (verifier_id) {
+        sb_puts(&s, ";tag=\"");
+        sb_puts(&s, verifier_id);
+        sb_putc(&s, '"');
+    }
+
+    if (s.oom) {
+        free(s.buf);
+        return NULL;
+    }
+    return s.buf;
+}
+
+/* The `Signature-Input` value (labelled `sig`): `sig=` + the @signature-params value
+ * (the same suffix that appears on the @signature-params line of the base). */
+static char *handshake_signature_input(const char *agent_id, const char *signed_at,
+                                       const char *nonce, const char *verifier_id,
+                                       const char *disclosure_version) {
+    sb s;
+    sb_init(&s);
+    sb_puts(&s, "sig=(\"adp-agent-id\" \"adp-audit-head\"");
+    if (disclosure_version) sb_puts(&s, " \"adp-disclosure-version\"");
+    sb_puts(&s, ");created=\"");
+    sb_puts(&s, signed_at);
+    sb_puts(&s, "\";keyid=\"");
+    sb_puts(&s, agent_id);
+    sb_puts(&s, "\";alg=\"ed25519\";nonce=\"");
+    sb_puts(&s, nonce);
+    sb_putc(&s, '"');
+    if (verifier_id) {
+        sb_puts(&s, ";tag=\"");
+        sb_puts(&s, verifier_id);
+        sb_putc(&s, '"');
+    }
+    if (s.oom) {
+        free(s.buf);
+        return NULL;
+    }
+    return s.buf;
+}
+
 /* ── handshake responder (SPEC.md §7) ──────────────────────────────────────── */
 int adp_respond_to_challenge(const cJSON *challenge, const unsigned char sk[64],
                              const char *pk_hex, const char *audit_head,
@@ -387,22 +789,16 @@ int adp_respond_to_challenge(const cJSON *challenge, const unsigned char sk[64],
     const cJSON *c_verifier = cJSON_GetObjectItemCaseSensitive(challenge, "verifierId");
     if (!cJSON_IsString(c_nonce) || !pk_hex || !audit_head || !now) return -1;
 
-    /* Sign over canonicalize({nonce, agentId, auditHead, signedAt, verifierId}) —
-     * verifierId from the CHALLENGE, dropped (not added) when absent, matching
-     * responseMessage() in src/handshake.ts. */
-    cJSON *body = cJSON_CreateObject();
-    if (!body) return -1;
-    cJSON_AddStringToObject(body, "nonce", c_nonce->valuestring);
-    cJSON_AddStringToObject(body, "agentId", pk_hex);
-    cJSON_AddStringToObject(body, "auditHead", audit_head);
-    cJSON_AddStringToObject(body, "signedAt", now);
-    if (cJSON_IsString(c_verifier))
-        cJSON_AddStringToObject(body, "verifierId", c_verifier->valuestring);
-    char *msg = adp_canonicalize(body);
-    cJSON_Delete(body);
-    if (!msg) return -1;
-    adp_sign_message((const unsigned char *)msg, strlen(msg), sk, out_sig_hex);
-    free(msg);
+    /* Sign the RFC 9421 signature base built from agentId(=pk_hex), auditHead, signedAt
+     * (=now), nonce, and the challenge's verifierId (the `tag`, dropped when absent).
+     * No disclosure_version is declared by the responder here. Mirrors
+     * respondToChallenge() in src/handshake.ts. */
+    const char *verifier_id = cJSON_IsString(c_verifier) ? c_verifier->valuestring : NULL;
+    char *base = handshake_signature_base(pk_hex, audit_head, now, c_nonce->valuestring,
+                                          verifier_id, NULL);
+    if (!base) return -1;
+    adp_sign_message((const unsigned char *)base, strlen(base), sk, out_sig_hex);
+    free(base);
     return 0;
 }
 
@@ -418,6 +814,8 @@ bool adp_verify_challenge_response(const cJSON *response,
     const cJSON *r_head = cJSON_GetObjectItemCaseSensitive(response, "auditHead");
     const cJSON *r_signedAt = cJSON_GetObjectItemCaseSensitive(response, "signedAt");
     const cJSON *r_sig = cJSON_GetObjectItemCaseSensitive(response, "signature");
+    const cJSON *r_siginput = cJSON_GetObjectItemCaseSensitive(response, "signatureInput");
+    const cJSON *r_version = cJSON_GetObjectItemCaseSensitive(response, "disclosureVersion");
     const cJSON *c_nonce = cJSON_GetObjectItemCaseSensitive(challenge, "nonce");
     const cJSON *c_verifier = cJSON_GetObjectItemCaseSensitive(challenge, "verifierId");
 
@@ -437,30 +835,50 @@ bool adp_verify_challenge_response(const cJSON *response,
         if (reason) *reason = "response agentId does not match the disclosure";
         return false;
     }
-    /* 3. signature over canonicalize({nonce, agentId, auditHead, signedAt, verifierId})
-     *    verifierId comes from the CHALLENGE; absent → dropped by canonicalization. */
-    cJSON *body = cJSON_CreateObject();
-    if (!body) {
+
+    /* Reconstruct the RFC 9421 signature base + Signature-Input from OUR challenge
+     * (nonce, verifierId) and the response's claimed values. `disclosureVersion`, when
+     * present, is a SIGNED covered component (formatted as its decimal string). The
+     * response's signatureInput must match exactly (no param smuggling), then the
+     * ed25519 signature must verify over the reconstructed base. Mirrors
+     * verifyChallengeResponse() in src/handshake.ts. */
+    const char *verifier_id = cJSON_IsString(c_verifier) ? c_verifier->valuestring : NULL;
+    char ver_buf[32];
+    const char *version_str = NULL;
+    if (cJSON_IsNumber(r_version)) {
+        snprintf(ver_buf, sizeof(ver_buf), "%lld", (long long)r_version->valuedouble);
+        version_str = ver_buf;
+    }
+
+    /* 3a. Signature-Input must match the issued challenge (only checked when the response
+     *     carries one; a response with no signatureInput skips this and relies on the
+     *     base-signature check below). */
+    if (cJSON_IsString(r_siginput)) {
+        char *expected_input = handshake_signature_input(
+            r_agent->valuestring, r_signedAt->valuestring, c_nonce->valuestring,
+            verifier_id, version_str);
+        if (!expected_input) {
+            if (reason) *reason = "out of memory";
+            return false;
+        }
+        int input_ok = strcmp(r_siginput->valuestring, expected_input) == 0;
+        free(expected_input);
+        if (!input_ok) {
+            if (reason) *reason = "signature-input does not match the issued challenge";
+            return false;
+        }
+    }
+
+    /* 3b. signature over the RFC 9421 signature base */
+    char *base = handshake_signature_base(r_agent->valuestring, r_head->valuestring,
+                                          r_signedAt->valuestring, c_nonce->valuestring,
+                                          verifier_id, version_str);
+    if (!base) {
         if (reason) *reason = "out of memory";
         return false;
     }
-    cJSON_AddStringToObject(body, "nonce", r_nonce->valuestring);
-    cJSON_AddStringToObject(body, "agentId", r_agent->valuestring);
-    cJSON_AddStringToObject(body, "auditHead", r_head->valuestring);
-    cJSON_AddStringToObject(body, "signedAt", r_signedAt->valuestring);
-    if (cJSON_IsString(c_verifier))
-        cJSON_AddStringToObject(body, "verifierId", c_verifier->valuestring);
-    /* A verifierId set to JSON null would be emitted as null (not dropped); the
-     * reference only drops an absent/undefined verifierId, which we model by simply
-     * not adding the key. */
-    char *msg = adp_canonicalize(body);
-    cJSON_Delete(body);
-    if (!msg) {
-        if (reason) *reason = "out of memory";
-        return false;
-    }
-    bool sig_ok = verify_message(msg, r_agent->valuestring, r_sig->valuestring);
-    free(msg);
+    bool sig_ok = verify_message(base, r_agent->valuestring, r_sig->valuestring);
+    free(base);
     if (!sig_ok) {
         if (reason) *reason = "challenge signature invalid (no live key possession)";
         return false;
@@ -540,14 +958,23 @@ static bool policy_true(const cJSON *policy, const char *key) {
 void adp_evaluate_disclosure(const cJSON *signed_env, const cJSON *policy, adp_verdict *out) {
     failset fs;
     fs_init(&fs);
-    const cJSON *d = cJSON_GetObjectItemCaseSensitive(signed_env, "disclosure");
+    /* Accept either envelope shape (v1 object or v2 flattened JWS). For JWS the
+     * disclosure document is the base64url JCS payload, decoded here; the policy then
+     * runs against it exactly as for v1. Even when the JWS signature fails (tampered /
+     * forged), the decoded payload is still evaluated — the reference reports both the
+     * signature failure AND any policy failure over the carried document. */
+    int d_owned = 0;
+    cJSON *d = adp_get_disclosure(signed_env, &d_owned);
+    int is_jws = adp_is_jws_envelope(signed_env);
 
     /* signature (default on unless requireValidSignature === false) */
     const cJSON *reqSig = cJSON_GetObjectItemCaseSensitive(policy, "requireValidSignature");
     if (!(cJSON_IsBool(reqSig) && cJSON_IsFalse(reqSig))) {
         fs.checks_run++;
         const char *why = NULL;
-        if (!adp_verify_disclosure_signature(signed_env, &why))
+        int sig_ok = is_jws ? adp_verify_disclosure_jws(signed_env, &why)
+                            : adp_verify_disclosure_signature(signed_env, &why);
+        if (!sig_ok)
             fs_add(&fs, "signature");
     }
 
@@ -711,6 +1138,8 @@ void adp_evaluate_disclosure(const cJSON *signed_env, const cJSON *policy, adp_v
     out->checks_run = fs.checks_run;
     snprintf(out->decision, sizeof(out->decision), "%s",
              fs.count == 0 ? "transact" : "refuse");
+
+    if (d_owned && d) cJSON_Delete(d);
 }
 
 void adp_verdict_free(adp_verdict *v) {

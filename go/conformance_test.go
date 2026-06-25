@@ -186,6 +186,36 @@ func TestInteropDisclosures(t *testing.T) {
 	}
 }
 
+// TestInteropJwsDisclosures replays the v2 flattened-JWS interop cases: each case's
+// envelope is decoded, evaluated through the JWS policy path, and must reproduce its
+// expected verdict + failed-checks set (mirrors the TS jwsDisclosures interop test).
+func TestInteropJwsDisclosures(t *testing.T) {
+	interop := readFixture(t, "../conformance/interop.json")
+	cases, ok := interop["jwsDisclosures"].([]any)
+	if !ok || len(cases) == 0 {
+		t.Fatal("interop.json has no jwsDisclosures")
+	}
+	for _, raw := range cases {
+		c := raw.(map[string]any)
+		name := c["name"].(string)
+		signed := jwsFromAny(c["signed"].(map[string]any))
+		policy := policyFromAny(c["policy"].(map[string]any))
+		verdict := EvaluateJwsDisclosure(signed, policy)
+
+		expect := c["expect"].(map[string]any)
+		wantDecision := expect["decision"].(string)
+		if verdict.Decision != wantDecision {
+			t.Errorf("%s: decision got %q want %q (reasons: %v)", name, verdict.Decision, wantDecision, verdict.Reasons)
+		}
+		wantFailed := strSlice(expect["failed"].([]any))
+		sort.Strings(wantFailed)
+		gotFailed := failedChecks(verdict)
+		if !equalStrings(gotFailed, wantFailed) {
+			t.Errorf("%s: failed checks got %v want %v", name, gotFailed, wantFailed)
+		}
+	}
+}
+
 func TestInteropHandshakes(t *testing.T) {
 	interop := readFixture(t, "../conformance/interop.json")
 	for _, raw := range interop["handshakes"].([]any) {
@@ -197,14 +227,7 @@ func TestInteropHandshakes(t *testing.T) {
 			IssuedAt:   str(ch, "issuedAt"),
 			VerifierID: str(ch, "verifierId"),
 		}
-		rs := c["response"].(map[string]any)
-		response := ChallengeResponse{
-			Nonce:     str(rs, "nonce"),
-			AgentID:   str(rs, "agentId"),
-			AuditHead: str(rs, "auditHead"),
-			SignedAt:  str(rs, "signedAt"),
-			Signature: str(rs, "signature"),
-		}
+		response := responseFromAny(c["response"].(map[string]any))
 		ok, _ := VerifyChallengeResponse(response, challenge, str(c, "expectedAgentId"), str(c, "now"))
 		want := c["expect"].(bool)
 		if ok != want {

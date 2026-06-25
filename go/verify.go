@@ -49,6 +49,14 @@ func numAt(m map[string]any, k string) int64 {
 // section 8). Ports evaluateDisclosure in src/verify.ts. Every failed check is
 // reported; the decision is transact only when zero reasons accumulated.
 func EvaluateDisclosure(signed SignedDisclosure, policy VerificationPolicy) Verdict {
+	ok, reason := VerifyDisclosureSignature(signed)
+	return evaluateWithSignature(signed.Disclosure, policy, ok, reason)
+}
+
+// evaluateWithSignature is the shared policy engine for both envelope shapes. The
+// caller supplies the disclosure document and the already-computed signature result
+// (v1 object signature or v2 JWS), so the v1 and v2 paths agree on every policy check.
+func evaluateWithSignature(d Disclosure, policy VerificationPolicy, sigOK bool, sigReason string) Verdict {
 	checks := map[string]bool{}
 	reasons := []string{}
 	fail := func(name, reason string) {
@@ -57,14 +65,12 @@ func EvaluateDisclosure(signed SignedDisclosure, policy VerificationPolicy) Verd
 	}
 	pass := func(name string) { checks[name] = true }
 
-	d := signed.Disclosure
-
 	// signature (default on)
 	if policy.RequireValidSignature == nil || *policy.RequireValidSignature {
-		if ok, reason := VerifyDisclosureSignature(signed); ok {
+		if sigOK {
 			pass("signature")
 		} else {
-			fail("signature", "signature invalid: "+reason)
+			fail("signature", "signature invalid: "+sigReason)
 		}
 	}
 

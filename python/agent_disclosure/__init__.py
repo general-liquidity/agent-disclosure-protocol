@@ -7,7 +7,14 @@ counterparty verdict + challenge-response handshake the conformance contract pin
 """
 
 from .canonical import canonicalize, sha256_hex
-from .attestation import verify_disclosure_signature, is_fresh
+from .attestation import (
+    verify_disclosure_signature,
+    verify_disclosure_jws,
+    verify_any_disclosure_signature,
+    verify_key_binding,
+    is_jws_signed_disclosure,
+    is_fresh,
+)
 from .verify import (
     evaluate_disclosure,
     evaluate_raw,
@@ -22,6 +29,7 @@ from .emit import (
     agent_key_from_private_hex,
     sign_message,
     sign_disclosure,
+    sign_disclosure_jws,
 )
 from .modules import verify_redacted, verify_revocation, verify_inclusion_proof
 
@@ -29,6 +37,10 @@ __all__ = [
     "canonicalize",
     "sha256_hex",
     "verify_disclosure_signature",
+    "verify_disclosure_jws",
+    "verify_any_disclosure_signature",
+    "verify_key_binding",
+    "is_jws_signed_disclosure",
     "is_fresh",
     "evaluate_disclosure",
     "evaluate_raw",
@@ -42,6 +54,7 @@ __all__ = [
     "agent_key_from_private_hex",
     "sign_message",
     "sign_disclosure",
+    "sign_disclosure_jws",
     "verify_redacted",
     "verify_revocation",
     "verify_inclusion_proof",

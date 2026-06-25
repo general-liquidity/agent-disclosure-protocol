@@ -47,6 +47,35 @@ bool adp_verify_disclosure_signature(const cJSON *signed_env, const char **reaso
  * `disclosure` is the inner disclosure object. */
 bool adp_is_fresh(const cJSON *disclosure, const char *now);
 
+/* ── Schema validation (SPEC.md §3) ────────────────────────────────────────────
+ * Structural grammar check on a decoded disclosure object, mirroring the zod enums /
+ * literals in src/schema.ts: version==1, capital.custody ∈ {non_custodial,custodial},
+ * operator.attestation.scheme ∈ {AIP,VisaTAP,ERC8004,DID,none} OR a reverse-domain id
+ * (^[a-z0-9]+(\.[a-z0-9-]+)+$), operator.attestation.level ∈ {none,signed,
+ * registry_attested}, systemPrompt.algorithm=="sha256". Returns true iff the document
+ * satisfies the grammar. A signed-but-schema-invalid envelope (valid ed25519 signature,
+ * bad enum) MUST still be rejected — this is the check that does it. NULL-safe. */
+bool adp_disclosure_schema_valid(const cJSON *disclosure);
+
+/* ── v2 JWS-EdDSA envelope (SPEC.md §5) ────────────────────────────────────────
+ * Verify a flattened-JWS disclosure { payload, protected, header:{jwk}, signature }.
+ * base64url-decodes header.jwk.x → 32-byte ed25519 key, ed25519-verifies the
+ * base64url-decoded signature over ASCII(protected + "." + payload), confirms the
+ * base64url-decoded protected header declares alg=="EdDSA", and binds the decoded
+ * payload's agentId to the JWK key (direct hex match; see note on did:key scope in the
+ * implementation). Mirrors verifyDisclosureJws() in src/attestation.ts. NULL-safe. */
+bool adp_verify_disclosure_jws(const cJSON *signed_env, const char **reason);
+
+/* True iff `signed_env` is the v2 flattened-JWS shape (has string `payload` +
+ * `protected`), discriminating it from the v1 { disclosure, signature } envelope. */
+bool adp_is_jws_envelope(const cJSON *signed_env);
+
+/* Decode the disclosure document carried by either envelope shape. For v1 returns a
+ * borrowed pointer into `signed_env` (do NOT free; *owned=0). For v2 base64url-decodes
+ * and parses the JCS payload into a NEW cJSON the caller must cJSON_Delete (*owned=1).
+ * Returns NULL on malformed input. */
+cJSON *adp_get_disclosure(const cJSON *signed_env, int *owned);
+
 /* ── Robust raw-input gate ─────────────────────────────────────────────────────
  * Parse `raw` (untrusted bytes) and run the verification pipeline, treating ANY
  * malformed / tampered / missing input as rejected. Returns 1 if the input is

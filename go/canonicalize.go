@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"sort"
 	"strings"
+	"unicode/utf16"
 )
 
 // jsonString emits a value as a JSON string literal, matching JavaScript's
@@ -66,7 +67,7 @@ func Canonicalize(value any) string {
 			// is nothing to drop here. A field set to JSON null is kept.
 			keys = append(keys, k)
 		}
-		sort.Strings(keys)
+		sortKeysUTF16(keys)
 		parts := make([]string, 0, len(keys))
 		for _, k := range keys {
 			parts = append(parts, jsonString(k)+":"+Canonicalize(v[k]))
@@ -77,6 +78,31 @@ func Canonicalize(value any) string {
 		b, _ := json.Marshal(v)
 		return string(b)
 	}
+}
+
+// sortKeysUTF16 sorts object keys the way JavaScript's Array.prototype.sort does
+// for strings: by UTF-16 code unit, compared as unsigned 16-bit values. Go's
+// sort.Strings would compare UTF-8 bytes instead, which orders a supplementary-plane
+// character (e.g. an emoji, encoded as a surrogate pair starting at 0xD800) AFTER a
+// BMP character in the 0xE000-0xFFFF range — the reverse of the UTF-16 order the
+// reference canonicalize relies on. Encoding to []uint16 first reproduces JS exactly.
+func sortKeysUTF16(keys []string) {
+	sort.Slice(keys, func(i, j int) bool {
+		return lessUTF16(keys[i], keys[j])
+	})
+}
+
+// lessUTF16 reports whether a sorts before b by UTF-16 code unit (unsigned 16-bit),
+// matching JavaScript string comparison.
+func lessUTF16(a, b string) bool {
+	ua := utf16.Encode([]rune(a))
+	ub := utf16.Encode([]rune(b))
+	for k := 0; k < len(ua) && k < len(ub); k++ {
+		if ua[k] != ub[k] {
+			return ua[k] < ub[k]
+		}
+	}
+	return len(ua) < len(ub)
 }
 
 // Sha256Hex returns the lowercase hex sha256 of the UTF-8 bytes of input.

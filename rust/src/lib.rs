@@ -6,6 +6,8 @@
 //! verifier interoperates byte-for-byte with the TS emitter: identical
 //! canonicalization, identical ed25519 message bytes, identical policy verdicts.
 
+use base64::engine::general_purpose::URL_SAFE_NO_PAD;
+use base64::Engine as _;
 use ed25519_dalek::{Signature, Signer, SigningKey, VerifyingKey};
 use serde_json::Value;
 use sha2::{Digest, Sha256};
@@ -32,11 +34,14 @@ pub fn canonicalize(value: &Value) -> String {
             format!("[{}]", body.join(","))
         }
         Value::Object(map) => {
-            // serde_json's default Map is a BTreeMap (already sorted), but sort
-            // explicitly so the algorithm holds regardless of the build's feature
-            // flags. Keys are sorted by raw byte/code-unit order.
+            // Mirror JS `Object.keys().sort()`: JS sorts strings by UTF-16 code
+            // unit, NOT by UTF-8 byte order (Rust's default `str` Ord). The two
+            // disagree for any key outside the BMP: e.g. 😀 (U+1F600) sorts BEFORE
+            // דּ (U+FB33) because the high surrogate 0xD83D < 0xFB33, while in UTF-8
+            // bytes 😀 (F0..) sorts AFTER דּ (EF..). Sort by the UTF-16 code-unit
+            // sequence so the signed bytes match the TS emitter.
             let mut keys: Vec<&String> = map.keys().collect();
-            keys.sort();
+            keys.sort_by_key(|k| utf16_units(k));
             let body: Vec<String> = keys
                 .iter()
                 .map(|k| format!("{}:{}", json_string(k), canonicalize(&map[*k])))
@@ -44,6 +49,11 @@ pub fn canonicalize(value: &Value) -> String {
             format!("{{{}}}", body.join(","))
         }
     }
+}
+
+/// The string's UTF-16 code units — the unit of JS string ordering.
+fn utf16_units(s: &str) -> Vec<u16> {
+    s.encode_utf16().collect()
 }
 
 /// JSON-escape a string into a quoted literal (`"hi"`), matching `JSON.stringify`.
@@ -186,6 +196,149 @@ pub fn verify_disclosure_signature(signed: &SignedDisclosure) -> Result<(), Stri
     }
 }
 
+// ── did:key encoding + identity binding ──────────────────────────────────────
+
+const BASE58_ALPHABET: &[u8; 58] = b"123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+
+/// base58btc encode (Bitcoin alphabet). Leading zero bytes map to leading '1's. Mirrors
+/// the inline codec in `src/did.ts`.
+fn base58_encode(bytes: &[u8]) -> String {
+    let zeros = bytes.iter().take_while(|&&b| b == 0).count();
+    let mut digits: Vec<u8> = Vec::new();
+    for &byte in &bytes[zeros..] {
+        let mut carry = byte as u32;
+        for d in digits.iter_mut() {
+            carry += (*d as u32) << 8;
+            *d = (carry % 58) as u8;
+            carry /= 58;
+        }
+        while carry > 0 {
+            digits.push((carry % 58) as u8);
+            carry /= 58;
+        }
+    }
+    let mut out = String::with_capacity(zeros + digits.len());
+    for _ in 0..zeros {
+        out.push('1');
+    }
+    for &d in digits.iter().rev() {
+        out.push(BASE58_ALPHABET[d as usize] as char);
+    }
+    out
+}
+
+/// Express a 64-hex agentId as a did:key (ed25519-pub multicodec 0xed01). Mirrors
+/// `agentIdToDidKey` in `src/did.ts`. Returns None if the hex is not a 32-byte key.
+fn agent_id_to_did_key(agent_id_hex: &str) -> Option<String> {
+    let raw = hex::decode(agent_id_hex).ok()?;
+    if raw.len() != 32 {
+        return None;
+    }
+    let mut prefixed = Vec::with_capacity(2 + 32);
+    prefixed.extend_from_slice(&[0xed, 0x01]);
+    prefixed.extend_from_slice(&raw);
+    Some(format!("did:key:z{}", base58_encode(&prefixed)))
+}
+
+/// Bind a disclosure's stable `agentId` to the key that actually signed it: a direct hex
+/// match or the did:key encoding of that key. Mirrors `verifyKeyBinding` in
+/// `src/attestation.ts` (the rotation-chain path is not exercised by the conformance
+/// fixtures, so it is not ported).
+fn verify_key_binding(agent_id: &str, signing_key_hex: &str) -> Result<(), String> {
+    if agent_id == signing_key_hex {
+        return Ok(());
+    }
+    if agent_id_to_did_key(signing_key_hex).as_deref() == Some(agent_id) {
+        return Ok(());
+    }
+    Err("agentId does not match the signing public key".to_string())
+}
+
+// ── v2: flattened JWS (EdDSA) envelope ───────────────────────────────────────
+
+/// A v2 flattened JWS (EdDSA) disclosure envelope. The signature covers
+/// ASCII(`protected` + "." + `payload`), so the protected header (carrying `alg`) is
+/// integrity-protected. Held as raw base64url strings exactly as on the wire.
+pub struct JwsSignedDisclosure {
+    pub payload: String,
+    pub protected: String,
+    pub jwk_x: String,
+    pub signature: String,
+}
+
+impl JwsSignedDisclosure {
+    /// Parse from a `{ payload, protected, header: { jwk: { x } }, signature }` value.
+    /// Returns `Err` if any required field is missing or not a string.
+    pub fn from_value(v: &Value) -> Result<JwsSignedDisclosure, String> {
+        let get_str = |path: &str| -> Result<String, String> {
+            v.pointer(path)
+                .and_then(|x| x.as_str())
+                .map(str::to_string)
+                .ok_or_else(|| format!("missing {path}"))
+        };
+        Ok(JwsSignedDisclosure {
+            payload: get_str("/payload")?,
+            protected: get_str("/protected")?,
+            jwk_x: get_str("/header/jwk/x")?,
+            signature: get_str("/signature")?,
+        })
+    }
+
+    /// Detect the v2 shape: a flattened JWS carries both `payload` and `protected`.
+    pub fn is_jws(v: &Value) -> bool {
+        v.get("payload").is_some() && v.get("protected").is_some()
+    }
+
+    /// The base64url-decoded disclosure payload as a parsed JSON value.
+    pub fn disclosure(&self) -> Result<Value, String> {
+        let bytes = URL_SAFE_NO_PAD
+            .decode(&self.payload)
+            .map_err(|_| "payload is not base64url".to_string())?;
+        serde_json::from_str(
+            std::str::from_utf8(&bytes).map_err(|_| "payload is not UTF-8".to_string())?,
+        )
+        .map_err(|_| "payload is not JSON".to_string())
+    }
+}
+
+/// Verify a v2 JWS envelope: the protected header must declare `alg=="EdDSA"`, the
+/// signature must verify over `protected + "." + payload` against the JWK key, and the
+/// payload's `agentId` must bind to that key (direct or did:key). Mirrors
+/// `verifyDisclosureJws` in `src/attestation.ts`.
+pub fn verify_disclosure_jws(signed: &JwsSignedDisclosure) -> Result<(), String> {
+    let protected_bytes = URL_SAFE_NO_PAD
+        .decode(&signed.protected)
+        .map_err(|_| "unreadable protected header".to_string())?;
+    let header: Value = serde_json::from_slice(&protected_bytes)
+        .map_err(|_| "unreadable protected header".to_string())?;
+    if header.get("alg").and_then(Value::as_str) != Some("EdDSA") {
+        return Err("unsupported JWS alg".to_string());
+    }
+
+    let pub_bytes = URL_SAFE_NO_PAD
+        .decode(&signed.jwk_x)
+        .map_err(|_| "jwk.x is not base64url".to_string())?;
+    if pub_bytes.len() != 32 {
+        return Err("jwk.x is not a 32-byte ed25519 key".to_string());
+    }
+    let pub_hex = hex::encode(&pub_bytes);
+
+    let signing_input = format!("{}.{}", signed.protected, signed.payload);
+    let sig_bytes = URL_SAFE_NO_PAD
+        .decode(&signed.signature)
+        .map_err(|_| "signature is not base64url".to_string())?;
+    if !verify_message(&signing_input, &pub_hex, &hex::encode(&sig_bytes)) {
+        return Err("jws signature mismatch".to_string());
+    }
+
+    let disclosure = signed.disclosure()?;
+    let agent_id = disclosure
+        .get("agentId")
+        .and_then(Value::as_str)
+        .ok_or_else(|| "payload has no agentId".to_string())?;
+    verify_key_binding(agent_id, &pub_hex)
+}
+
 /// Freshness: `now >= issuedAt && now <= validUntil`, by ISO-8601 lexical comparison.
 pub fn is_fresh(disclosure: &Value, now: &str) -> bool {
     let issued_at = disclosure.get("issuedAt").and_then(|v| v.as_str());
@@ -260,18 +413,40 @@ impl Verdict {
     }
 }
 
-/// Evaluate a signed disclosure against a verifier's policy. Mirrors
-/// `evaluateDisclosure` in `src/verify.ts`: every enabled predicate runs, the
+/// Evaluate a signed disclosure (v1 object envelope) against a verifier's policy.
+/// Mirrors `evaluateDisclosure` in `src/verify.ts`: every enabled predicate runs, the
 /// decision is `transact` only when zero reasons accumulated.
 pub fn evaluate_disclosure(signed: &SignedDisclosure, policy: &VerificationPolicy) -> Verdict {
+    evaluate_decoded(
+        &signed.disclosure,
+        verify_disclosure_signature(signed),
+        policy,
+    )
+}
+
+/// Evaluate a v2 JWS envelope: the signature step verifies the JOSE envelope, and the
+/// policy checks run over the base64url-decoded payload. A payload that does not decode
+/// is treated as a signature failure (and yields an empty disclosure for the rest).
+pub fn evaluate_disclosure_jws(signed: &JwsSignedDisclosure, policy: &VerificationPolicy) -> Verdict {
+    let sig_result = verify_disclosure_jws(signed);
+    let disclosure = signed.disclosure().unwrap_or(Value::Null);
+    evaluate_decoded(&disclosure, sig_result, policy)
+}
+
+/// The shared policy body: given the decoded disclosure document and the result of the
+/// envelope-specific signature check, run every enabled predicate. Both envelope shapes
+/// funnel through here so they share one policy implementation.
+fn evaluate_decoded(
+    d: &Value,
+    signature_result: Result<(), String>,
+    policy: &VerificationPolicy,
+) -> Verdict {
     let mut checks: std::collections::BTreeMap<String, bool> = std::collections::BTreeMap::new();
     let mut reasons: Vec<String> = Vec::new();
 
-    let d = &signed.disclosure;
-
     // signature (default on)
     if policy.require_valid_signature != Some(false) {
-        match verify_disclosure_signature(signed) {
+        match signature_result {
             Ok(()) => {
                 checks.insert("signature".into(), true);
             }
@@ -483,7 +658,16 @@ pub fn evaluate_disclosure(signed: &SignedDisclosure, policy: &VerificationPolic
     }
 }
 
-// ── Handshake ────────────────────────────────────────────────────────────────
+// ── Handshake (RFC 9421 signature base) ──────────────────────────────────────
+// The response signs over an RFC 9421 *signature base*: covered-component lines plus a
+// `@signature-params` line carrying created/keyid/alg/nonce/tag. This is the
+// non-HTTP-transport profile — every covered component is an `adp-*` derived component.
+// ADP deviations from strict RFC 9421: `created` is the ISO-8601 string, and the
+// signature bytes are hex. Mirrors `src/handshake.ts`.
+
+const COMPONENT_AGENT_ID: &str = "adp-agent-id";
+const COMPONENT_AUDIT_HEAD: &str = "adp-audit-head";
+const COMPONENT_VERSION: &str = "adp-disclosure-version";
 
 /// A live challenge-response proving the counterparty holds the signing key now.
 pub struct ChallengeResponse {
@@ -491,6 +675,11 @@ pub struct ChallengeResponse {
     pub agent_id: String,
     pub audit_head: String,
     pub signed_at: String,
+    /// the disclosure-schema version this response presents (a signed covered
+    /// component); absent on pre-negotiation peers.
+    pub disclosure_version: Option<u64>,
+    /// the RFC 9421 `Signature-Input` value (labelled `sig`).
+    pub signature_input: String,
     pub signature: String,
 }
 
@@ -500,49 +689,109 @@ pub struct Challenge {
     pub verifier_id: Option<String>,
 }
 
-/// Canonical bytes the response signs over: `canonicalize({nonce, agentId,
-/// auditHead, signedAt, verifierId})`. An absent `verifierId` is dropped.
-fn response_message(response: &ChallengeResponse, verifier_id: Option<&str>) -> String {
-    let mut obj = serde_json::Map::new();
-    obj.insert("nonce".into(), Value::String(response.nonce.clone()));
-    obj.insert("agentId".into(), Value::String(response.agent_id.clone()));
-    obj.insert(
-        "auditHead".into(),
-        Value::String(response.audit_head.clone()),
-    );
-    obj.insert("signedAt".into(), Value::String(response.signed_at.clone()));
-    if let Some(vid) = verifier_id {
-        obj.insert("verifierId".into(), Value::String(vid.to_string()));
-    }
-    canonicalize(&Value::Object(obj))
+/// The signing material: the covered values plus the params bound into
+/// `@signature-params`. `verifier_id` becomes the `tag`; `disclosure_version` is a
+/// covered component only when declared.
+struct SigMaterial<'a> {
+    agent_id: &'a str,
+    audit_head: &'a str,
+    signed_at: &'a str,
+    nonce: &'a str,
+    verifier_id: Option<&'a str>,
+    disclosure_version: Option<u64>,
 }
 
-/// Answer a challenge: build `{nonce, agentId, auditHead, signedAt}` and sign over
-/// `canonicalize({nonce, agentId, auditHead, signedAt, verifierId})` (the `verifierId`
-/// taken from the challenge, dropped if absent). Byte-identical to the reference
-/// `respondToChallenge` in `src/handshake.ts`. `agentId` is the signer's verifying key.
+/// The ordered covered components `[name, value]`. The version line appears only when
+/// declared (a no-version response signs a base with no version line — backward path).
+fn covered_components(m: &SigMaterial) -> Vec<(&'static str, String)> {
+    let mut comps: Vec<(&'static str, String)> = vec![
+        (COMPONENT_AGENT_ID, m.agent_id.to_string()),
+        (COMPONENT_AUDIT_HEAD, m.audit_head.to_string()),
+    ];
+    if let Some(v) = m.disclosure_version {
+        comps.push((COMPONENT_VERSION, v.to_string()));
+    }
+    comps
+}
+
+/// The `@signature-params` value: `(<inner list>);created=...;keyid=...;alg="ed25519";nonce=...;tag=...`
+fn signature_params(m: &SigMaterial) -> String {
+    let inner = covered_components(m)
+        .iter()
+        .map(|(name, _)| format!("\"{name}\""))
+        .collect::<Vec<_>>()
+        .join(" ");
+    let mut params = format!(
+        "({});created=\"{}\";keyid=\"{}\";alg=\"ed25519\";nonce=\"{}\"",
+        inner, m.signed_at, m.agent_id, m.nonce
+    );
+    if let Some(vid) = m.verifier_id {
+        params.push_str(&format!(";tag=\"{vid}\""));
+    }
+    params
+}
+
+/// The RFC 9421 signature base: each covered-component line, then the @signature-params line.
+fn signature_base(m: &SigMaterial) -> String {
+    let mut lines: Vec<String> = covered_components(m)
+        .iter()
+        .map(|(name, value)| format!("\"{name}\": {value}"))
+        .collect();
+    lines.push(format!("\"@signature-params\": {}", signature_params(m)));
+    lines.join("\n")
+}
+
+/// The `Signature-Input` value (labelled `sig`).
+fn signature_input_value(m: &SigMaterial) -> String {
+    format!("sig={}", signature_params(m))
+}
+
+/// Answer a challenge: sign the RFC 9421 signature base binding the nonce, live audit
+/// head, and agent id (and optionally the declared disclosure version). Byte-identical
+/// to the reference `respondToChallenge` in `src/handshake.ts`.
 pub fn respond_to_challenge(
     challenge: &Challenge,
     signing_key: &SigningKey,
     audit_head: &str,
     now: &str,
 ) -> ChallengeResponse {
-    let mut response = ChallengeResponse {
+    respond_to_challenge_versioned(challenge, signing_key, audit_head, now, None)
+}
+
+/// As [`respond_to_challenge`] but declaring a `disclosure_version` covered component.
+pub fn respond_to_challenge_versioned(
+    challenge: &Challenge,
+    signing_key: &SigningKey,
+    audit_head: &str,
+    now: &str,
+    disclosure_version: Option<u64>,
+) -> ChallengeResponse {
+    let agent_id = verifying_key_hex(signing_key);
+    let m = SigMaterial {
+        agent_id: &agent_id,
+        audit_head,
+        signed_at: now,
+        nonce: &challenge.nonce,
+        verifier_id: challenge.verifier_id.as_deref(),
+        disclosure_version,
+    };
+    let signature = sign_message(&signature_base(&m), signing_key);
+    let signature_input = signature_input_value(&m);
+    ChallengeResponse {
         nonce: challenge.nonce.clone(),
-        agent_id: verifying_key_hex(signing_key),
+        agent_id,
         audit_head: audit_head.to_string(),
         signed_at: now.to_string(),
-        signature: String::new(),
-    };
-    let message = response_message(&response, challenge.verifier_id.as_deref());
-    response.signature = sign_message(&message, signing_key);
-    response
+        disclosure_version,
+        signature_input,
+        signature,
+    }
 }
 
 /// Verify a challenge response, in the spec's MUST order: nonce match, agentId
-/// match, signature, freshness. Audit-head currency is treated as a non-fatal
-/// signal (matching the reference). `now` is optional; when supplied the response
-/// must be within `max_age_ms` (default 60_000) and not from the future.
+/// match, signature-input match, signature, freshness. Audit-head currency is treated
+/// as a non-fatal signal (matching the reference). `now` is optional; when supplied the
+/// response must be within `max_age_ms` (default 60_000) and not from the future.
 pub fn verify_challenge_response(
     response: &ChallengeResponse,
     challenge: &Challenge,
@@ -566,8 +815,21 @@ pub fn verify_challenge_response_with_max_age(
     if response.agent_id != expected_agent_id {
         return Err("response agentId does not match the disclosure".to_string());
     }
-    let message = response_message(response, challenge.verifier_id.as_deref());
-    if !verify_message(&message, &response.agent_id, &response.signature) {
+    // Reconstruct the signature base from OUR challenge (nonce, verifierId) + the
+    // response's claimed values. The response's Signature-Input must match exactly (no
+    // param smuggling), and the ed25519 signature must verify over the reconstructed base.
+    let m = SigMaterial {
+        agent_id: &response.agent_id,
+        audit_head: &response.audit_head,
+        signed_at: &response.signed_at,
+        nonce: &challenge.nonce,
+        verifier_id: challenge.verifier_id.as_deref(),
+        disclosure_version: response.disclosure_version,
+    };
+    if response.signature_input != signature_input_value(&m) {
+        return Err("signature-input does not match the issued challenge".to_string());
+    }
+    if !verify_message(&signature_base(&m), &response.agent_id, &response.signature) {
         return Err("challenge signature invalid (no live key possession)".to_string());
     }
     if let Some(now_str) = now {
@@ -873,6 +1135,39 @@ fn require_bool(obj: &serde_json::Map<String, Value>, key: &str) -> Result<bool,
         .ok_or_else(|| format!("{key} is not a bool"))
 }
 
+/// An operator attestation scheme is valid if it is a known literal OR a reverse-domain
+/// id. Mirrors the TS `AttestationScheme` union: `z.enum(KNOWN) | regex(ReverseDomain)`
+/// with `ReverseDomain = /^[a-z0-9]+(\.[a-z0-9-]+)+$/`.
+fn is_valid_attestation_scheme(s: &str) -> bool {
+    const KNOWN: [&str; 5] = ["AIP", "VisaTAP", "ERC8004", "DID", "none"];
+    KNOWN.contains(&s) || is_reverse_domain(s)
+}
+
+/// Match `^[a-z0-9]+(\.[a-z0-9-]+)+$`: a lowercase-alnum first label, then one or more
+/// dot-separated labels of `[a-z0-9-]`. At least one dot is required.
+fn is_reverse_domain(s: &str) -> bool {
+    let mut labels = s.split('.');
+    let first = match labels.next() {
+        Some(l) => l,
+        None => return false,
+    };
+    if first.is_empty() || !first.bytes().all(|b| b.is_ascii_lowercase() || b.is_ascii_digit()) {
+        return false;
+    }
+    let mut had_rest = false;
+    for label in labels {
+        had_rest = true;
+        if label.is_empty()
+            || !label
+                .bytes()
+                .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-')
+        {
+            return false;
+        }
+    }
+    had_rest
+}
+
 /// Validate the disclosure document against the normative schema (mirror of the TS
 /// `AgentDisclosureSchema`): required typed fields, hex digests, and the version
 /// literal. Optional fields are only type-checked when present. Returns `Err` on the
@@ -908,7 +1203,15 @@ fn validate_disclosure(d: &serde_json::Map<String, Value>) -> Result<(), String>
 
     let operator = require_object(d, "operator")?;
     require_str(operator, "operatorId")?;
-    require_object(operator, "attestation")?;
+    let attestation = require_object(operator, "attestation")?;
+    let scheme = require_str(attestation, "scheme")?;
+    if !is_valid_attestation_scheme(scheme) {
+        return Err("operator.attestation.scheme is not a known value or reverse-domain id".to_string());
+    }
+    let level = require_str(attestation, "level")?;
+    if !matches!(level, "none" | "signed" | "registry_attested") {
+        return Err("operator.attestation.level is not a valid enum value".to_string());
+    }
     require_str(operator, "deniabilityBoundary")?;
 
     let history = require_object(d, "history")?;
@@ -1073,6 +1376,37 @@ mod tests {
     }
 
     #[test]
+    fn interop_jws_disclosures() {
+        // v2 flattened JWS (EdDSA) envelopes: decode the base64url payload, verify the
+        // JOSE signature over protected.payload against the JWK key, bind the agentId,
+        // and run the same policy — reproducing the recorded decision + failed set.
+        let i = interop();
+        let cases = i["jwsDisclosures"].as_array().unwrap();
+        assert_eq!(cases.len(), 4, "expected 4 jwsDisclosures");
+        for case in cases {
+            let name = case["name"].as_str().unwrap();
+            assert!(
+                JwsSignedDisclosure::is_jws(&case["signed"]),
+                "{name} is detected as a JWS envelope"
+            );
+            let signed = JwsSignedDisclosure::from_value(&case["signed"]).unwrap();
+            let policy = policy_from(&case["policy"]);
+            let verdict = evaluate_disclosure_jws(&signed, &policy);
+
+            let want_decision = case["expect"]["decision"].as_str().unwrap();
+            assert_eq!(verdict.decision, want_decision, "jws decision for {name}");
+
+            let want_failed: Vec<String> = case["expect"]["failed"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|v| v.as_str().unwrap().to_string())
+                .collect();
+            assert_eq!(verdict.failed_checks(), want_failed, "jws failed checks for {name}");
+        }
+    }
+
+    #[test]
     fn interop_signatures_verify() {
         // Every disclosure whose expected verdict is NOT a signature failure must
         // have a valid signature; the canonical bytes therefore matched the TS emitter.
@@ -1108,6 +1442,8 @@ mod tests {
                 agent_id: resp["agentId"].as_str().unwrap().to_string(),
                 audit_head: resp["auditHead"].as_str().unwrap().to_string(),
                 signed_at: resp["signedAt"].as_str().unwrap().to_string(),
+                disclosure_version: resp.get("disclosureVersion").and_then(|v| v.as_u64()),
+                signature_input: resp["signatureInput"].as_str().unwrap().to_string(),
                 signature: resp["signature"].as_str().unwrap().to_string(),
             };
             let chal = &case["challenge"];

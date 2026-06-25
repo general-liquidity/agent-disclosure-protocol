@@ -56,11 +56,17 @@ type Challenge struct {
 	VerifierID string `json:"verifierId,omitempty"`
 }
 
-// ChallengeResponse is the agent's signed answer (SPEC.md section 7.2).
+// ChallengeResponse is the agent's signed answer (SPEC.md section 7.2). The signature
+// is hex over the RFC 9421 signature base (see handshake.go); SignatureInput carries the
+// covered set + params so a verifier reads the exact material that was signed.
 type ChallengeResponse struct {
 	Nonce     string `json:"nonce"`
 	AgentID   string `json:"agentId"`
 	AuditHead string `json:"auditHead"`
 	SignedAt  string `json:"signedAt"`
-	Signature string `json:"signature"`
+	// DisclosureVersion, when declared (>0), is a SIGNED covered component used for
+	// version negotiation; 0 means "not declared" (the no-version backward path).
+	DisclosureVersion int    `json:"disclosureVersion,omitempty"`
+	SignatureInput    string `json:"signatureInput"`
+	Signature         string `json:"signature"`
 }

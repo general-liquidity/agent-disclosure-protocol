@@ -25,9 +25,17 @@ def canonicalize(value) -> str:
     if isinstance(value, dict):
         # TS drops only `=== undefined` keys; JSON-decoded data has no undefined
         # (a present `null` is kept), so every key is serialized.
+        #
+        # JS `Array.prototype.sort()` (what `Object.keys(obj).sort()` uses in the TS
+        # reference) orders strings by UTF-16 code unit, NOT by Unicode code point.
+        # They diverge for supplementary-plane characters: a surrogate pair (lead unit
+        # 0xD800–0xDBFF) sorts BEFORE a BMP character above 0xE000. Python's default
+        # `sorted(str)` is code-point, which would mis-order e.g. "😀" (U+1F600) vs a
+        # high-BMP key. Sort on the UTF-16-BE encoding to reproduce the JS order
+        # byte-for-byte (big-endian preserves code-unit ordering).
         parts = [
             json.dumps(key, ensure_ascii=False) + ":" + canonicalize(value[key])
-            for key in sorted(value.keys())
+            for key in sorted(value.keys(), key=lambda k: k.encode("utf-16-be"))
         ]
         return "{" + ",".join(parts) + "}"
     raise TypeError(f"cannot canonicalize value of type {type(value)!r}")

@@ -5,6 +5,7 @@ disclosure case (decision AND sorted failed-check names), and every handshake
 case (ok == expect). Loads the shared fixtures from ../conformance/.
 """
 
+import base64
 import copy
 import json
 import pathlib
@@ -20,6 +21,8 @@ from agent_disclosure import (
     agent_key_from_private_hex,
     generate_agent_key,
     sign_disclosure,
+    sign_disclosure_jws,
+    verify_disclosure_jws,
     verify_raw,
     verify_redacted,
     verify_revocation,
@@ -71,6 +74,45 @@ class TestInteropDisclosures(unittest.TestCase):
             if "signature" not in case["expect"]["failed"]:
                 ok, reason = verify_disclosure_signature(case["signed"])
                 self.assertTrue(ok, msg=f"{case['name']}: {reason}")
+
+
+class TestInteropJwsDisclosures(unittest.TestCase):
+    """v2 flattened-JWS (EdDSA) envelopes: the same policy decision + failed-check
+    contract as the v1 object envelopes, proving the Python verifier accepts both
+    wrappings of the identical JCS disclosure document."""
+
+    def test_cases(self):
+        for case in INTEROP["jwsDisclosures"]:
+            policy = VerificationPolicy.from_json(case["policy"])
+            verdict = evaluate_disclosure(case["signed"], policy)
+            self.assertEqual(verdict.decision, case["expect"]["decision"], msg=case["name"])
+            self.assertEqual(verdict.failed, sorted(case["expect"]["failed"]), msg=case["name"])
+
+    def test_signatures_verify_for_untampered_cases(self):
+        for case in INTEROP["jwsDisclosures"]:
+            if "signature" not in case["expect"]["failed"]:
+                ok, reason = verify_disclosure_jws(case["signed"])
+                self.assertTrue(ok, msg=f"{case['name']}: {reason}")
+
+    def test_emitter_byte_match_against_fixed_key(self):
+        # Re-emit each untampered/correctly-bound disclosure as a v2 JWS with the
+        # fixed key and assert the envelope bytes EQUAL the fixture: proves the
+        # Python JWS signer is byte-identical to the TS signDisclosureJws.
+        priv = agent_key_from_private_hex(INTEROP["key"]["privateKeyHex"])
+        checked = 0
+        for case in INTEROP["jwsDisclosures"]:
+            if "signature" in case["expect"]["failed"]:
+                continue
+            payload_b64 = case["signed"]["payload"]
+            payload = json.loads(
+                base64.urlsafe_b64decode(payload_b64 + "=" * (-len(payload_b64) % 4)).decode("utf-8")
+            )
+            signed = sign_disclosure_jws(payload, priv)
+            for key in ("payload", "protected", "signature"):
+                self.assertEqual(signed[key], case["signed"][key], msg=f"{case['name']}:{key}")
+            self.assertEqual(signed["header"], case["signed"]["header"], msg=case["name"])
+            checked += 1
+        self.assertGreater(checked, 0)
 
 
 class TestInteropHandshakes(unittest.TestCase):

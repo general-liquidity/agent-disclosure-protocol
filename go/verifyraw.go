@@ -46,6 +46,30 @@ func VerifyRawReason(raw string) (accepted bool, reason string) {
 // hexRe matches a non-empty hex string, mirroring the TS Hex schema (/^[0-9a-fA-F]+$/).
 var hexRe = regexp.MustCompile(`^[0-9a-fA-F]+$`)
 
+// reverseDomainRe matches a reverse-domain attestation-scheme id (e.g. "com.visa.tap"),
+// mirroring the TS ReverseDomain regex. At least one dot is required, so a bare word
+// ("Unknown") is not a valid namespace.
+var reverseDomainRe = regexp.MustCompile(`^[a-z0-9]+(\.[a-z0-9-]+)+$`)
+
+// knownAttestationSchemes is the closed set of attestation schemes; a value outside it
+// is valid only if it is a reverse-domain id (see AttestationScheme in src/schema.ts).
+var knownAttestationSchemes = map[string]bool{
+	"AIP": true, "VisaTAP": true, "ERC8004": true, "DID": true, "none": true,
+}
+
+// decodeNumberAwareBytes decodes JSON bytes into a generic any with UseNumber() so
+// integers stay literal (5, not 5.0) for byte-exact canonicalization. Returns nil on a
+// decode error (callers treat that as a structural rejection).
+func decodeNumberAwareBytes(data []byte) any {
+	dec := json.NewDecoder(bytes.NewReader(data))
+	dec.UseNumber()
+	var v any
+	if err := dec.Decode(&v); err != nil {
+		return nil
+	}
+	return v
+}
+
 // parseSignedDisclosureStrict decodes the raw bytes number-aware and validates the
 // signed-envelope structure against the same shape the TS zod schema enforces
 // (SignedDisclosureSchema): the top level is an object with exactly `disclosure`
@@ -145,6 +169,48 @@ func validateDisclosureShape(d map[string]any) error {
 	}
 	if _, ok := constitution["hardConstraints"].([]any); !ok {
 		return fmt.Errorf("constitution.hardConstraints is missing or not an array")
+	}
+
+	// Enum / literal validation (mirrors the TS zod enums). These cases carry a VALID
+	// ed25519 signature, so a signature-only verifier would wrongly accept them; the
+	// schema layer must reject on enum grounds before the signature is even consulted.
+	if err := validateEnums(d); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// validateEnums enforces the closed-set fields the TS schema declares as zod enums /
+// literals: capital.custody, operator.attestation.scheme (known value OR reverse-domain
+// id), operator.attestation.level, and systemPrompt.algorithm. A value outside its set
+// is a structural rejection.
+func validateEnums(d map[string]any) error {
+	systemPrompt := d["systemPrompt"].(map[string]any)
+	if alg, _ := systemPrompt["algorithm"].(string); alg != "sha256" {
+		return fmt.Errorf("systemPrompt.algorithm must be sha256, got %q", alg)
+	}
+
+	capital := d["capital"].(map[string]any)
+	switch custody, _ := capital["custody"].(string); custody {
+	case "non_custodial", "custodial":
+	default:
+		return fmt.Errorf("capital.custody must be non_custodial or custodial, got %q", custody)
+	}
+
+	operator := d["operator"].(map[string]any)
+	attestation, ok := operator["attestation"].(map[string]any)
+	if !ok {
+		return fmt.Errorf("operator.attestation is missing or not an object")
+	}
+	scheme, _ := attestation["scheme"].(string)
+	if !knownAttestationSchemes[scheme] && !reverseDomainRe.MatchString(scheme) {
+		return fmt.Errorf("operator.attestation.scheme must be a known value or a reverse-domain id, got %q", scheme)
+	}
+	switch level, _ := attestation["level"].(string); level {
+	case "none", "signed", "registry_attested":
+	default:
+		return fmt.Errorf("operator.attestation.level must be none, signed, or registry_attested, got %q", level)
 	}
 
 	return nil

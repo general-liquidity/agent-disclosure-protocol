@@ -6,11 +6,17 @@ reports every failed check (sorted-name comparison is the conformance contract).
 """
 
 import json
+import re
 import time
 from dataclasses import dataclass, field
 from typing import Any, Callable, Optional
 
-from .attestation import verify_disclosure_signature, is_fresh
+from .attestation import (
+    verify_any_disclosure_signature,
+    disclosure_of,
+    is_jws_signed_disclosure,
+    is_fresh,
+)
 
 GRADE_RANK = {"A": 4, "B": 3, "C": 2, "D": 1, "F": 0}
 ATTESTATION_RANK = {"none": 0, "signed": 1, "registry_attested": 2}
@@ -84,11 +90,13 @@ def evaluate_disclosure(signed: dict, policy: VerificationPolicy) -> Verdict:
     def passed(name: str) -> None:
         checks[name] = True
 
-    d = signed["disclosure"]
+    # Either envelope shape (v1 object or v2 flattened JWS); the disclosure document
+    # is the same JCS document under both, so every policy check below is unchanged.
+    d = disclosure_of(signed)
 
     # signature (default on)
     if policy.require_valid_signature is not False:
-        ok, reason = verify_disclosure_signature(signed)
+        ok, reason = verify_any_disclosure_signature(signed)
         passed("signature") if ok else fail("signature", f"signature invalid: {reason}")
 
     # freshness (default on)
@@ -235,6 +243,42 @@ def evaluate_raw(raw: str, policy: Optional[VerificationPolicy] = None) -> Verdi
         )
 
 
+# Enum / literal closed sets, mirroring src/schema.ts. A disclosure can carry a
+# valid ed25519 signature yet still be schema-INVALID (a malicious or buggy emitter
+# signed a document outside the schema); these must reject on schema grounds, so
+# the check runs in the structural path BEFORE the signature is consulted.
+_KNOWN_ATTESTATION_SCHEMES = frozenset({"AIP", "VisaTAP", "ERC8004", "DID", "none"})
+_ATTESTATION_LEVELS = frozenset({"none", "signed", "registry_attested"})
+_CUSTODY = frozenset({"non_custodial", "custodial"})
+# Reverse-domain namespace id (e.g. "com.visa.tap"): at least one dot, so a bare word
+# is NOT valid. Mirrors the `ReverseDomain` regex in schema.ts.
+_REVERSE_DOMAIN = re.compile(r"^[a-z0-9]+(\.[a-z0-9-]+)+$")
+
+
+def _validate_disclosure_schema(disclosure: dict) -> None:
+    """Mirror the closed enums / literals of AgentDisclosureSchema (src/schema.ts).
+    Raises ValueError on the first violation so `evaluate_raw` rejects without
+    consulting the (possibly valid) signature."""
+    if disclosure.get("version") != 1:
+        raise ValueError("disclosure.version must be the literal 1")
+
+    custody = disclosure.get("capital", {}).get("custody")
+    if custody not in _CUSTODY:
+        raise ValueError(f"capital.custody must be one of {sorted(_CUSTODY)}")
+
+    attestation = disclosure.get("operator", {}).get("attestation", {})
+    scheme = attestation.get("scheme")
+    if scheme not in _KNOWN_ATTESTATION_SCHEMES and not (
+        isinstance(scheme, str) and _REVERSE_DOMAIN.match(scheme)
+    ):
+        raise ValueError("operator.attestation.scheme must be a known value or a reverse-domain id")
+    if attestation.get("level") not in _ATTESTATION_LEVELS:
+        raise ValueError(f"operator.attestation.level must be one of {sorted(_ATTESTATION_LEVELS)}")
+
+    if disclosure.get("systemPrompt", {}).get("algorithm") != "sha256":
+        raise ValueError("systemPrompt.algorithm must be the literal 'sha256'")
+
+
 def _require_envelope_shape(signed: Any) -> None:
     """Minimal structural gate so a defect raises here (caught by `evaluate_raw`)
     rather than producing an undefined verdict. Deep field validation is left to
@@ -256,6 +300,7 @@ def _require_envelope_shape(signed: Any) -> None:
         raise TypeError("disclosure.agentId must be a string")
     if disclosure["agentId"] != signature["publicKey"]:
         raise ValueError("agentId does not match the signing public key")
+    _validate_disclosure_schema(disclosure)
 
 
 def verify_raw(raw: str, policy: Optional[VerificationPolicy] = None) -> bool:

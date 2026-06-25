@@ -169,6 +169,48 @@ static void run_interop_disclosures(const cJSON *root) {
     total_fail += fail;
 }
 
+/* ── v2 JWS interop disclosures ─────────────────────────────────────────────────
+ * Replays interop.json `jwsDisclosures`: each carries a flattened-JWS `signed` envelope
+ * (payload/protected/header/signature) + policy + expected verdict. adp_evaluate_disclosure
+ * detects the JWS shape, verifies the EdDSA signature over ASCII(protected.payload), decodes
+ * the JCS payload, binds agentId↔jwk, and runs the same policy as the v1 path. */
+static void run_interop_jws(const cJSON *root) {
+    const cJSON *arr = cJSON_GetObjectItemCaseSensitive(root, "jwsDisclosures");
+    int pass = 0, fail = 0;
+    const cJSON *tc;
+    cJSON_ArrayForEach(tc, arr) {
+        const cJSON *name = cJSON_GetObjectItemCaseSensitive(tc, "name");
+        const cJSON *signed_env = cJSON_GetObjectItemCaseSensitive(tc, "signed");
+        const cJSON *policy = cJSON_GetObjectItemCaseSensitive(tc, "policy");
+        const cJSON *expect = cJSON_GetObjectItemCaseSensitive(tc, "expect");
+        const cJSON *exp_decision = cJSON_GetObjectItemCaseSensitive(expect, "decision");
+        const cJSON *exp_failed = cJSON_GetObjectItemCaseSensitive(expect, "failed");
+
+        adp_verdict v;
+        adp_evaluate_disclosure(signed_env, policy, &v);
+
+        int dec_ok = cJSON_IsString(exp_decision) &&
+                     strcmp(v.decision, exp_decision->valuestring) == 0;
+        int failed_ok = cJSON_IsArray(exp_failed) ? failset_matches(&v, exp_failed) : 1;
+
+        if (dec_ok && failed_ok) {
+            pass++;
+        } else {
+            fail++;
+            printf("  [FAIL] jws '%s': decision=%s (want %s) failed={",
+                   cJSON_IsString(name) ? name->valuestring : "?", v.decision,
+                   cJSON_IsString(exp_decision) ? exp_decision->valuestring : "?");
+            for (size_t i = 0; i < v.failed_count; i++)
+                printf("%s%s", i ? "," : "", v.failed[i]);
+            printf("}\n");
+        }
+        adp_verdict_free(&v);
+    }
+    printf("interop jws disclosures: %d passed, %d failed\n", pass, fail);
+    total_pass += pass;
+    total_fail += fail;
+}
+
 /* ── emitter byte-match ─────────────────────────────────────────────────────────
  * Re-sign each interop disclosure with the fixed seed (PKCS8 DER → 32-byte seed →
  * libsodium keypair) and compare the produced signature hex against the fixture's
@@ -530,6 +572,7 @@ int main(void) {
     run_fuzz(fuzz);
     run_sha256(vectors);
     run_interop_disclosures(interop);
+    run_interop_jws(interop);
     run_emitter(interop);
     run_redactions(interop);
     run_revocations(interop);

@@ -9,7 +9,7 @@ All three reuse the byte-matched `canonicalize` / `sha256_hex` and the asymmetri
 """
 
 from .canonical import canonicalize, sha256_hex
-from .attestation import verify_message
+from .attestation import verify_message_hex
 
 
 def _commit(value, salt: str) -> str:
@@ -31,7 +31,7 @@ def verify_redacted(view: dict):
         return False, []
 
     signed = canonicalize({"meta": meta, "commitments": commitments})
-    if not verify_message(signed, signature["publicKey"], signature["value"]):
+    if not verify_message_hex(signed, signature["publicKey"], signature["value"]):
         return False, []
 
     revealed_fields = []
@@ -49,7 +49,7 @@ def verify_redacted(view: dict):
 def verify_revocation(record: dict) -> bool:
     """Verify a signed revocation against its embedded public key: ed25519 over
     canonicalize({id, reason, revokedAt})."""
-    return verify_message(
+    return verify_message_hex(
         canonicalize(
             {"id": record["id"], "reason": record["reason"], "revokedAt": record["revokedAt"]}
         ),
