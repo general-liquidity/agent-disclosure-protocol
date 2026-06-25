@@ -10,11 +10,13 @@
 // (the primary contract) and SHOULD reproduce `expect.failed` (the set of failed check
 // names). For each handshake case it MUST reproduce `expect`.
 
+import { Buffer } from "node:buffer";
 import { writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import {
   agentKeyFromPrivateHex,
   signDisclosure,
+  signDisclosureJws,
   evaluateDisclosure,
   createChallenge,
   respondToChallenge,
@@ -26,6 +28,7 @@ import {
   TransparencyLog,
   type AgentDisclosure,
   type SignedDisclosure,
+  type JwsSignedDisclosure,
   type VerificationPolicy,
   type Challenge,
   type ChallengeResponse,
@@ -120,6 +123,43 @@ const disclosures: DisclosureCase[] = [
   disclosures.push(caseOf("forged-agentid-refuse", forged, { now: FRESH, ...strict }));
 }
 
+// ── v2 JWS envelope fixtures ─────────────────────────────────────────────────
+// A verifier MUST detect the flattened-JWS shape (payload/protected), verify the
+// signature over ASCII(protected + "." + payload) against the JWK key, decode the JCS
+// payload, enforce the agentId↔key binding, and then run the same policy.
+interface JwsDisclosureCase {
+  name: string;
+  signed: JwsSignedDisclosure;
+  policy: VerificationPolicy;
+  expect: { decision: "transact" | "refuse"; failed: string[] };
+}
+function jwsCaseOf(name: string, signed: JwsSignedDisclosure, policy: VerificationPolicy): JwsDisclosureCase {
+  const v = evaluateDisclosure(signed, policy);
+  const failed = Object.entries(v.checks)
+    .filter(([, ok]) => !ok)
+    .map(([k]) => k)
+    .sort();
+  return { name, signed, policy, expect: { decision: v.decision, failed } };
+}
+
+const jwsDisclosures: JwsDisclosureCase[] = [
+  jwsCaseOf("jws-valid-transact", signDisclosureJws(base(), key), { now: FRESH, ...strict }),
+  jwsCaseOf("jws-stale-refuse", signDisclosureJws(base(), key), { now: STALE, ...strict }),
+];
+{
+  // tampered payload: re-encode with a mutated field -> signing input no longer matches.
+  const signed = signDisclosureJws(base(), key);
+  const doc = JSON.parse(Buffer.from(signed.payload, "base64url").toString("utf8"));
+  doc.constitution.enforced = false;
+  const tampered: JwsSignedDisclosure = { ...signed, payload: Buffer.from(JSON.stringify(doc), "utf8").toString("base64url") };
+  jwsDisclosures.push(jwsCaseOf("jws-tampered-refuse", tampered, { now: FRESH, ...strict }));
+}
+{
+  // forged agentId: payload claims OTHER, but jwk.x is the real signer -> binding fails.
+  const forged = signDisclosureJws(base({ agentId: OTHER }), key);
+  jwsDisclosures.push(jwsCaseOf("jws-forged-agentid-refuse", forged, { now: FRESH, ...strict }));
+}
+
 interface HandshakeCase {
   name: string;
   challenge: Challenge;
@@ -183,6 +223,7 @@ const out = {
     "Cross-stack interop fixtures, generated from the TS reference with a fixed ed25519 key. A verifier MUST reproduce disclosures[].expect.decision and handshakes[].expect; SHOULD reproduce disclosures[].expect.failed. A full implementation also reproduces redactions[].expect (verifyRedacted), revocations[].expect (verifyRevocation), transparency[].expect (verifyInclusionProof). Regenerate: node --import tsx conformance/generate-interop.ts",
   key: { privateKeyHex: PRIV, publicKeyHex: AGENT },
   disclosures,
+  jwsDisclosures,
   handshakes,
   redactions,
   revocations,
@@ -191,5 +232,5 @@ const out = {
 
 writeFileSync(fileURLToPath(new URL("./interop.json", import.meta.url)), `${JSON.stringify(out, null, 2)}\n`);
 console.log(
-  `wrote interop.json: ${disclosures.length} disclosure, ${handshakes.length} handshake, ${redactions.length} redaction, ${revocations.length} revocation, ${transparency.length} transparency cases`,
+  `wrote interop.json: ${disclosures.length} disclosure, ${jwsDisclosures.length} jws, ${handshakes.length} handshake, ${redactions.length} redaction, ${revocations.length} revocation, ${transparency.length} transparency cases`,
 );

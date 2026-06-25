@@ -121,6 +121,55 @@ export function didKeyToAgentId(did: string): string {
   return bytesToHex(raw);
 }
 
+export interface DidVerificationMethod {
+  id: string;
+  type: "Ed25519VerificationKey2020";
+  controller: string;
+  publicKeyMultibase: string;
+}
+export interface DidServiceEndpoint {
+  id: string;
+  type: string;
+  serviceEndpoint: string;
+}
+export interface DidDocument {
+  "@context": string[];
+  id: string;
+  verificationMethod: DidVerificationMethod[];
+  authentication: string[];
+  assertionMethod: string[];
+  service?: DidServiceEndpoint[];
+}
+
+/** Emit a W3C DID Core document for an agentId. The id is the agent's did:key, the
+ *  verification method is its ed25519 key (multibase), and — when a disclosure endpoint
+ *  is given — a `service` entry of type `AgentDisclosure` points at it, so any DID-aware
+ *  verifier resolves to the `.well-known/agent-disclosure` through standard rails. This
+ *  COMPLEMENTS the raw-key model (it doesn't replace agentId with a DID); ADP stays
+ *  DID-native-optional. */
+export function agentIdToDidDocument(agentId: string, opts: { disclosureEndpoint?: string } = {}): DidDocument {
+  const did = agentIdToDidKey(agentId); // also validates the 32-byte key
+  const fragment = did.slice("did:key:".length);
+  const vmId = `${did}#${fragment}`;
+  const raw = hexToBytes(agentId);
+  const prefixed = new Uint8Array(MULTICODEC_ED25519_PUB.length + raw.length);
+  prefixed.set(MULTICODEC_ED25519_PUB, 0);
+  prefixed.set(raw, MULTICODEC_ED25519_PUB.length);
+  const doc: DidDocument = {
+    "@context": ["https://www.w3.org/ns/did/v1", "https://w3id.org/security/suites/ed25519-2020/v1"],
+    id: did,
+    verificationMethod: [
+      { id: vmId, type: "Ed25519VerificationKey2020", controller: did, publicKeyMultibase: multibaseBase58btcEncode(prefixed) },
+    ],
+    authentication: [vmId],
+    assertionMethod: [vmId],
+  };
+  if (opts.disclosureEndpoint) {
+    doc.service = [{ id: `${did}#agent-disclosure`, type: "AgentDisclosure", serviceEndpoint: opts.disclosureEndpoint }];
+  }
+  return doc;
+}
+
 /** Construct a did:web identifier for a domain (optionally a path). did:web encodes
  *  the host as the method-specific id, with ':'-separated, percent-encoded path
  *  segments. The DID document is served out of band at

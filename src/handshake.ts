@@ -12,7 +12,7 @@
 // Vendor-neutral: builds on the ed25519 message primitives only.
 
 import { randomBytes } from "node:crypto";
-import { canonicalize, signMessage, verifyMessage, type AgentKeyPair } from "./attestation.ts";
+import { signMessage, verifyMessage, type AgentKeyPair } from "./attestation.ts";
 
 export interface Challenge {
   nonce: string;
@@ -31,9 +31,12 @@ export interface ChallengeResponse {
   auditHead: string;
   signedAt: string;
   /** optional: the schema version of the disclosure this response presents. When set it
-   *  is SIGNED (so it can't be downgraded), and a verifier refuses an unsupported one. */
+   *  is a SIGNED covered component (can't be downgraded); a verifier refuses an unsupported one. */
   disclosureVersion?: number;
-  /** ed25519 signature over canonicalize({nonce, agentId, auditHead, signedAt, verifierId, disclosureVersion}) */
+  /** the RFC 9421 `Signature-Input` value: `sig=(<covered>);created=...;keyid=...;alg="ed25519";nonce=...;tag=...` */
+  signatureInput: string;
+  /** ed25519 signature (hex) over the RFC 9421 signature base built from the covered
+   *  components + `@signature-params` (see signatureBase). */
   signature: string;
 }
 
@@ -49,22 +52,64 @@ export function createChallenge(
   return { nonce: opts.nonce ?? randomNonce(), issuedAt: now, verifierId: opts.verifierId, supportedVersions: opts.supportedVersions };
 }
 
-/** Canonical bytes the response signs over - identical on both sides. `disclosureVersion`
- *  is included only when set; canonicalize drops `undefined`, so a response that declares
- *  no version signs byte-identical bytes to the pre-negotiation form (backward-compatible). */
-function responseMessage(r: Omit<ChallengeResponse, "signature">, verifierId?: string): string {
-  return canonicalize({
-    nonce: r.nonce,
-    agentId: r.agentId,
-    auditHead: r.auditHead,
-    signedAt: r.signedAt,
-    verifierId,
-    disclosureVersion: r.disclosureVersion,
-  });
+// ── RFC 9421 (HTTP Message Signatures) shape ─────────────────────────────────
+// The response signs over an RFC 9421 *signature base*: covered-component lines plus a
+// `@signature-params` line carrying created/keyid/alg/nonce/tag. This is the
+// non-HTTP-transport profile — there are no HTTP fields to cover, so every covered
+// component is an `adp-*` derived component (namespaced so it can't collide with a real
+// HTTP header in a mixed deployment). Deliberate ADP deviations from strict RFC 9421:
+// `created` is an ISO-8601 string (ADP's timestamp convention) not unix-seconds, and the
+// signature bytes are hex (the package's convention) not the `:base64:` sf-binary wrapper.
+const COMPONENT_AGENT_ID = "adp-agent-id";
+const COMPONENT_AUDIT_HEAD = "adp-audit-head";
+const COMPONENT_VERSION = "adp-disclosure-version";
+
+interface SigMaterial {
+  agentId: string;
+  auditHead: string;
+  signedAt: string;
+  nonce: string;
+  verifierId?: string;
+  disclosureVersion?: number;
 }
 
-/** The agent answers a challenge: sign the nonce bound to the live audit head. Optionally
- *  declares the disclosure-schema version it presents (signed, for version negotiation). */
+/** The ordered covered components [name, value]. `disclosureVersion` is covered only when
+ *  declared, so a no-version response signs a base with no version line (backward path). */
+function coveredComponents(m: SigMaterial): Array<[string, string]> {
+  const comps: Array<[string, string]> = [
+    [COMPONENT_AGENT_ID, m.agentId],
+    [COMPONENT_AUDIT_HEAD, m.auditHead],
+  ];
+  if (m.disclosureVersion !== undefined) comps.push([COMPONENT_VERSION, String(m.disclosureVersion)]);
+  return comps;
+}
+
+/** The `@signature-params` value: `(<inner list>);created=...;keyid=...;alg="ed25519";nonce=...;tag=...` */
+function signatureParams(m: SigMaterial): string {
+  const inner = coveredComponents(m)
+    .map(([name]) => `"${name}"`)
+    .join(" ");
+  let params = `(${inner});created="${m.signedAt}";keyid="${m.agentId}";alg="ed25519";nonce="${m.nonce}"`;
+  if (m.verifierId !== undefined) params += `;tag="${m.verifierId}"`;
+  return params;
+}
+
+/** The RFC 9421 signature base: each covered-component line, then the @signature-params line. */
+function signatureBase(m: SigMaterial): string {
+  const lines = coveredComponents(m).map(([name, value]) => `"${name}": ${value}`);
+  lines.push(`"@signature-params": ${signatureParams(m)}`);
+  return lines.join("\n");
+}
+
+/** The `Signature-Input` value (labelled `sig`) — carried on the response so a verifier
+ *  (and a real RFC 9421 implementation) reads the exact covered set + params. */
+function signatureInputValue(m: SigMaterial): string {
+  return `sig=${signatureParams(m)}`;
+}
+
+/** The agent answers a challenge: sign an RFC 9421 signature base binding the nonce, live
+ *  audit head, and agent id. Optionally declares the disclosure-schema version it presents
+ *  (a signed covered component, for version negotiation). */
 export function respondToChallenge(
   challenge: Challenge,
   key: AgentKeyPair,
@@ -72,14 +117,23 @@ export function respondToChallenge(
   now: string,
   opts: { disclosureVersion?: number } = {},
 ): ChallengeResponse {
-  const body = {
+  const m: SigMaterial = {
+    agentId: key.publicKeyHex,
+    auditHead,
+    signedAt: now,
+    nonce: challenge.nonce,
+    verifierId: challenge.verifierId,
+    disclosureVersion: opts.disclosureVersion,
+  };
+  return {
     nonce: challenge.nonce,
     agentId: key.publicKeyHex,
     auditHead,
     signedAt: now,
     disclosureVersion: opts.disclosureVersion,
+    signatureInput: signatureInputValue(m),
+    signature: signMessage(signatureBase(m), key),
   };
-  return { ...body, signature: signMessage(responseMessage(body, challenge.verifierId), key) };
 }
 
 export interface HandshakeCheck {
@@ -116,7 +170,22 @@ export function verifyChallengeResponse(
   if (response.agentId !== policy.expectedAgentId) {
     return { ok: false, reason: "response agentId does not match the disclosure" };
   }
-  if (!verifyMessage(responseMessage(response, challenge.verifierId), response.agentId, response.signature)) {
+  // Reconstruct the RFC 9421 signature base from OUR challenge (nonce, verifierId) + the
+  // response's claimed values. The response's Signature-Input must match exactly (no param
+  // smuggling), and the ed25519 signature must verify over the reconstructed base — so
+  // tampering any covered value (audit head, version) or param (nonce, tag) is caught.
+  const material: SigMaterial = {
+    agentId: response.agentId,
+    auditHead: response.auditHead,
+    signedAt: response.signedAt,
+    nonce: challenge.nonce,
+    verifierId: challenge.verifierId,
+    disclosureVersion: response.disclosureVersion,
+  };
+  if (response.signatureInput !== signatureInputValue(material)) {
+    return { ok: false, reason: "signature-input does not match the issued challenge" };
+  }
+  if (!verifyMessage(signatureBase(material), response.agentId, response.signature)) {
     return { ok: false, reason: "challenge signature invalid (no live key possession)" };
   }
   // Version negotiation: a declared disclosure version (signed, above) outside the

@@ -1,12 +1,30 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { generateAgentKeyPair } from "../src/attestation.ts";
-import { agentIdToDidKey, didKeyToAgentId, didWeb } from "../src/did.ts";
+import { agentIdToDidDocument, agentIdToDidKey, didKeyToAgentId, didWeb } from "../src/did.ts";
 
 test("agentIdToDidKey produces a did:key:z... for an ed25519 key", () => {
   const key = generateAgentKeyPair();
   const did = agentIdToDidKey(key.publicKeyHex);
   assert.match(did, /^did:key:z[1-9A-HJ-NP-Za-km-z]+$/);
+});
+
+test("agentIdToDidDocument emits a DID Document with the key and an AgentDisclosure service", () => {
+  const key = generateAgentKeyPair();
+  const did = agentIdToDidKey(key.publicKeyHex);
+  const doc = agentIdToDidDocument(key.publicKeyHex, { disclosureEndpoint: "https://agent.example/.well-known/agent-disclosure" });
+  assert.equal(doc.id, did);
+  assert.equal(doc.verificationMethod[0].controller, did);
+  assert.match(doc.verificationMethod[0].publicKeyMultibase, /^z[1-9A-HJ-NP-Za-km-z]+$/);
+  assert.equal(doc.authentication[0], `${did}#${did.slice("did:key:".length)}`);
+  assert.deepEqual(doc.assertionMethod, doc.authentication);
+  assert.equal(doc.service?.[0].type, "AgentDisclosure");
+  assert.equal(doc.service?.[0].serviceEndpoint, "https://agent.example/.well-known/agent-disclosure");
+});
+
+test("agentIdToDidDocument omits service when no endpoint is given", () => {
+  const key = generateAgentKeyPair();
+  assert.equal(agentIdToDidDocument(key.publicKeyHex).service, undefined);
 });
 
 test("didKey round-trips back to the agentId", () => {

@@ -105,3 +105,7 @@ export * from "./did.ts";
 
 // W3C Verifiable Credential bridge (a disclosure as a VC).
 export * from "./vc.ts";
+
+// SD-JWT-VC bridge (a disclosure as a selective-disclosure JWT VC: hidden field names,
+// decoy digests, and KB-JWT presentation-to-verifier binding).
+export * from "./sdjwtvc.ts";

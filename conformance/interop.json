@@ -718,6 +718,123 @@
       }
     }
   ],
+  "jwsDisclosures": [
+    {
+      "name": "jws-valid-transact",
+      "signed": {
+        "payload": "eyJhZ2VudElkIjoiZWY0OTMxZjc4ODIyNzQxYjdlY2NkNjE2NzEyZmYxMzY3ZDMwODUzNzgyOGIwODNlYTEzMjZiOWJhNTgzY2I5ZCIsImF1ZGl0QW5jaG9yIjoiNzliZmIwZTJiYTc2YjlkNDQ3NjA2ZGRiY2M0OTQ4MzRmMDVhNGMxMWRlYjA1MmU3NGI0OWVhMzA3YTNjNWJjZCIsImNhcGl0YWwiOnsiY3VzdG9keSI6Im5vbl9jdXN0b2RpYWwiLCJtYW5kYXRlcyI6W119LCJjb25zdGl0dXRpb24iOnsiZGlnZXN0IjoiNzliZmIwZTJiYTc2YjlkNDQ3NjA2ZGRiY2M0OTQ4MzRmMDVhNGMxMWRlYjA1MmU3NGI0OWVhMzA3YTNjNWJjZCIsImVuZm9yY2VkIjp0cnVlLCJoYXJkQ29uc3RyYWludHMiOlt7ImRlc2NyaXB0aW9uIjoibm8gcGF5aW5nIHlvdXIgb3duIG9wZXJhdG9yIiwiaWQiOiJub19zZWxmX3BheW1lbnQiLCJraW5kIjoiZGVueSJ9XX0sImRpc2Nsb3N1cmVJZCI6ImRpc2NfaW50ZXJvcCIsImhpc3RvcnkiOnsiY2hhaW5BbmNob3IiOiI3OWJmYjBlMmJhNzZiOWQ0NDc2MDZkZGJjYzQ5NDgzNGYwNWE0YzExZGViMDUyZTc0YjQ5ZWEzMDdhM2M1YmNkIiwic3VtbWFyeSI6eyJibG9ja2VkQ291bnQiOjEsInNldHRsZWRDb3VudCI6NCwidG90YWxEZWNpc2lvbnMiOjV9fSwiaXNzdWVkQXQiOiIyMDI2LTA2LTI0VDEyOjAwOjAwLjAwMFoiLCJub25jZSI6Im5vbmNlX2ludGVyb3AiLCJvcGVyYXRvciI6eyJhdHRlc3RhdGlvbiI6eyJsZXZlbCI6Im5vbmUiLCJzY2hlbWUiOiJub25lIn0sImRlbmlhYmlsaXR5Qm91bmRhcnkiOiJzcGVuZCB3aXRoaW4gbWFuZGF0ZXMiLCJvcGVyYXRvcklkIjoib3AifSwicmVkVGVhbSI6eyJhdHRlc3RlZEF0IjoiMjAyNi0wNi0yNFQxMjowMDowMC4wMDBaIiwiY29ycHVzIjp7Im5hbWUiOiJzcGVuZHRydXN0IiwidmVyc2lvbiI6IjEuMC4wIn0sInJlc3VsdCI6eyJncmFkZSI6IkEiLCJoYXJkRmFpbHMiOltdLCJwYXNzZWQiOnRydWUsInNjb3JlIjo5NX19LCJzeXN0ZW1Qcm9tcHQiOnsiYWxnb3JpdGhtIjoic2hhMjU2IiwiZGlnZXN0IjoiNzliZmIwZTJiYTc2YjlkNDQ3NjA2ZGRiY2M0OTQ4MzRmMDVhNGMxMWRlYjA1MmU3NGI0OWVhMzA3YTNjNWJjZCJ9LCJ0b29scyI6eyJ0b29scyI6W3siYWNjZXNzIjoiZ2F0ZWQiLCJtb3Zlc1ZhbHVlIjp0cnVlLCJuYW1lIjoicGF5In1dfSwidmFsaWRVbnRpbCI6IjIwMjYtMDYtMjRUMTM6MDA6MDAuMDAwWiIsInZlcnNpb24iOjF9",
+        "protected": "eyJhbGciOiJFZERTQSIsInR5cCI6ImFwcGxpY2F0aW9uL2FkcCtqc29uIn0",
+        "header": {
+          "jwk": {
+            "kty": "OKP",
+            "crv": "Ed25519",
+            "x": "70kx94gidBt-zNYWcS_xNn0whTeCiwg-oTJrm6WDy50"
+          }
+        },
+        "signature": "Oev4wVXGIjbe1j05ibUBTrkfkFEA_YV-htmC5teNYvjAkBuwVKskeW7MzZY8dSQE-oiwgy24RrzDVPgrhMw4AQ"
+      },
+      "policy": {
+        "now": "2026-06-24T12:30:00.000Z",
+        "requireEnforcedConstitution": true,
+        "requireNonCustodial": true,
+        "requireDeploymentHistory": true,
+        "requireAuditAnchor": true,
+        "minRedTeamGrade": "B"
+      },
+      "expect": {
+        "decision": "transact",
+        "failed": []
+      }
+    },
+    {
+      "name": "jws-stale-refuse",
+      "signed": {
+        "payload": "eyJhZ2VudElkIjoiZWY0OTMxZjc4ODIyNzQxYjdlY2NkNjE2NzEyZmYxMzY3ZDMwODUzNzgyOGIwODNlYTEzMjZiOWJhNTgzY2I5ZCIsImF1ZGl0QW5jaG9yIjoiNzliZmIwZTJiYTc2YjlkNDQ3NjA2ZGRiY2M0OTQ4MzRmMDVhNGMxMWRlYjA1MmU3NGI0OWVhMzA3YTNjNWJjZCIsImNhcGl0YWwiOnsiY3VzdG9keSI6Im5vbl9jdXN0b2RpYWwiLCJtYW5kYXRlcyI6W119LCJjb25zdGl0dXRpb24iOnsiZGlnZXN0IjoiNzliZmIwZTJiYTc2YjlkNDQ3NjA2ZGRiY2M0OTQ4MzRmMDVhNGMxMWRlYjA1MmU3NGI0OWVhMzA3YTNjNWJjZCIsImVuZm9yY2VkIjp0cnVlLCJoYXJkQ29uc3RyYWludHMiOlt7ImRlc2NyaXB0aW9uIjoibm8gcGF5aW5nIHlvdXIgb3duIG9wZXJhdG9yIiwiaWQiOiJub19zZWxmX3BheW1lbnQiLCJraW5kIjoiZGVueSJ9XX0sImRpc2Nsb3N1cmVJZCI6ImRpc2NfaW50ZXJvcCIsImhpc3RvcnkiOnsiY2hhaW5BbmNob3IiOiI3OWJmYjBlMmJhNzZiOWQ0NDc2MDZkZGJjYzQ5NDgzNGYwNWE0YzExZGViMDUyZTc0YjQ5ZWEzMDdhM2M1YmNkIiwic3VtbWFyeSI6eyJibG9ja2VkQ291bnQiOjEsInNldHRsZWRDb3VudCI6NCwidG90YWxEZWNpc2lvbnMiOjV9fSwiaXNzdWVkQXQiOiIyMDI2LTA2LTI0VDEyOjAwOjAwLjAwMFoiLCJub25jZSI6Im5vbmNlX2ludGVyb3AiLCJvcGVyYXRvciI6eyJhdHRlc3RhdGlvbiI6eyJsZXZlbCI6Im5vbmUiLCJzY2hlbWUiOiJub25lIn0sImRlbmlhYmlsaXR5Qm91bmRhcnkiOiJzcGVuZCB3aXRoaW4gbWFuZGF0ZXMiLCJvcGVyYXRvcklkIjoib3AifSwicmVkVGVhbSI6eyJhdHRlc3RlZEF0IjoiMjAyNi0wNi0yNFQxMjowMDowMC4wMDBaIiwiY29ycHVzIjp7Im5hbWUiOiJzcGVuZHRydXN0IiwidmVyc2lvbiI6IjEuMC4wIn0sInJlc3VsdCI6eyJncmFkZSI6IkEiLCJoYXJkRmFpbHMiOltdLCJwYXNzZWQiOnRydWUsInNjb3JlIjo5NX19LCJzeXN0ZW1Qcm9tcHQiOnsiYWxnb3JpdGhtIjoic2hhMjU2IiwiZGlnZXN0IjoiNzliZmIwZTJiYTc2YjlkNDQ3NjA2ZGRiY2M0OTQ4MzRmMDVhNGMxMWRlYjA1MmU3NGI0OWVhMzA3YTNjNWJjZCJ9LCJ0b29scyI6eyJ0b29scyI6W3siYWNjZXNzIjoiZ2F0ZWQiLCJtb3Zlc1ZhbHVlIjp0cnVlLCJuYW1lIjoicGF5In1dfSwidmFsaWRVbnRpbCI6IjIwMjYtMDYtMjRUMTM6MDA6MDAuMDAwWiIsInZlcnNpb24iOjF9",
+        "protected": "eyJhbGciOiJFZERTQSIsInR5cCI6ImFwcGxpY2F0aW9uL2FkcCtqc29uIn0",
+        "header": {
+          "jwk": {
+            "kty": "OKP",
+            "crv": "Ed25519",
+            "x": "70kx94gidBt-zNYWcS_xNn0whTeCiwg-oTJrm6WDy50"
+          }
+        },
+        "signature": "Oev4wVXGIjbe1j05ibUBTrkfkFEA_YV-htmC5teNYvjAkBuwVKskeW7MzZY8dSQE-oiwgy24RrzDVPgrhMw4AQ"
+      },
+      "policy": {
+        "now": "2026-06-24T14:00:00.000Z",
+        "requireEnforcedConstitution": true,
+        "requireNonCustodial": true,
+        "requireDeploymentHistory": true,
+        "requireAuditAnchor": true,
+        "minRedTeamGrade": "B"
+      },
+      "expect": {
+        "decision": "refuse",
+        "failed": [
+          "freshness"
+        ]
+      }
+    },
+    {
+      "name": "jws-tampered-refuse",
+      "signed": {
+        "payload": "eyJhZ2VudElkIjoiZWY0OTMxZjc4ODIyNzQxYjdlY2NkNjE2NzEyZmYxMzY3ZDMwODUzNzgyOGIwODNlYTEzMjZiOWJhNTgzY2I5ZCIsImF1ZGl0QW5jaG9yIjoiNzliZmIwZTJiYTc2YjlkNDQ3NjA2ZGRiY2M0OTQ4MzRmMDVhNGMxMWRlYjA1MmU3NGI0OWVhMzA3YTNjNWJjZCIsImNhcGl0YWwiOnsiY3VzdG9keSI6Im5vbl9jdXN0b2RpYWwiLCJtYW5kYXRlcyI6W119LCJjb25zdGl0dXRpb24iOnsiZGlnZXN0IjoiNzliZmIwZTJiYTc2YjlkNDQ3NjA2ZGRiY2M0OTQ4MzRmMDVhNGMxMWRlYjA1MmU3NGI0OWVhMzA3YTNjNWJjZCIsImVuZm9yY2VkIjpmYWxzZSwiaGFyZENvbnN0cmFpbnRzIjpbeyJkZXNjcmlwdGlvbiI6Im5vIHBheWluZyB5b3VyIG93biBvcGVyYXRvciIsImlkIjoibm9fc2VsZl9wYXltZW50Iiwia2luZCI6ImRlbnkifV19LCJkaXNjbG9zdXJlSWQiOiJkaXNjX2ludGVyb3AiLCJoaXN0b3J5Ijp7ImNoYWluQW5jaG9yIjoiNzliZmIwZTJiYTc2YjlkNDQ3NjA2ZGRiY2M0OTQ4MzRmMDVhNGMxMWRlYjA1MmU3NGI0OWVhMzA3YTNjNWJjZCIsInN1bW1hcnkiOnsiYmxvY2tlZENvdW50IjoxLCJzZXR0bGVkQ291bnQiOjQsInRvdGFsRGVjaXNpb25zIjo1fX0sImlzc3VlZEF0IjoiMjAyNi0wNi0yNFQxMjowMDowMC4wMDBaIiwibm9uY2UiOiJub25jZV9pbnRlcm9wIiwib3BlcmF0b3IiOnsiYXR0ZXN0YXRpb24iOnsibGV2ZWwiOiJub25lIiwic2NoZW1lIjoibm9uZSJ9LCJkZW5pYWJpbGl0eUJvdW5kYXJ5Ijoic3BlbmQgd2l0aGluIG1hbmRhdGVzIiwib3BlcmF0b3JJZCI6Im9wIn0sInJlZFRlYW0iOnsiYXR0ZXN0ZWRBdCI6IjIwMjYtMDYtMjRUMTI6MDA6MDAuMDAwWiIsImNvcnB1cyI6eyJuYW1lIjoic3BlbmR0cnVzdCIsInZlcnNpb24iOiIxLjAuMCJ9LCJyZXN1bHQiOnsiZ3JhZGUiOiJBIiwiaGFyZEZhaWxzIjpbXSwicGFzc2VkIjp0cnVlLCJzY29yZSI6OTV9fSwic3lzdGVtUHJvbXB0Ijp7ImFsZ29yaXRobSI6InNoYTI1NiIsImRpZ2VzdCI6Ijc5YmZiMGUyYmE3NmI5ZDQ0NzYwNmRkYmNjNDk0ODM0ZjA1YTRjMTFkZWIwNTJlNzRiNDllYTMwN2EzYzViY2QifSwidG9vbHMiOnsidG9vbHMiOlt7ImFjY2VzcyI6ImdhdGVkIiwibW92ZXNWYWx1ZSI6dHJ1ZSwibmFtZSI6InBheSJ9XX0sInZhbGlkVW50aWwiOiIyMDI2LTA2LTI0VDEzOjAwOjAwLjAwMFoiLCJ2ZXJzaW9uIjoxfQ",
+        "protected": "eyJhbGciOiJFZERTQSIsInR5cCI6ImFwcGxpY2F0aW9uL2FkcCtqc29uIn0",
+        "header": {
+          "jwk": {
+            "kty": "OKP",
+            "crv": "Ed25519",
+            "x": "70kx94gidBt-zNYWcS_xNn0whTeCiwg-oTJrm6WDy50"
+          }
+        },
+        "signature": "Oev4wVXGIjbe1j05ibUBTrkfkFEA_YV-htmC5teNYvjAkBuwVKskeW7MzZY8dSQE-oiwgy24RrzDVPgrhMw4AQ"
+      },
+      "policy": {
+        "now": "2026-06-24T12:30:00.000Z",
+        "requireEnforcedConstitution": true,
+        "requireNonCustodial": true,
+        "requireDeploymentHistory": true,
+        "requireAuditAnchor": true,
+        "minRedTeamGrade": "B"
+      },
+      "expect": {
+        "decision": "refuse",
+        "failed": [
+          "enforcedConstitution",
+          "signature"
+        ]
+      }
+    },
+    {
+      "name": "jws-forged-agentid-refuse",
+      "signed": {
+        "payload": "eyJhZ2VudElkIjoiMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMSIsImF1ZGl0QW5jaG9yIjoiNzliZmIwZTJiYTc2YjlkNDQ3NjA2ZGRiY2M0OTQ4MzRmMDVhNGMxMWRlYjA1MmU3NGI0OWVhMzA3YTNjNWJjZCIsImNhcGl0YWwiOnsiY3VzdG9keSI6Im5vbl9jdXN0b2RpYWwiLCJtYW5kYXRlcyI6W119LCJjb25zdGl0dXRpb24iOnsiZGlnZXN0IjoiNzliZmIwZTJiYTc2YjlkNDQ3NjA2ZGRiY2M0OTQ4MzRmMDVhNGMxMWRlYjA1MmU3NGI0OWVhMzA3YTNjNWJjZCIsImVuZm9yY2VkIjp0cnVlLCJoYXJkQ29uc3RyYWludHMiOlt7ImRlc2NyaXB0aW9uIjoibm8gcGF5aW5nIHlvdXIgb3duIG9wZXJhdG9yIiwiaWQiOiJub19zZWxmX3BheW1lbnQiLCJraW5kIjoiZGVueSJ9XX0sImRpc2Nsb3N1cmVJZCI6ImRpc2NfaW50ZXJvcCIsImhpc3RvcnkiOnsiY2hhaW5BbmNob3IiOiI3OWJmYjBlMmJhNzZiOWQ0NDc2MDZkZGJjYzQ5NDgzNGYwNWE0YzExZGViMDUyZTc0YjQ5ZWEzMDdhM2M1YmNkIiwic3VtbWFyeSI6eyJibG9ja2VkQ291bnQiOjEsInNldHRsZWRDb3VudCI6NCwidG90YWxEZWNpc2lvbnMiOjV9fSwiaXNzdWVkQXQiOiIyMDI2LTA2LTI0VDEyOjAwOjAwLjAwMFoiLCJub25jZSI6Im5vbmNlX2ludGVyb3AiLCJvcGVyYXRvciI6eyJhdHRlc3RhdGlvbiI6eyJsZXZlbCI6Im5vbmUiLCJzY2hlbWUiOiJub25lIn0sImRlbmlhYmlsaXR5Qm91bmRhcnkiOiJzcGVuZCB3aXRoaW4gbWFuZGF0ZXMiLCJvcGVyYXRvcklkIjoib3AifSwicmVkVGVhbSI6eyJhdHRlc3RlZEF0IjoiMjAyNi0wNi0yNFQxMjowMDowMC4wMDBaIiwiY29ycHVzIjp7Im5hbWUiOiJzcGVuZHRydXN0IiwidmVyc2lvbiI6IjEuMC4wIn0sInJlc3VsdCI6eyJncmFkZSI6IkEiLCJoYXJkRmFpbHMiOltdLCJwYXNzZWQiOnRydWUsInNjb3JlIjo5NX19LCJzeXN0ZW1Qcm9tcHQiOnsiYWxnb3JpdGhtIjoic2hhMjU2IiwiZGlnZXN0IjoiNzliZmIwZTJiYTc2YjlkNDQ3NjA2ZGRiY2M0OTQ4MzRmMDVhNGMxMWRlYjA1MmU3NGI0OWVhMzA3YTNjNWJjZCJ9LCJ0b29scyI6eyJ0b29scyI6W3siYWNjZXNzIjoiZ2F0ZWQiLCJtb3Zlc1ZhbHVlIjp0cnVlLCJuYW1lIjoicGF5In1dfSwidmFsaWRVbnRpbCI6IjIwMjYtMDYtMjRUMTM6MDA6MDAuMDAwWiIsInZlcnNpb24iOjF9",
+        "protected": "eyJhbGciOiJFZERTQSIsInR5cCI6ImFwcGxpY2F0aW9uL2FkcCtqc29uIn0",
+        "header": {
+          "jwk": {
+            "kty": "OKP",
+            "crv": "Ed25519",
+            "x": "70kx94gidBt-zNYWcS_xNn0whTeCiwg-oTJrm6WDy50"
+          }
+        },
+        "signature": "R3Box8VeBJeYJ4By900xLKcrEixDCFV0RsikV1TvNN6QOf6himakCNRJVMCAysJwePAnyCnHKlf8rjzO1knACg"
+      },
+      "policy": {
+        "now": "2026-06-24T12:30:00.000Z",
+        "requireEnforcedConstitution": true,
+        "requireNonCustodial": true,
+        "requireDeploymentHistory": true,
+        "requireAuditAnchor": true,
+        "minRedTeamGrade": "B"
+      },
+      "expect": {
+        "decision": "refuse",
+        "failed": [
+          "signature"
+        ]
+      }
+    }
+  ],
   "handshakes": [
     {
       "name": "valid",
@@ -731,7 +848,8 @@
         "agentId": "ef4931f78822741b7eccd616712ff1367d308537828b083ea1326b9ba583cb9d",
         "auditHead": "79bfb0e2ba76b9d447606ddbcc494834f05a4c11deb052e74b49ea307a3c5bcd",
         "signedAt": "2026-06-24T12:30:00.000Z",
-        "signature": "a8751284f86da2963bb6d4fd1d896af5dfb3e7c88bbc508aa5b9430fe347fdc331829cf7cae458360ae8dc64edac1f3e7ab03b6f365e8fd6f983aca52344db03"
+        "signatureInput": "sig=(\"adp-agent-id\" \"adp-audit-head\");created=\"2026-06-24T12:30:00.000Z\";keyid=\"ef4931f78822741b7eccd616712ff1367d308537828b083ea1326b9ba583cb9d\";alg=\"ed25519\";nonce=\"chal_interop\";tag=\"verifier-X\"",
+        "signature": "f363f0115d3e15e0bdbefca6d6421f55ccadf2ff4d7012de260a7d8f3d613491c9a02af4cf97847303701421e79242ece7203b3d4f61070631ff054ae49a1904"
       },
       "expectedAgentId": "ef4931f78822741b7eccd616712ff1367d308537828b083ea1326b9ba583cb9d",
       "now": "2026-06-24T12:30:00.000Z",
@@ -749,7 +867,8 @@
         "agentId": "ef4931f78822741b7eccd616712ff1367d308537828b083ea1326b9ba583cb9d",
         "auditHead": "79bfb0e2ba76b9d447606ddbcc494834f05a4c11deb052e74b49ea307a3c5bcd",
         "signedAt": "2026-06-24T12:30:00.000Z",
-        "signature": "a8751284f86da2963bb6d4fd1d896af5dfb3e7c88bbc508aa5b9430fe347fdc331829cf7cae458360ae8dc64edac1f3e7ab03b6f365e8fd6f983aca52344db03"
+        "signatureInput": "sig=(\"adp-agent-id\" \"adp-audit-head\");created=\"2026-06-24T12:30:00.000Z\";keyid=\"ef4931f78822741b7eccd616712ff1367d308537828b083ea1326b9ba583cb9d\";alg=\"ed25519\";nonce=\"chal_interop\";tag=\"verifier-X\"",
+        "signature": "f363f0115d3e15e0bdbefca6d6421f55ccadf2ff4d7012de260a7d8f3d613491c9a02af4cf97847303701421e79242ece7203b3d4f61070631ff054ae49a1904"
       },
       "expectedAgentId": "ef4931f78822741b7eccd616712ff1367d308537828b083ea1326b9ba583cb9d",
       "now": "2026-06-24T12:30:00.000Z",
@@ -767,7 +886,8 @@
         "agentId": "0000000000000000000000000000000000000000000000000000000000000001",
         "auditHead": "79bfb0e2ba76b9d447606ddbcc494834f05a4c11deb052e74b49ea307a3c5bcd",
         "signedAt": "2026-06-24T12:30:00.000Z",
-        "signature": "a8751284f86da2963bb6d4fd1d896af5dfb3e7c88bbc508aa5b9430fe347fdc331829cf7cae458360ae8dc64edac1f3e7ab03b6f365e8fd6f983aca52344db03"
+        "signatureInput": "sig=(\"adp-agent-id\" \"adp-audit-head\");created=\"2026-06-24T12:30:00.000Z\";keyid=\"ef4931f78822741b7eccd616712ff1367d308537828b083ea1326b9ba583cb9d\";alg=\"ed25519\";nonce=\"chal_interop\";tag=\"verifier-X\"",
+        "signature": "f363f0115d3e15e0bdbefca6d6421f55ccadf2ff4d7012de260a7d8f3d613491c9a02af4cf97847303701421e79242ece7203b3d4f61070631ff054ae49a1904"
       },
       "expectedAgentId": "ef4931f78822741b7eccd616712ff1367d308537828b083ea1326b9ba583cb9d",
       "now": "2026-06-24T12:30:00.000Z",
@@ -785,7 +905,8 @@
         "agentId": "ef4931f78822741b7eccd616712ff1367d308537828b083ea1326b9ba583cb9d",
         "auditHead": "79bfb0e2ba76b9d447606ddbcc494834f05a4c11deb052e74b49ea307a3c5bcd",
         "signedAt": "2026-06-24T12:30:00.000Z",
-        "signature": "a8751284f86da2963bb6d4fd1d896af5dfb3e7c88bbc508aa5b9430fe347fdc331829cf7cae458360ae8dc64edac1f3e7ab03b6f365e8fd6f983aca52344db00"
+        "signatureInput": "sig=(\"adp-agent-id\" \"adp-audit-head\");created=\"2026-06-24T12:30:00.000Z\";keyid=\"ef4931f78822741b7eccd616712ff1367d308537828b083ea1326b9ba583cb9d\";alg=\"ed25519\";nonce=\"chal_interop\";tag=\"verifier-X\"",
+        "signature": "f363f0115d3e15e0bdbefca6d6421f55ccadf2ff4d7012de260a7d8f3d613491c9a02af4cf97847303701421e79242ece7203b3d4f61070631ff054ae49a1900"
       },
       "expectedAgentId": "ef4931f78822741b7eccd616712ff1367d308537828b083ea1326b9ba583cb9d",
       "now": "2026-06-24T12:30:00.000Z",
@@ -803,7 +924,8 @@
         "agentId": "ef4931f78822741b7eccd616712ff1367d308537828b083ea1326b9ba583cb9d",
         "auditHead": "79bfb0e2ba76b9d447606ddbcc494834f05a4c11deb052e74b49ea307a3c5bcd",
         "signedAt": "2026-06-24T12:30:00.000Z",
-        "signature": "a8751284f86da2963bb6d4fd1d896af5dfb3e7c88bbc508aa5b9430fe347fdc331829cf7cae458360ae8dc64edac1f3e7ab03b6f365e8fd6f983aca52344db03"
+        "signatureInput": "sig=(\"adp-agent-id\" \"adp-audit-head\");created=\"2026-06-24T12:30:00.000Z\";keyid=\"ef4931f78822741b7eccd616712ff1367d308537828b083ea1326b9ba583cb9d\";alg=\"ed25519\";nonce=\"chal_interop\";tag=\"verifier-X\"",
+        "signature": "f363f0115d3e15e0bdbefca6d6421f55ccadf2ff4d7012de260a7d8f3d613491c9a02af4cf97847303701421e79242ece7203b3d4f61070631ff054ae49a1904"
       },
       "expectedAgentId": "ef4931f78822741b7eccd616712ff1367d308537828b083ea1326b9ba583cb9d",
       "now": "2026-06-24T14:00:00.000Z",
@@ -824,13 +946,13 @@
           "auditAnchor": "79bfb0e2ba76b9d447606ddbcc494834f05a4c11deb052e74b49ea307a3c5bcd"
         },
         "commitments": {
-          "systemPrompt": "afeec72f1aa2d6e5338631f7e34d3ef55ff90768c74245facab584c2f9311983",
-          "constitution": "fcc01ffc2b18b8f034205e2a88ae3789283b72ddb93305f924c314230d540f24",
-          "tools": "a5c0ffc3e97a1d5a17a042c0c71a17e2a66dafa1037b8b9af027246de8a3e553",
-          "capital": "258ef3e292205ba9462b5d294fe82667e4eb86d60778c88e91f1eb0045550df0",
-          "operator": "937e5398a678dd45c147df159815f3c8001859c63331ece0ec3c575805742bef",
-          "history": "a7954be26e4795e2bc66d50e2a3e648c116c4cd08659380d4e261cdb41d8acfe",
-          "redTeam": "7280ffd7689e2052ac6decb187ea4904323f7f0e3c59f3d0c945d396a652a7be"
+          "systemPrompt": "0c2dcaef6bd21ed6f7200a0d538135e1248cbadc18bbadfcb03563c61ab95895",
+          "constitution": "55a2ef0c553aa7cc7f11f04b978bcd939ce99dd129e762b1bc226af13eddb8d4",
+          "tools": "7eaac043a926022f85613a2b4ad3326dfe5ec43b2ac19a975f4814d4fbae18dc",
+          "capital": "fc427c54fd243df205ffdc96dc64a36aa7c06810a2f3db1fc8f8dcd6bf43b038",
+          "operator": "0be8b8f578121c6acc32f3d94acabd600e11ca2573b070f8e170e926ee897598",
+          "history": "22f7e80cccf173e12f271159ee50e10e78ab1e27ff9ce7c75ebfb2a72e1ec863",
+          "redTeam": "913c61e9e91f0d21342a7d76629198397cf619bfeb78a0ae1712204b321274d5"
         },
         "revealed": {
           "systemPrompt": {
@@ -838,7 +960,7 @@
               "algorithm": "sha256",
               "digest": "79bfb0e2ba76b9d447606ddbcc494834f05a4c11deb052e74b49ea307a3c5bcd"
             },
-            "salt": "f41b7b5183169bdc7a847846a430c03e"
+            "salt": "6990beb7456756a538354cfcc03c1d27"
           },
           "constitution": {
             "value": {
@@ -852,7 +974,7 @@
               "digest": "79bfb0e2ba76b9d447606ddbcc494834f05a4c11deb052e74b49ea307a3c5bcd",
               "enforced": true
             },
-            "salt": "e0040a3deea1f1124102ed9be3b7be48"
+            "salt": "50f1e9a969f78ec52b71f1e3974d9418"
           },
           "tools": {
             "value": {
@@ -864,14 +986,14 @@
                 }
               ]
             },
-            "salt": "0f32b5f77c05e04110261a2d27a585bd"
+            "salt": "50f758d5dcc16ee3407aa0afe24bfdac"
           },
           "capital": {
             "value": {
               "mandates": [],
               "custody": "non_custodial"
             },
-            "salt": "982e621b89419cb62f7c8e7202912dc9"
+            "salt": "542eb8d79e6c94e9aaf96bd974a5d579"
           },
           "operator": {
             "value": {
@@ -882,7 +1004,7 @@
               },
               "deniabilityBoundary": "spend within mandates"
             },
-            "salt": "56a7565bfef6b53b34d6c7642080684c"
+            "salt": "4e0ebeff3b7c3ae21721caae305c8699"
           },
           "history": {
             "value": {
@@ -893,7 +1015,7 @@
                 "blockedCount": 1
               }
             },
-            "salt": "0273156a7a154b1e0a46448895b206ec"
+            "salt": "8619e4b4b36846d18dfb2e76987bb3b1"
           },
           "redTeam": {
             "value": {
@@ -909,13 +1031,13 @@
               },
               "attestedAt": "2026-06-24T12:00:00.000Z"
             },
-            "salt": "4e44d6fc87ee261ab6423ca4619c16ec"
+            "salt": "4964acc0b492118ea78d80f6102ef2a0"
           }
         },
         "signature": {
           "algorithm": "ed25519",
           "publicKey": "ef4931f78822741b7eccd616712ff1367d308537828b083ea1326b9ba583cb9d",
-          "value": "cb618048c0eff10516e8d144447a3a17eb56ab668a027303a2ea24d3f85d7a98fc26cfc0ccfd776f9e79612f749fcf2300abb24ff3b9c3ebcf8abd73d7b5590f"
+          "value": "fb47af2d681cec582bcc721fdb32c8a7ebc710727f4568ca917e40ec930b8cf922f370e938f30a51527cb040c84d15e5baf1cc0171dc278ac0f9dd078c5aa60a"
         }
       },
       "expect": {
@@ -944,13 +1066,13 @@
           "auditAnchor": "79bfb0e2ba76b9d447606ddbcc494834f05a4c11deb052e74b49ea307a3c5bcd"
         },
         "commitments": {
-          "systemPrompt": "afeec72f1aa2d6e5338631f7e34d3ef55ff90768c74245facab584c2f9311983",
-          "constitution": "fcc01ffc2b18b8f034205e2a88ae3789283b72ddb93305f924c314230d540f24",
-          "tools": "a5c0ffc3e97a1d5a17a042c0c71a17e2a66dafa1037b8b9af027246de8a3e553",
-          "capital": "258ef3e292205ba9462b5d294fe82667e4eb86d60778c88e91f1eb0045550df0",
-          "operator": "937e5398a678dd45c147df159815f3c8001859c63331ece0ec3c575805742bef",
-          "history": "a7954be26e4795e2bc66d50e2a3e648c116c4cd08659380d4e261cdb41d8acfe",
-          "redTeam": "7280ffd7689e2052ac6decb187ea4904323f7f0e3c59f3d0c945d396a652a7be"
+          "systemPrompt": "0c2dcaef6bd21ed6f7200a0d538135e1248cbadc18bbadfcb03563c61ab95895",
+          "constitution": "55a2ef0c553aa7cc7f11f04b978bcd939ce99dd129e762b1bc226af13eddb8d4",
+          "tools": "7eaac043a926022f85613a2b4ad3326dfe5ec43b2ac19a975f4814d4fbae18dc",
+          "capital": "fc427c54fd243df205ffdc96dc64a36aa7c06810a2f3db1fc8f8dcd6bf43b038",
+          "operator": "0be8b8f578121c6acc32f3d94acabd600e11ca2573b070f8e170e926ee897598",
+          "history": "22f7e80cccf173e12f271159ee50e10e78ab1e27ff9ce7c75ebfb2a72e1ec863",
+          "redTeam": "913c61e9e91f0d21342a7d76629198397cf619bfeb78a0ae1712204b321274d5"
         },
         "revealed": {
           "constitution": {
@@ -965,7 +1087,7 @@
               "digest": "79bfb0e2ba76b9d447606ddbcc494834f05a4c11deb052e74b49ea307a3c5bcd",
               "enforced": true
             },
-            "salt": "e0040a3deea1f1124102ed9be3b7be48"
+            "salt": "50f1e9a969f78ec52b71f1e3974d9418"
           },
           "history": {
             "value": {
@@ -976,13 +1098,13 @@
                 "blockedCount": 1
               }
             },
-            "salt": "0273156a7a154b1e0a46448895b206ec"
+            "salt": "8619e4b4b36846d18dfb2e76987bb3b1"
           }
         },
         "signature": {
           "algorithm": "ed25519",
           "publicKey": "ef4931f78822741b7eccd616712ff1367d308537828b083ea1326b9ba583cb9d",
-          "value": "cb618048c0eff10516e8d144447a3a17eb56ab668a027303a2ea24d3f85d7a98fc26cfc0ccfd776f9e79612f749fcf2300abb24ff3b9c3ebcf8abd73d7b5590f"
+          "value": "fb47af2d681cec582bcc721fdb32c8a7ebc710727f4568ca917e40ec930b8cf922f370e938f30a51527cb040c84d15e5baf1cc0171dc278ac0f9dd078c5aa60a"
         }
       },
       "expect": {
@@ -1006,13 +1128,13 @@
           "auditAnchor": "79bfb0e2ba76b9d447606ddbcc494834f05a4c11deb052e74b49ea307a3c5bcd"
         },
         "commitments": {
-          "systemPrompt": "afeec72f1aa2d6e5338631f7e34d3ef55ff90768c74245facab584c2f9311983",
-          "constitution": "fcc01ffc2b18b8f034205e2a88ae3789283b72ddb93305f924c314230d540f24",
-          "tools": "a5c0ffc3e97a1d5a17a042c0c71a17e2a66dafa1037b8b9af027246de8a3e553",
-          "capital": "258ef3e292205ba9462b5d294fe82667e4eb86d60778c88e91f1eb0045550df0",
-          "operator": "937e5398a678dd45c147df159815f3c8001859c63331ece0ec3c575805742bef",
-          "history": "a7954be26e4795e2bc66d50e2a3e648c116c4cd08659380d4e261cdb41d8acfe",
-          "redTeam": "7280ffd7689e2052ac6decb187ea4904323f7f0e3c59f3d0c945d396a652a7be"
+          "systemPrompt": "0c2dcaef6bd21ed6f7200a0d538135e1248cbadc18bbadfcb03563c61ab95895",
+          "constitution": "55a2ef0c553aa7cc7f11f04b978bcd939ce99dd129e762b1bc226af13eddb8d4",
+          "tools": "7eaac043a926022f85613a2b4ad3326dfe5ec43b2ac19a975f4814d4fbae18dc",
+          "capital": "fc427c54fd243df205ffdc96dc64a36aa7c06810a2f3db1fc8f8dcd6bf43b038",
+          "operator": "0be8b8f578121c6acc32f3d94acabd600e11ca2573b070f8e170e926ee897598",
+          "history": "22f7e80cccf173e12f271159ee50e10e78ab1e27ff9ce7c75ebfb2a72e1ec863",
+          "redTeam": "913c61e9e91f0d21342a7d76629198397cf619bfeb78a0ae1712204b321274d5"
         },
         "revealed": {
           "systemPrompt": {
@@ -1020,7 +1142,7 @@
               "algorithm": "sha256",
               "digest": "79bfb0e2ba76b9d447606ddbcc494834f05a4c11deb052e74b49ea307a3c5bcd"
             },
-            "salt": "f41b7b5183169bdc7a847846a430c03e"
+            "salt": "6990beb7456756a538354cfcc03c1d27"
           },
           "constitution": {
             "value": {
@@ -1034,7 +1156,7 @@
               "digest": "79bfb0e2ba76b9d447606ddbcc494834f05a4c11deb052e74b49ea307a3c5bcd",
               "enforced": false
             },
-            "salt": "e0040a3deea1f1124102ed9be3b7be48"
+            "salt": "50f1e9a969f78ec52b71f1e3974d9418"
           },
           "tools": {
             "value": {
@@ -1046,14 +1168,14 @@
                 }
               ]
             },
-            "salt": "0f32b5f77c05e04110261a2d27a585bd"
+            "salt": "50f758d5dcc16ee3407aa0afe24bfdac"
           },
           "capital": {
             "value": {
               "mandates": [],
               "custody": "non_custodial"
             },
-            "salt": "982e621b89419cb62f7c8e7202912dc9"
+            "salt": "542eb8d79e6c94e9aaf96bd974a5d579"
           },
           "operator": {
             "value": {
@@ -1064,7 +1186,7 @@
               },
               "deniabilityBoundary": "spend within mandates"
             },
-            "salt": "56a7565bfef6b53b34d6c7642080684c"
+            "salt": "4e0ebeff3b7c3ae21721caae305c8699"
           },
           "history": {
             "value": {
@@ -1075,7 +1197,7 @@
                 "blockedCount": 1
               }
             },
-            "salt": "0273156a7a154b1e0a46448895b206ec"
+            "salt": "8619e4b4b36846d18dfb2e76987bb3b1"
           },
           "redTeam": {
             "value": {
@@ -1091,13 +1213,13 @@
               },
               "attestedAt": "2026-06-24T12:00:00.000Z"
             },
-            "salt": "4e44d6fc87ee261ab6423ca4619c16ec"
+            "salt": "4964acc0b492118ea78d80f6102ef2a0"
           }
         },
         "signature": {
           "algorithm": "ed25519",
           "publicKey": "ef4931f78822741b7eccd616712ff1367d308537828b083ea1326b9ba583cb9d",
-          "value": "cb618048c0eff10516e8d144447a3a17eb56ab668a027303a2ea24d3f85d7a98fc26cfc0ccfd776f9e79612f749fcf2300abb24ff3b9c3ebcf8abd73d7b5590f"
+          "value": "fb47af2d681cec582bcc721fdb32c8a7ebc710727f4568ca917e40ec930b8cf922f370e938f30a51527cb040c84d15e5baf1cc0171dc278ac0f9dd078c5aa60a"
         }
       },
       "expect": {

@@ -5,8 +5,8 @@
 //
 // Vendor-neutral: operates on the schema + signature primitives only.
 
-import { parseSignedDisclosure, type SignedDisclosure } from "./schema.ts";
-import { verifyDisclosureSignature, isFresh } from "./attestation.ts";
+import { getDisclosure, parseAnySignedDisclosure, type AnySignedDisclosure } from "./schema.ts";
+import { isFresh, verifyAnyDisclosureSignature } from "./attestation.ts";
 
 export type Grade = "A" | "B" | "C" | "D" | "F";
 const GRADE_RANK: Record<Grade, number> = { A: 4, B: 3, C: 2, D: 1, F: 0 };
@@ -81,7 +81,7 @@ export interface DisclosureVerdict {
  * on the FIRST principle that fails to hold but reports every failed check.
  */
 export function evaluateDisclosure(
-  signed: SignedDisclosure,
+  signed: AnySignedDisclosure,
   policy: VerificationPolicy,
 ): DisclosureVerdict {
   const startedAt = performance.now();
@@ -95,11 +95,12 @@ export function evaluateDisclosure(
     checks[name] = true;
   };
 
-  const d = signed.disclosure;
+  // Accepts either envelope shape (v1 object or v2 flattened JWS).
+  const d = getDisclosure(signed);
 
   // signature (default on)
   if (policy.requireValidSignature !== false) {
-    const sig = verifyDisclosureSignature(signed);
+    const sig = verifyAnyDisclosureSignature(signed);
     sig.ok ? pass("signature") : fail("signature", `signature invalid: ${sig.reason}`);
   }
 
@@ -206,11 +207,11 @@ export function evaluateDisclosure(
   };
 }
 
-/** Convenience: parse an untrusted JSON envelope and evaluate it in one call. */
+/** Convenience: parse an untrusted JSON envelope (either shape) and evaluate it. */
 export function verifyAndEvaluate(rawSigned: unknown, policy: VerificationPolicy): DisclosureVerdict {
-  let signed: SignedDisclosure;
+  let signed: AnySignedDisclosure;
   try {
-    signed = parseSignedDisclosure(rawSigned);
+    signed = parseAnySignedDisclosure(rawSigned);
   } catch (e) {
     return {
       decision: "refuse",

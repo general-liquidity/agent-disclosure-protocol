@@ -13,7 +13,8 @@ import {
   verify as edVerify,
   type KeyObject,
 } from "node:crypto";
-import type { AgentDisclosure, SignedDisclosure } from "./schema.ts";
+import { agentIdToDidKey } from "./did.ts";
+import type { AgentDisclosure, JwsSignedDisclosure, SignedDisclosure } from "./schema.ts";
 // Type-only (erased at runtime) so attestation stays the lowest layer: keys.ts
 // imports the shared body-builder below, this only borrows the shape. No runtime cycle.
 import type { RotationStatement } from "./keys.ts";
@@ -151,20 +152,95 @@ export function verifyRotationChain(
   return { ok: true };
 }
 
-/** Verify the ed25519 signature over the disclosure. Pure; no policy applied here
- *  (see verify.ts for the counterparty decision). Also enforces the agentId↔key
- *  binding: a disclosure must be signed by the key it claims as its identity — OR, when
- *  the signing key differs (post-rotation), by a key a verified rotation chain links
- *  back to `agentId`. The chain travels in the envelope (`rotationChain`) and is NOT in
- *  the signed bytes; the agentId it roots at IS signed, so the binding can't be forged. */
+/** Bind a disclosure's stable `agentId` to the key that actually signed it: a direct hex
+ *  match, the did:key encoding of that key (self-certifying form), or a verified rotation
+ *  chain back to the agentId. Shared by both envelope shapes. */
+export function verifyKeyBinding(
+  agentId: string,
+  signingKeyHex: string,
+  rotationChain?: readonly RotationStatement[],
+): SignatureCheck {
+  if (agentId === signingKeyHex) return { ok: true };
+  try {
+    if (agentId === agentIdToDidKey(signingKeyHex)) return { ok: true };
+  } catch {
+    // signingKeyHex is a valid 32-byte key on every call path here; defensive only.
+  }
+  if (rotationChain?.length) return verifyRotationChain(agentId, signingKeyHex, rotationChain);
+  return { ok: false, reason: "agentId does not match the signing public key" };
+}
+
+/** Verify the ed25519 signature over the disclosure (v1 object envelope). Pure; no policy
+ *  applied here (see verify.ts for the counterparty decision). Also enforces the
+ *  agentId↔key binding via `verifyKeyBinding`. */
 export function verifyDisclosureSignature(signed: SignedDisclosure): SignatureCheck {
   if (!verifyMessage(canonicalize(signed.disclosure), signed.signature.publicKey, signed.signature.value)) {
     return { ok: false, reason: "signature mismatch" };
   }
-  if (signed.disclosure.agentId === signed.signature.publicKey) return { ok: true };
-  const chain = signed.rotationChain;
-  if (!chain?.length) return { ok: false, reason: "agentId does not match the signing public key" };
-  return verifyRotationChain(signed.disclosure.agentId, signed.signature.publicKey, chain);
+  return verifyKeyBinding(signed.disclosure.agentId, signed.signature.publicKey, signed.rotationChain);
+}
+
+// ── v2: flattened JWS (EdDSA) envelope ───────────────────────────────────────
+const JWS_PROTECTED_HEADER = { alg: "EdDSA", typ: "application/adp+json" } as const;
+
+/** Sign a disclosure as a flattened JWS (EdDSA) envelope — the JOSE-interoperable v2
+ *  wrapping. The signature covers ASCII(b64u(protected) + "." + b64u(payload)), so the
+ *  protected header (carrying `alg`) is integrity-protected — closing the v1 gap where
+ *  the algorithm field sat outside the signed bytes. Payload is the same RFC 8785 (JCS)
+ *  canonical document, so a JOSE library can verify it. */
+export function signDisclosureJws(disclosure: AgentDisclosure, key: AgentKeyPair): JwsSignedDisclosure {
+  const protectedB64 = Buffer.from(JSON.stringify(JWS_PROTECTED_HEADER), "utf8").toString("base64url");
+  const payloadB64 = Buffer.from(canonicalize(disclosure), "utf8").toString("base64url");
+  const signature = edSign(null, Buffer.from(`${protectedB64}.${payloadB64}`, "ascii"), key.privateKey).toString("base64url");
+  return {
+    payload: payloadB64,
+    protected: protectedB64,
+    header: { jwk: { kty: "OKP", crv: "Ed25519", x: Buffer.from(key.publicKeyHex, "hex").toString("base64url") } },
+    signature,
+  };
+}
+
+/** Verify a v2 JWS envelope: the protected header must declare EdDSA, the signature must
+ *  verify over the signing input against the JWK key, and the payload's `agentId` must
+ *  bind to that key (direct, did:key, or rotation chain). */
+export function verifyDisclosureJws(signed: JwsSignedDisclosure): SignatureCheck {
+  let header: { alg?: unknown };
+  try {
+    header = JSON.parse(Buffer.from(signed.protected, "base64url").toString("utf8"));
+  } catch {
+    return { ok: false, reason: "unreadable protected header" };
+  }
+  if (header.alg !== "EdDSA") return { ok: false, reason: `unsupported JWS alg: ${String(header.alg)}` };
+
+  const pubHex = Buffer.from(signed.header.jwk.x, "base64url").toString("hex");
+  if (pubHex.length !== 64) return { ok: false, reason: "jwk.x is not a 32-byte ed25519 key" };
+
+  let okSig = false;
+  try {
+    okSig = edVerify(
+      null,
+      Buffer.from(`${signed.protected}.${signed.payload}`, "ascii"),
+      publicKeyFromHex(pubHex),
+      Buffer.from(signed.signature, "base64url"),
+    );
+  } catch {
+    return { ok: false, reason: "jws signature mismatch" };
+  }
+  if (!okSig) return { ok: false, reason: "jws signature mismatch" };
+
+  let agentId: unknown;
+  try {
+    agentId = (JSON.parse(Buffer.from(signed.payload, "base64url").toString("utf8")) as { agentId?: unknown }).agentId;
+  } catch {
+    return { ok: false, reason: "unreadable payload" };
+  }
+  if (typeof agentId !== "string") return { ok: false, reason: "payload has no agentId" };
+  return verifyKeyBinding(agentId, pubHex, signed.rotationChain);
+}
+
+/** Verify either envelope shape (v1 object or v2 flattened JWS), discriminated by shape. */
+export function verifyAnyDisclosureSignature(signed: SignedDisclosure | JwsSignedDisclosure): SignatureCheck {
+  return "payload" in signed && "protected" in signed ? verifyDisclosureJws(signed) : verifyDisclosureSignature(signed);
 }
 
 /** Freshness: a disclosure is valid only within [issuedAt, validUntil]. ISO-8601

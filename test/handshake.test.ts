@@ -54,6 +54,26 @@ test("a stale response is rejected", () => {
   assert.match(check.reason ?? "", /stale/);
 });
 
+test("a tampered covered component (auditHead) breaks verification (RFC 9421 base)", () => {
+  const key = generateAgentKeyPair();
+  const challenge = createChallenge(NOW, { nonce: "chal-1", verifierId: "verifier-A" });
+  const response = respondToChallenge(challenge, key, HEAD, NOW);
+  response.auditHead = "b".repeat(64); // swap the live head after signing
+  const check = verifyChallengeResponse(response, challenge, { expectedAgentId: key.publicKeyHex, now: NOW });
+  assert.equal(check.ok, false);
+  assert.match(check.reason ?? "", /signature/);
+});
+
+test("the response carries an RFC 9421 Signature-Input value", () => {
+  const key = generateAgentKeyPair();
+  const challenge = createChallenge(NOW, { nonce: "chal-1", verifierId: "verifier-A" });
+  const response = respondToChallenge(challenge, key, HEAD, NOW);
+  assert.match(response.signatureInput, /^sig=\("adp-agent-id" "adp-audit-head"\);created=/);
+  assert.match(response.signatureInput, /alg="ed25519"/);
+  assert.match(response.signatureInput, /nonce="chal-1"/);
+  assert.match(response.signatureInput, /tag="verifier-A"/);
+});
+
 // ── Version negotiation ────────────────────────────────────────────────────────
 test("negotiation: a response declaring a supported version verifies", () => {
   const key = generateAgentKeyPair();

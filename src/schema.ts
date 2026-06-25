@@ -11,6 +11,7 @@
 // model). The document is the CONTENT; `SignedDisclosure` wraps it with an
 // asymmetric signature so a counterparty can verify it without holding any secret.
 
+import { Buffer } from "node:buffer";
 import { z } from "zod";
 import { RotationStatementSchema } from "./keys.ts";
 
@@ -19,6 +20,18 @@ export const DISCLOSURE_SCHEMA_VERSION = 1;
 
 const Iso = z.string().describe("ISO-8601 timestamp");
 const Hex = z.string().regex(/^[0-9a-fA-F]+$/, "hex string");
+
+// Reverse-domain namespace id (e.g. "com.visa.tap"), the UCP/MCP-style extension key.
+// Requires at least one dot, so a bare unknown word ("Unknown") is NOT a valid namespace.
+const ReverseDomain = /^[a-z0-9]+(\.[a-z0-9-]+)+$/;
+
+// Operator attestation scheme: a known value OR a third-party reverse-domain id, so a new
+// attestation scheme is a vendor-namespace publication, not a core enum edit + 5-way re-port.
+const KNOWN_ATTESTATION_SCHEMES = ["AIP", "VisaTAP", "ERC8004", "DID", "none"] as const;
+const AttestationScheme = z.union([
+  z.enum(KNOWN_ATTESTATION_SCHEMES),
+  z.string().regex(ReverseDomain, "attestation scheme must be a known value or a reverse-domain id"),
+]);
 
 // ── 1. System-prompt fingerprint ─────────────────────────────────────────────
 // A hash of the agent's composed system prompt. Lets a counterparty pin the
@@ -101,7 +114,7 @@ export const OperatorIdentitySchema = z.object({
   /** may be pseudonymous; a stable identifier for the deploying party */
   operatorId: z.string(),
   attestation: z.object({
-    scheme: z.enum(["AIP", "VisaTAP", "ERC8004", "none"]),
+    scheme: AttestationScheme,
     level: z.enum(["none", "signed", "registry_attested"]),
     evidence: z.string().optional(),
   }),
@@ -192,6 +205,11 @@ export const AgentDisclosureSchema = z.object({
   /** per-field derivation/attestation, so a verifier can weight claims.
    *  keyed by top-level field name (e.g. "constitution", "history"). */
   provenance: z.record(z.string(), FieldProvenanceSchema).optional(),
+  /** Namespaced third-party extensions, keyed by reverse-domain id (e.g.
+   *  "com.vendor.feature"). A verifier acts only on keys it recognizes; unknown extensions
+   *  are carried and ignored, and canonicalize deterministically — so a vendor can add a
+   *  field without a core spec change or a 5-way validator re-port. */
+  extensions: z.record(z.string().regex(ReverseDomain), z.unknown()).optional(),
 });
 
 // ── The signed envelope ──────────────────────────────────────────────────────
@@ -213,6 +231,28 @@ export const SignedDisclosureSchema = z.object({
   rotationChain: z.array(RotationStatementSchema).optional(),
 });
 
+// ── v2: JWS (EdDSA) flattened envelope ───────────────────────────────────────
+// A second, JOSE-interoperable wrapping of the SAME disclosure document. The disclosure
+// schema is unchanged; only the envelope differs, so v1 and v2 coexist and a verifier
+// accepts either (dual-encode). Distinguished by SHAPE: v2 carries `payload` + a
+// base64url `protected` header; v1 carries `disclosure` + a `signature` object. The
+// protected header (with `alg`) is part of the signed input here, closing the v1 gap
+// where the algorithm field sat outside the signed bytes.
+export const JwsSignedDisclosureSchema = z.object({
+  /** base64url(UTF8(canonicalize(disclosure))) — the RFC 8785 (JCS) document bytes */
+  payload: z.string(),
+  /** base64url(UTF8(JSON protected header)); { alg: "EdDSA", typ }. Integrity-protected. */
+  protected: z.string(),
+  /** unprotected header carrying the signing key as an OKP / Ed25519 JWK */
+  header: z.object({
+    jwk: z.object({ kty: z.literal("OKP"), crv: z.literal("Ed25519"), x: z.string() }),
+  }),
+  /** base64url( ed25519 over ASCII(protected + "." + payload) ) */
+  signature: z.string(),
+  /** optional rotation chain (see SignedDisclosureSchema) */
+  rotationChain: z.array(RotationStatementSchema).optional(),
+});
+
 // ── Inferred types ───────────────────────────────────────────────────────────
 export type SystemPromptFingerprint = z.infer<typeof SystemPromptFingerprintSchema>;
 export type HardConstraint = z.infer<typeof HardConstraintSchema>;
@@ -228,6 +268,24 @@ export type ModelIdentity = z.infer<typeof ModelIdentitySchema>;
 export type FieldProvenance = z.infer<typeof FieldProvenanceSchema>;
 export type AgentDisclosure = z.infer<typeof AgentDisclosureSchema>;
 export type SignedDisclosure = z.infer<typeof SignedDisclosureSchema>;
+export type JwsSignedDisclosure = z.infer<typeof JwsSignedDisclosureSchema>;
+/** Either envelope wrapping of a disclosure (v1 object envelope or v2 flattened JWS). */
+export type AnySignedDisclosure = SignedDisclosure | JwsSignedDisclosure;
+
+/** True if the envelope is the v2 flattened-JWS form (discriminated by shape). */
+export function isJwsSignedDisclosure(signed: AnySignedDisclosure): signed is JwsSignedDisclosure {
+  const s = signed as Partial<JwsSignedDisclosure>;
+  return typeof s.payload === "string" && typeof s.protected === "string";
+}
+
+/** Extract the disclosure document from either envelope shape. For v2 it decodes and
+ *  schema-validates the base64url JCS payload. */
+export function getDisclosure(signed: AnySignedDisclosure): AgentDisclosure {
+  if (isJwsSignedDisclosure(signed)) {
+    return AgentDisclosureSchema.parse(JSON.parse(Buffer.from(signed.payload, "base64url").toString("utf8")));
+  }
+  return signed.disclosure;
+}
 
 /** Parse + validate an untrusted disclosure document (structural check only — does
  *  not verify the signature; see ../disclosure verify for that). */
@@ -235,7 +293,16 @@ export function parseDisclosure(raw: unknown): AgentDisclosure {
   return AgentDisclosureSchema.parse(raw);
 }
 
-/** Parse + validate a signed disclosure envelope. */
+/** Parse + validate a signed disclosure envelope (v1 object form). */
 export function parseSignedDisclosure(raw: unknown): SignedDisclosure {
+  return SignedDisclosureSchema.parse(raw);
+}
+
+/** Parse + validate a signed disclosure envelope of EITHER shape (v1 object or v2 JWS),
+ *  discriminated by the presence of `payload`/`protected`. */
+export function parseAnySignedDisclosure(raw: unknown): AnySignedDisclosure {
+  if (raw && typeof raw === "object" && "payload" in raw && "protected" in raw) {
+    return JwsSignedDisclosureSchema.parse(raw);
+  }
   return SignedDisclosureSchema.parse(raw);
 }

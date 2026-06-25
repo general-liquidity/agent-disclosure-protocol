@@ -5,7 +5,7 @@
 //
 // Vendor-neutral: depends on the schema/verify/handshake + an injected fetch.
 
-import { parseSignedDisclosure, type SignedDisclosure } from "./schema.ts";
+import { getDisclosure, parseAnySignedDisclosure, type AnySignedDisclosure } from "./schema.ts";
 import { evaluateDisclosure, type VerificationPolicy, type DisclosureVerdict } from "./verify.ts";
 import {
   createChallenge,
@@ -58,12 +58,12 @@ export async function verifyCounterparty(
     reasons: [reason],
   });
 
-  // 1. Fetch + structurally parse the disclosure.
-  let signed: SignedDisclosure;
+  // 1. Fetch + structurally parse the disclosure (either envelope shape).
+  let signed: AnySignedDisclosure;
   try {
     const res = await fetch(`${base}/.well-known/agent-disclosure`);
     if (!res.ok) return refuse(`disclosure fetch failed (HTTP ${res.status})`);
-    signed = parseSignedDisclosure(await res.json());
+    signed = parseAnySignedDisclosure(await res.json());
   } catch (e) {
     return refuse(`disclosure unreachable: ${e instanceof Error ? e.message : String(e)}`);
   }
@@ -71,6 +71,7 @@ export async function verifyCounterparty(
   // 2. Evaluate the disclosure against policy (signature, freshness, the lot).
   const disclosure = evaluateDisclosure(signed, policy);
   const reasons = [...disclosure.reasons];
+  const doc = getDisclosure(signed);
 
   // 3. Live handshake — defeats replay of a captured (valid) disclosure.
   let handshake: HandshakeCheck | undefined;
@@ -84,8 +85,8 @@ export async function verifyCounterparty(
       });
       const response = (await res.json()) as ChallengeResponse;
       handshake = verifyChallengeResponse(response, challenge, {
-        expectedAgentId: signed.disclosure.agentId,
-        disclosureAnchor: signed.disclosure.auditAnchor,
+        expectedAgentId: doc.agentId,
+        disclosureAnchor: doc.auditAnchor,
         now: policy.now,
       });
     } catch (e) {

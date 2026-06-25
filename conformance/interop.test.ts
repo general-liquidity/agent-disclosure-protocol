@@ -8,6 +8,7 @@ import assert from "node:assert/strict";
 
 import {
   parseSignedDisclosure,
+  parseAnySignedDisclosure,
   evaluateDisclosure,
   verifyChallengeResponse,
   verifyRedacted,
@@ -25,6 +26,19 @@ import interop from "./interop.json" with { type: "json" };
 test("interop: every disclosure case reproduces its expected verdict", () => {
   for (const c of interop.disclosures) {
     const signed = parseSignedDisclosure(c.signed);
+    const verdict = evaluateDisclosure(signed, c.policy as VerificationPolicy);
+    assert.equal(verdict.decision, c.expect.decision, c.name);
+    const failed = Object.entries(verdict.checks)
+      .filter(([, ok]) => !ok)
+      .map(([k]) => k)
+      .sort();
+    assert.deepEqual(failed, c.expect.failed, `${c.name} failed-checks`);
+  }
+});
+
+test("interop: every v2 JWS disclosure case reproduces its expected verdict", () => {
+  for (const c of interop.jwsDisclosures) {
+    const signed = parseAnySignedDisclosure(c.signed);
     const verdict = evaluateDisclosure(signed, c.policy as VerificationPolicy);
     assert.equal(verdict.decision, c.expect.decision, c.name);
     const failed = Object.entries(verdict.checks)
