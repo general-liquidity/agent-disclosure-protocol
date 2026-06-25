@@ -95,6 +95,15 @@ export * from "./erc8004Registry.ts";
 // ERC-8004 Validation Registry client (read validationResponse scores; optional viem dep).
 export * from "./erc8004Validation.ts";
 
+// ADP-as-ERC-8004-validator: express an ADP disclosure verdict as an ERC-8004
+// `validationResponse` attestation (uint8 0-100 score + responseHash binding) — the
+// validator output ERC-8004's validation socket references. Injected on-chain confirm seam.
+export * from "./erc8004Validator.ts";
+
+// Visa Trusted Agent Protocol (TAP) interop: surface an ADP disclosure inside a TAP-style
+// RFC-9421 signed request (reuses ADP's ed25519 handshake primitives; injected key resolver).
+export * from "./visatap.ts";
+
 // ZK selective disclosure (interface + a dep-free equality backend).
 export * from "./zk.ts";
 
