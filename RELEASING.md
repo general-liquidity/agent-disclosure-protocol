@@ -28,9 +28,13 @@ that job is skipped — so the workflow is safe to land before anything is confi
 ### Initial manual publish (npm — claim the name, do this once)
 
 ```sh
-npm install -g npm@latest                   # provenance needs npm >= 11.5
-npm publish --access public --provenance     # from the repo root; runs prepublishOnly (build)
+npm publish --access public      # from the repo root; runs prepublishOnly (build)
 ```
+
+Do **NOT** pass `--provenance` for a local publish — provenance can only be generated in
+CI, where GitHub provides the OIDC identity (`npm error ... provider: null` if you try it
+locally). The `release.yml` workflow attaches provenance automatically on every
+subsequent release.
 
 Then add the npm Trusted Publisher (above) and flip `PUBLISH_NPM=true`. From then on,
 releases are just a tag.
