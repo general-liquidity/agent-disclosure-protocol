@@ -21,6 +21,10 @@ export * from "./attestation.ts";
 // The live challenge-response handshake (defeats identity replay).
 export * from "./handshake.ts";
 
+// Proof-of-Enforcement: make the constitution's `enforced` claim cryptographically
+// falsifiable — bind + freshness + replay of sampled signed decisions (injected seam).
+export * from "./enforcement.ts";
+
 // Counterparty verification: evaluate a disclosure against a policy -> verdict.
 export * from "./verify.ts";
 
