@@ -10,17 +10,29 @@ the counterparty policy semantics, selective disclosure, revocation, and a
 transparency log, in sufficient detail that an independent team can implement an
 interoperable emitter and verifier from this document alone.
 
-- Specification version: 1
+- Specification version: 2
 - Disclosure schema version: `DISCLOSURE_SCHEMA_VERSION = 1`. Every disclosure
   document MUST carry `version: 1`. This integer is bumped only on a breaking change
-  to the disclosure structure.
+  to the disclosure *structure* — and the v2 work below deliberately did not change the
+  document structure, only added a second *envelope* wrapping and additional encodings.
+  The signed disclosure-document bytes are therefore unchanged from specification
+  version 1.
+
+Specification version 2 is additive at the wire layer: it introduces a second,
+JOSE-interoperable envelope (a flattened JWS), an RFC 9421 handshake form, key-rotation
+binding, namespaced operator-attestation schemes and an `extensions` bucket, and three
+standards bridges (W3C VC 2.0, SD-JWT-VC, and a DID Document emit). A v2 verifier
+accepts a v1 object envelope and a v2 JWS envelope interchangeably (Section 3.12), and
+the disclosure document inside either is identical. None of these additions changes the
+frozen canonicalization algorithm or the signed disclosure-document bytes.
 
 The reference implementation is the `agent-disclosure` source tree (`src/schema.ts`,
 `src/attestation.ts`, `src/handshake.ts`, `src/verify.ts`, `src/redaction.ts`,
-`src/revocation.ts`, `src/transparency.ts`). Where this document states a rule it
-cites the function or field that implements it. For positioning and the trust model
-see `README.md`; for the attack-by-attack analysis see `THREAT_MODEL.md`. This
-document does not restate either.
+`src/revocation.ts`, `src/transparency.ts`, plus the bridges `src/keys.ts`, `src/did.ts`,
+`src/vc.ts`, `src/sdjwtvc.ts`). Where this document states a rule it cites the function
+or field that implements it. For positioning and the trust model see `README.md`; for
+the attack-by-attack analysis see `THREAT_MODEL.md`. This document does not restate
+either.
 
 ### Key words
 
@@ -64,7 +76,7 @@ selective-disclosure meta in Section 9).
 |---|---|---|---|---|
 | `version` | integer literal `1` | REQUIRED | Schema version; MUST equal `DISCLOSURE_SCHEMA_VERSION`. | Structural drift between implementations. |
 | `disclosureId` | string | REQUIRED | Unique id for this disclosure instance. Used as a revocation key. | Document-level revocation. |
-| `agentId` | string | REQUIRED | The agent's stable id. By binding rule (Section 5) it MUST equal the signing public key (hex). | Identity binding; impersonation. |
+| `agentId` | string | REQUIRED | The agent's stable id. By binding rule (Section 5) it MUST be the signing public key (hex), that key's did:key form, OR linked to the signing key by a verified rotation chain. | Identity binding; impersonation. |
 | `issuedAt` | ISO-8601 string | REQUIRED | When the disclosure was minted. Lower bound of the freshness window. | Stale-disclosure presentation. |
 | `validUntil` | ISO-8601 string | REQUIRED | Expiry. Upper bound of the freshness window. A verifier rejects an expired disclosure. | Stale-disclosure presentation. |
 | `nonce` | string | REQUIRED | A fresh, unguessable nonce per disclosure; paired with a handshake challenge for liveness. | Replay. |
@@ -151,12 +163,32 @@ Operator identity and the deniability boundary.
 | `attestation` | object (below) | REQUIRED | Identity-attestation evidence. |
 | `deniabilityBoundary` | string | REQUIRED | Explicit statement of what the operator is and is NOT accountable for. |
 
-`attestation` has: `scheme` (REQUIRED enum, one of `"AIP"`, `"VisaTAP"`, `"ERC8004"`,
-`"none"`), `level` (REQUIRED enum, one of `"none"`, `"signed"`, `"registry_attested"`),
-and `evidence` (string, OPTIONAL). The `deniabilityBoundary` is REQUIRED and load-bearing
-for the regulated-rails argument: it is the operator's explicit accountability statement.
-Threat: operator collusion / sock-puppets, and unaccountable deployment. See
-`THREAT_MODEL.md` attack 6.
+`attestation` has: `scheme` (REQUIRED; see below), `level` (REQUIRED enum, one of
+`"none"`, `"signed"`, `"registry_attested"`), and `evidence` (string, OPTIONAL). The
+`deniabilityBoundary` is REQUIRED and load-bearing for the regulated-rails argument: it
+is the operator's explicit accountability statement. Threat: operator collusion /
+sock-puppets, and unaccountable deployment. See `THREAT_MODEL.md` attack 6.
+
+`scheme` is **a known value OR a reverse-domain id** (`AttestationScheme` in
+`src/schema.ts`). The known values are `"AIP"`, `"VisaTAP"`, `"ERC8004"`, `"DID"`, and
+`"none"`. Any other value MUST be a reverse-domain namespace id matching
+`^[a-z0-9]+(\.[a-z0-9-]+)+$` (e.g. `"com.visa.tap"`), so a third party can publish a new
+attestation scheme as a vendor-namespaced string rather than forcing a core enum edit and
+a five-language re-port. A bare unknown word (no dot, e.g. `"banana"`) is NOT a valid
+scheme and MUST be rejected at structural validation. A verifier acts only on schemes it
+recognizes; an unrecognized but well-formed reverse-domain scheme is carried and treated
+as unattested by a verifier that does not understand it.
+
+#### `extensions` (OPTIONAL, document level)
+
+The disclosure document MAY carry a top-level `extensions` field: a record keyed by
+reverse-domain id (matching the namespace regex above), each value an arbitrary JSON value
+(`extensions` in `AgentDisclosureSchema`). This is the namespaced extension bucket: a
+vendor can add a field under `com.vendor.feature` without a core spec change or a
+five-language validator re-port. A verifier MUST act only on extension keys it recognizes;
+unknown extensions are carried and ignored. Extensions canonicalize deterministically like
+any other field, so they are covered by the signature and an absent `extensions` field
+canonicalizes away (minor-version-safe).
 
 ### 3.7 `history` (REQUIRED) - `DeploymentHistorySchema`
 
@@ -224,9 +256,17 @@ trusting any field (`parseDisclosure` / `parseSignedDisclosure` in `src/schema.t
 malformed envelope is a refuse with no further checks (`verifyAndEvaluate` in
 `src/verify.ts`).
 
-### 3.12 The signed envelope - `SignedDisclosureSchema`
+### 3.12 The signed envelope
 
-The envelope wraps the disclosure document with an ed25519 signature.
+A signed disclosure has **two interchangeable envelope wrappings** over the SAME
+disclosure document: the v1 object envelope and the v2 flattened JWS. They carry the
+identical ed25519 crypto over the identical canonical disclosure bytes; only the packaging
+differs. An emitter MAY produce either (dual-encode); a verifier MUST accept either,
+discriminated by the envelope's SHAPE (`verifyAnyDisclosureSignature` /
+`parseAnySignedDisclosure` in the reference). The two forms exist so ADP interoperates with
+JOSE/JWS tooling without a fork: a verifier with no ADP code can read the v2 JWS.
+
+#### 3.12.1 v1 object envelope - `SignedDisclosureSchema`
 
 ```
 {
@@ -235,13 +275,57 @@ The envelope wraps the disclosure document with an ed25519 signature.
     "algorithm": "ed25519",
     "publicKey": <hex>,   // the signer's raw 32-byte public key, = agentId's key material
     "value":     <hex>    // ed25519 signature over canonicalize(disclosure)
-  }
+  },
+  "rotationChain": [ <RotationStatement>, ... ]   // OPTIONAL; see Section 5.1
 }
 ```
 
 `algorithm` MUST be the literal `"ed25519"`. `publicKey` is the signer's raw 32-byte
 ed25519 public key as hex. `value` is the signature over the canonical bytes of the
 disclosure document (Section 4), as hex. See `signDisclosure` in `src/attestation.ts`.
+`rotationChain` is OPTIONAL key-rotation metadata (Section 5.1); it is NOT part of the
+signed bytes.
+
+In the v1 form, `signature.algorithm` sits OUTSIDE the signed bytes (it is not part of
+`canonicalize(disclosure)`). A verifier MUST treat `algorithm` as a literal `"ed25519"`
+constraint at structural validation and MUST NOT use it to select a verification
+algorithm; the v2 form below closes this gap by signing the algorithm in.
+
+#### 3.12.2 v2 flattened JWS envelope - `JwsSignedDisclosureSchema`
+
+The v2 form is a JOSE flattened JWS (RFC 7515) using EdDSA (RFC 8037, the same RFC 8032
+ed25519 primitive as v1).
+
+```
+{
+  "payload":   <base64url>,   // base64url( UTF8( canonicalize(disclosure) ) ) — RFC 8785 (JCS) bytes
+  "protected": <base64url>,   // base64url( UTF8( JSON{ "alg":"EdDSA", "typ":"application/adp+json" } ) )
+  "header": {                 // unprotected header carrying the signing key
+    "jwk": { "kty": "OKP", "crv": "Ed25519", "x": <base64url 32-byte pubkey> }
+  },
+  "signature": <base64url>,   // EdDSA over ASCII( b64url(protected) + "." + b64url(payload) )
+  "rotationChain": [ ... ]    // OPTIONAL; see Section 5.1
+}
+```
+
+The signature covers `ASCII(b64url(protected) + "." + b64url(payload))` — the JWS signing
+input. Because the protected header (carrying `alg`) is part of the signed input, the
+algorithm is integrity-protected: an attacker cannot substitute the algorithm without
+breaking the signature, closing the v1 deviation. The payload is the byte-identical
+RFC 8785 (JCS) canonical disclosure document, so the same bytes are signed in both forms.
+
+A verifier of a v2 envelope MUST (`verifyDisclosureJws`):
+1. decode `protected` and require `alg === "EdDSA"` (reject otherwise);
+2. recover the 32-byte signing key from `header.jwk.x` (reject if not 32 bytes);
+3. verify the EdDSA signature over `ASCII(protected + "." + payload)` against that key;
+4. decode `payload`, read its `agentId`, and verify the agentId-to-key binding (Section 5).
+
+#### 3.12.3 Discriminating the two shapes
+
+A v2 envelope carries `payload` AND `protected`; a v1 envelope carries `disclosure` AND a
+`signature` object. A parser keys off the presence of `payload`/`protected` to pick the
+schema (`isJwsSignedDisclosure`, `parseAnySignedDisclosure`). `getDisclosure` extracts the
+document from either: for v2 it base64url-decodes and schema-validates the JCS payload.
 
 ## 4. Canonicalization
 
@@ -327,14 +411,19 @@ output: {"a":{"c":"x"},"z":[3,1,2]}
 (The array `[3,1,2]` keeps its order; the key `d` is dropped because its value is
 `undefined`; the keys `a` and `z` are sorted.)
 
-Example 3 - the handshake response body, with a trailing `undefined` verifierId
-dropped (Section 7):
+Example 3 - an object with a trailing `undefined` key dropped (the same shape that
+recurs wherever an optional field is left unset):
 
 ```
 input:  { "nonce": "ab12", "agentId": "ff00", "auditHead": "deadbeef",
           "signedAt": "2026-06-24T10:00:00Z", "verifierId": undefined }
 output: {"agentId":"ff00","auditHead":"deadbeef","nonce":"ab12","signedAt":"2026-06-24T10:00:00Z"}
 ```
+
+(The v2 handshake signs an RFC 9421 signature base, not this object — Section 7.3 — but
+`canonicalize` still governs the disclosure document, the redaction commitment set, the
+rotation-statement body, the revocation body, and the transparency-log preimage, each of
+which exercises the same `undefined`-drop rule.)
 
 Example 4 - a bare primitive and an array of objects with an interleaved null:
 
@@ -353,17 +442,60 @@ Signatures are ed25519 over the UTF-8 bytes of the canonical string.
 - To sign a disclosure: compute `canonicalize(disclosure)`, encode as UTF-8, ed25519-sign
   with the agent's private key, and place the hex signature in `signature.value`
   (`signDisclosure`, `signMessage`).
-- The envelope's `signature.publicKey` is the signer's raw 32-byte ed25519 public key,
-  hex-encoded.
-- **Identity binding (MUST).** A disclosure MUST be signed by the key it claims as its
-  identity: `disclosure.agentId` MUST equal `signature.publicKey`. A verifier MUST reject
-  a disclosure where they differ, before checking the signature value
-  (`verifyDisclosureSignature` in `src/attestation.ts`: it returns failure with reason
-  "agentId does not match the signing public key" when `agentId !== publicKey`). The same
-  binding is enforced for redacted views (Section 9) and is the convention by which the
-  public key IS the agent's identity.
-- Signature verification verifies the hex signature over `canonicalize(disclosure)`
-  against the 32-byte public key. A mismatch is a refuse.
+- The envelope's `signature.publicKey` (v1) / `header.jwk.x` (v2) is the signer's raw
+  32-byte ed25519 public key.
+- **Identity binding (MUST).** A disclosure MUST be bound to the key that actually signed
+  it. The binding holds (`verifyKeyBinding` in `src/attestation.ts`) when ANY of:
+  1. `agentId` equals the signing public key (hex) — the common self-certifying case;
+  2. `agentId` equals that key's **did:key** form (`did:key:z…`, Section 11.1) — the same
+     self-certifying key expressed in the DID encoding;
+  3. a verified **rotation chain** (Section 5.1) links `agentId` to the signing key.
+
+  A verifier MUST reject a disclosure where none of these holds, before relying on its
+  contents (`verifyDisclosureSignature` returns "agentId does not match the signing public
+  key"). The same binding is enforced for redacted views (Section 9) and both envelope
+  shapes (Section 3.12). It is the convention by which the public key IS the agent's
+  identity, now extended so the identity can survive a key change.
+- Signature verification verifies the signature over `canonicalize(disclosure)` against the
+  32-byte public key (v1 over the hex signature; v2 over the JWS signing input, Section
+  3.12.2). A mismatch is a refuse.
+
+### 5.1 Key rotation
+
+Because `agentId` is, by default, the signing key itself, a naive key change would mint a
+new, unrelated identity and orphan every cached reference. A signed rotation chain lets a
+stable `agentId` survive rotation: the OLD key signs a statement moving identity to the new
+key, so a verifier that trusted the old identity can follow the chain forward.
+
+A `RotationStatement` (`RotationStatementSchema` in `src/keys.ts`) is:
+
+```
+{
+  "type":      "rotation",
+  "from":      <hex>,       // agentId/public key being rotated AWAY from
+  "to":        <hex>,       // agentId/public key being rotated TO
+  "rotatedAt": <ISO-8601>,
+  "signature": <hex>        // the FROM key's ed25519 signature over the canonical body
+}
+```
+
+The signed body is `canonicalize({ type: "rotation", from, to, rotatedAt })`
+(`rotationStatementBody`); only the `from` key signs (`rotateKey`). Trust flows forward
+from the established identity; the new key never signs the move.
+
+A `rotationChain` is an ordered array of such statements carried in the envelope (NOT part
+of the signed disclosure bytes — it is verification metadata; it cannot be forged because
+it must root at the signed `agentId`). To verify (`verifyRotationChain`), a verifier MUST:
+
+1. start a cursor at `agentId`;
+2. for each hop in order, require `hop.from == cursor`, verify `hop.signature` against
+   `hop.from`, and require the chain be acyclic (a repeated `to` is a refuse);
+3. advance the cursor to `hop.to`;
+4. require the final cursor to equal the signing public key.
+
+A chain MUST contain at least one hop and at most `MAX_ROTATION_CHAIN` (32) hops; an empty
+or over-long chain is a refuse. A disclosure with no rotation carries no `rotationChain`
+and binds by case (1) or (2) above.
 
 Informative (key import): the reference imports a bare 32-byte ed25519 public key by
 prepending the SPKI DER prefix `302a300506032b6570032100` and importing as SPKI DER;
@@ -392,19 +524,33 @@ The handshake is a live challenge-response proving the counterparty holds the si
 RIGHT NOW and that its audit head is current. A static signed disclosure cannot prove
 either. Reference: `src/handshake.ts`.
 
+The handshake proof is shaped as an **RFC 9421 (HTTP Message Signatures)** signature: the
+agent signs a *signature base* built from named covered components plus an
+`@signature-params` line, and carries it as a `Signature-Input` value (`signatureInput`)
+and a `signature`. This is the non-HTTP-transport profile of RFC 9421 — there are no HTTP
+fields to cover, so every covered component is an `adp-*` derived component (namespaced so
+it cannot collide with a real HTTP header in a mixed deployment).
+
+Two deliberate ADP deviations from strict RFC 9421: `created` is an ISO-8601 string (ADP's
+timestamp convention) rather than a Unix-seconds integer, and the signature bytes are hex
+(the package's convention) rather than the `:base64:` structured-field binary wrapper.
+
 ### 7.1 Challenge message
 
 The verifier issues a `Challenge` (`createChallenge`):
 
 ```
 {
-  "nonce":      <string>,   // fresh, unguessable; reference uses 16 random bytes hex
-  "issuedAt":   <ISO-8601>,
-  "verifierId": <string>    // OPTIONAL; binds the proof to a specific verifier exchange
+  "nonce":             <string>,   // fresh, unguessable; reference uses 16 random bytes hex
+  "issuedAt":          <ISO-8601>,
+  "verifierId":        <string>,   // OPTIONAL; binds the proof to a specific verifier exchange (the 9421 `tag`)
+  "supportedVersions": <number[]>  // OPTIONAL; disclosure-schema versions the verifier understands
 }
 ```
 
-The nonce MUST be fresh and unguessable per challenge (`randomNonce`).
+The nonce MUST be fresh and unguessable per challenge (`randomNonce`). `supportedVersions`
+advertises the disclosure-schema versions the verifier accepts, so the agent can present a
+mutually-supported version (Section 7.5).
 
 ### 7.2 ChallengeResponse message
 
@@ -412,50 +558,76 @@ The agent answers with a `ChallengeResponse` (`respondToChallenge`):
 
 ```
 {
-  "nonce":     <string>,   // echoes the challenge nonce
-  "agentId":   <string>,   // the responding agent's ed25519 public key (hex)
-  "auditHead": <string>,   // the agent's audit-chain head at response time
-  "signedAt":  <ISO-8601>,
-  "signature": <hex>       // ed25519 over the canonical response body (below)
+  "nonce":             <string>,   // echoes the challenge nonce
+  "agentId":           <string>,   // the responding agent's ed25519 public key (hex)
+  "auditHead":         <string>,   // the agent's audit-chain head at response time
+  "signedAt":          <ISO-8601>,
+  "disclosureVersion": <number>,   // OPTIONAL; the schema version this response presents (a SIGNED covered component)
+  "signatureInput":    <string>,   // the RFC 9421 Signature-Input value (covered set + params)
+  "signature":         <hex>       // ed25519 over the RFC 9421 signature base (below)
 }
 ```
 
-### 7.3 Signed bytes
+### 7.3 The signature base
 
-The signature is over the canonical bytes of the body, with the challenge's `verifierId`
-folded in (`responseMessage`):
+The signature is an ed25519 signature over the RFC 9421 **signature base**: one line per
+covered component, then the `@signature-params` line. The covered components, in order, are
+(`coveredComponents`):
 
 ```
-canonicalize({ nonce, agentId, auditHead, signedAt, verifierId })
+"adp-agent-id":           <agentId>
+"adp-audit-head":         <auditHead>
+"adp-disclosure-version": <disclosureVersion>   // present ONLY when disclosureVersion is declared
+"@signature-params": (<covered names>);created="<signedAt>";keyid="<agentId>";alg="ed25519";nonce="<nonce>";tag="<verifierId>"
 ```
 
-where `nonce`, `agentId`, `auditHead`, `signedAt` come from the response and `verifierId`
-comes from the challenge. When `verifierId` is absent it is `undefined` and is therefore
-dropped by canonicalization (Section 4, Example 3), so both sides reconstruct identical
-bytes whether or not a verifier id is in play. Both sides MUST construct this message
-identically.
+`tag` is emitted only when the challenge carried a `verifierId`; the
+`adp-disclosure-version` component (and its name in the inner list) is present only when the
+response declares a `disclosureVersion`, so a no-version response signs a base with no
+version line (backward-compatible path). The `Signature-Input` value carried on the wire is
+`sig=<@signature-params value>` (`signatureInputValue`). Both sides MUST construct the base
+byte-identically.
 
 ### 7.4 Verifier MUST-checks
 
 `verifyChallengeResponse` takes the response, the original challenge, and a
-`HandshakePolicy` (`expectedAgentId`, optional `disclosureAnchor`, optional `now`,
-optional `maxAgeMs` defaulting to 60000). A verifier MUST check, in order:
+`HandshakePolicy` (`expectedAgentId`, optional `disclosureAnchor`, optional `now`, optional
+`maxAgeMs` defaulting to 60000, optional `supportedVersions`). A verifier MUST check, in
+order:
 
 1. **Nonce match.** `response.nonce` MUST equal `challenge.nonce`. A mismatch is a refuse
    ("replayed or wrong challenge"). Defeats identity replay.
 2. **AgentId match.** `response.agentId` MUST equal `policy.expectedAgentId` (the agentId
    the disclosure claims). A mismatch is a refuse.
-3. **Signature.** The ed25519 signature MUST verify over the Section 7.3 canonical bytes
-   against `response.agentId`. A failure is a refuse ("no live key possession").
-4. **Freshness.** When `policy.now` is supplied, `Date.parse(now) - Date.parse(signedAt)`
+3. **Signature-Input match.** The verifier reconstructs the expected `signatureInput` from
+   ITS challenge (nonce, verifierId) plus the response's claimed values, and `response.
+   signatureInput` MUST equal it exactly. This prevents covered-set / parameter smuggling.
+4. **Signature.** The ed25519 signature MUST verify over the reconstructed Section 7.3
+   signature base against `response.agentId`. A failure is a refuse ("no live key
+   possession"). Because the base covers the audit head and version, tampering any covered
+   value is caught here.
+5. **Version negotiation.** When `policy.supportedVersions` is set and the response declares
+   a `disclosureVersion` outside it, the verifier MUST refuse with an actionable reason. A
+   response that declares no version is accepted (pre-negotiation peers stay interoperable).
+   See Section 7.5.
+6. **Freshness.** When `policy.now` is supplied, `Date.parse(now) - Date.parse(signedAt)`
    MUST be `>= 0` and `<= maxAgeMs` (default 60000 ms). Outside that range is a refuse
    ("stale").
-5. **Audit-head currency.** The bound `auditHead` is checked against the disclosure's
-   anchor. An exact match means the disclosure is current as of the live head. A
-   regression to an OLDER anchor is a red flag; equality or a newer/different head is
-   acceptable (the verifier cannot fully order the chain without it). The reference
-   treats this as a non-fatal signal and returns ok; a stricter verifier MAY refuse on a
-   detected regression.
+7. **Audit-head currency.** The bound `auditHead` is checked against the disclosure's
+   anchor. An exact match means the disclosure is current as of the live head. A regression
+   to an OLDER anchor is a red flag; equality or a newer/different head is acceptable (the
+   verifier cannot fully order the chain without it). The reference treats this as a
+   non-fatal signal and returns ok; a stricter verifier MAY refuse on a detected regression.
+
+### 7.5 Version negotiation
+
+The handshake binds not just liveness but the protocol version in play. The verifier
+advertises `Challenge.supportedVersions`; the agent MAY declare a `disclosureVersion` in its
+response, which is a SIGNED covered component (Section 7.3) and therefore cannot be
+downgraded by a man-in-the-middle. A verifier whose `supportedVersions` does not include a
+declared version MUST refuse-with-reason. A response that declares no version is accepted, so
+a v1 (pre-negotiation) peer and a v2 verifier remain interoperable. This is the MCP-style
+round-trip negotiation adapted to the signed handshake.
 
 ## 8. Counterparty policy and verdict
 
@@ -602,7 +774,79 @@ deletion breaks the chain and is reported as `brokenAt: index`. `contains(digest
 `inclusionProof(index)` provide membership checks. An implementation MUST reproduce the
 GENESIS value and the `hash` preimage exactly for cross-implementation log compatibility.
 
-## 11. Conformance
+## 11. Standards bridges (additive encodings)
+
+A signed disclosure has additional, OPTIONAL standards-track encodings that re-express the
+SAME signed claims for ecosystems that speak DID / VC / SD-JWT. None of these replaces the
+native form or introduces a second trust root; each reuses the agent's ed25519 key over the
+same RFC 8785 (JCS) bytes, so a verifier can always fall back to the native check.
+
+### 11.1 DID Document and did:key (`src/did.ts`)
+
+The `agentId` (raw 32-byte ed25519 public key, hex) maps deterministically to a **did:key**
+of the ed25519-pub multicodec: `did:key:z` followed by base58btc of `0xed01 || rawKey`
+(`agentIdToDidKey`; the inverse is `didKeyToAgentId`). This is self-certifying — resolving
+the DID recovers the same key, with no registry. The identity binding (Section 5) accepts an
+`agentId` in this did:key form.
+
+`agentIdToDidDocument(agentId, { disclosureEndpoint })` emits a W3C DID Core document whose
+`id` is the did:key, whose single `verificationMethod` is the ed25519 key as
+`Ed25519VerificationKey2020` (`publicKeyMultibase`, base58btc with the multicodec prefix),
+listed under `authentication` and `assertionMethod`. When a disclosure endpoint is supplied,
+the document carries a `service` entry of `type: "AgentDisclosure"` whose `serviceEndpoint`
+points at the `.well-known/agent-disclosure` URI (Section 14), so any DID-aware verifier
+resolves to the disclosure through standard rails. This COMPLEMENTS the raw-key model — it
+does not make ADP DID-native. `didWeb(domain, path)` constructs a `did:web` identifier
+(host as method-specific id, `:`-separated percent-encoded path segments); the corresponding
+`did.json` is served and resolved out of band.
+
+### 11.2 W3C Verifiable Credential 2.0 (`src/vc.ts`)
+
+`toVerifiableCredential` re-shapes a `SignedDisclosure` into a **W3C VC Data Model 2.0**
+credential: `@context` is `https://www.w3.org/ns/credentials/v2`; the type is
+`["VerifiableCredential", "AgentDisclosureCredential"]`; `validFrom` / `validUntil` carry
+the disclosure's freshness window (VC 2.0 names, replacing v1.1 `issuanceDate` /
+`expirationDate`); `credentialSubject` is the disclosure plus a did:key subject `id`.
+
+The `proof` is a `DataIntegrityProof` whose `cryptosuite` is the ADP-namespaced,
+deliberately **non-registered** `adp-jcs-2024`. It reuses the envelope's ed25519 signature
+verbatim, computed over the RFC 8785 (JCS) canonical disclosure, multibase base58btc-encoded
+as `proofValue`. The non-registered suite name is intentional: ADP does NOT squat the
+registered `eddsa-jcs-2022` / `Ed25519Signature2020`, so a generic DI verifier that does not
+recognize `adp-jcs-2024` correctly declines rather than running registered Data Integrity
+over different bytes. `verifyVerifiableCredential` checks the subject did:key resolves to the
+disclosure's `agentId` and then delegates to the native envelope check on the reconstructed
+`SignedDisclosure` — the same canonicalization path, no second trust root.
+
+### 11.3 SD-JWT-VC (`src/sdjwtvc.ts`)
+
+`toSdJwtVc` re-encodes a disclosure as an **SD-JWT-VC** (RFC 9901 + draft-ietf-oauth-sd-jwt-
+vc) — a JOSE EdDSA JWT with selective disclosure, the standards-track sibling of the native
+redaction form (Section 9). It closes three gaps the native commitment map has:
+
+- **Hidden field names.** Each present redactable field (`REDACTABLE_FIELDS`) becomes an
+  SD-JWT *Disclosure* — `base64url(["<salt>","<name>",<value>])` — whose only trace in the
+  signed JWT is an opaque digest in the `_sd` array. Withhold it and the verifier never
+  learns the name existed (the native form leaks names as visible map keys).
+- **Hidden count.** `_sd` is padded with **decoy digests** of fictional Disclosures
+  (default 2) and shuffled, so the number of real selectively-disclosable claims is hidden.
+- **Presentation-to-verifier binding.** `presentSdJwtVc` drops the unrevealed Disclosures
+  and appends a **KB-JWT** (key-binding JWT) signed by the holder's `cnf` key over
+  `{ iat, aud, nonce, sd_hash }`, binding the exact presented bytes to one verifier and one
+  challenge nonce — closing the replay gap a bare `RedactedView` has.
+
+The issuer JWT carries `iss` (the agent's did:key, self-certifying), `vct`
+(`https://adp.dev/credential/agent-disclosure/v1`), `iat`/`exp` from the freshness window,
+`cnf` (the holder's OKP/Ed25519 JWK), the native always-clear meta (`version`,
+`disclosureId`, `nonce`, `auditAnchor`), and `_sd` + `_sd_alg: "sha-256"`. The header is
+`{ typ: "dc+sd-jwt", alg: "EdDSA" }`. `verifySdJwtVc` recovers the issuer key from the
+did:key, checks every received Disclosure's digest is in `_sd` (rejecting unreferenced or
+duplicated digests), splices the revealed claims back in, and — when a KB-JWT is present or
+an `aud`/`nonce` is required — verifies it against the `cnf` key with a matching `sd_hash`
+over the exact presented bytes. This is additive: a disclosure can be carried as the native
+`SignedDisclosure` or as an SD-JWT-VC string, by content negotiation.
+
+## 12. Conformance
 
 A conformant implementation MUST satisfy the runnable conformance suite under
 `conformance/`, which carries (a) canonicalization vectors and (b) behavioural checks.
@@ -610,21 +854,28 @@ Specifically, a conformant implementation:
 
 - MUST reproduce every canonicalization vector byte for byte, including the Section 4.2
   worked examples (object key sort, recursive sort, preserved array order, dropped
-  `undefined` values, and the handshake-body absent-`verifierId` case).
+  `undefined` values, and the absent-`verifierId` object case).
 - MUST produce ed25519 signatures over the canonical UTF-8 bytes that the reference
-  verifier accepts, and MUST verify reference-produced signatures.
-- MUST enforce the agentId-to-key binding (Section 5), the freshness window (Section 6),
-  the handshake MUST-checks (Section 7.4), and the policy semantics including the
-  empty-policy baseline (Section 8).
+  verifier accepts, and MUST verify reference-produced signatures — for BOTH envelope
+  shapes: the v1 object envelope and the v2 flattened JWS (`conformance/interop.json`
+  carries a `jwsDisclosures` fixture set the native verifiers reproduce).
+- MUST enforce the agentId-to-key binding including the did:key and rotation-chain forms
+  (Section 5), the freshness window (Section 6), the RFC 9421 handshake MUST-checks
+  including the `Signature-Input` match and version negotiation (Section 7.4), and the
+  policy semantics including the empty-policy baseline (Section 8).
 - MUST reproduce the selective-disclosure commitment and verification (Section 9), the
   signed-revocation preimage (Section 10.1), and the transparency-log GENESIS value and
   `hash` preimage (Section 10.2).
+- MUST reject the adversarial corpus (`conformance/negative.json`), which now includes
+  invalid-enum and malformed-namespace cases (e.g. a bare-word attestation `scheme`), so a
+  malformed-but-honestly-signed document is rejected at structural validation, not waved
+  through on a valid signature.
 
 An emitter and a verifier from independent teams are interoperable when both pass the
 suite: the canonicalization vectors guarantee identical signed bytes, and the behavioural
 checks guarantee identical accept/refuse decisions.
 
-## 12. Security considerations
+## 13. Security considerations
 
 The protocol makes a fixed set of attacks legible and pairs each with a concrete
 defending module or field, and states the residual gap for each honestly: constitution
@@ -639,11 +890,13 @@ verification). The full attack-by-attack analysis, including every residual gap,
 the default posture as fail-closed: any unverifiable, expired, unreachable, or
 policy-failing disclosure resolves to refuse.
 
-## 13. IANA and well-known URI (informational)
+## 14. IANA and well-known URI (informational)
 
-This section is informational. The disclosure is served from a well-known URI on the
-agent's own origin, so a verifier that can resolve a counterparty's base URL can fetch
-its commitments with no registry or out-of-band exchange:
+This section is informational; the normative registration request lives in the companion
+Internet-Draft (`docs/drafts/draft-gl-adp-disclosure-00.md`), which requests registration of
+the `agent-disclosure` well-known URI suffix per RFC 8615. The disclosure is served from a
+well-known URI on the agent's own origin, so a verifier that can resolve a counterparty's
+base URL can fetch its commitments with no registry or out-of-band exchange:
 
 - Discovery: `GET <base>/.well-known/agent-disclosure` returns the signed disclosure
   envelope (`SignedDisclosure`). A non-200 response or a parse failure is a refuse.

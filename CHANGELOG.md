@@ -5,9 +5,66 @@ All notable changes to the Agent Disclosure Protocol (ADP) are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-The interoperability contract (the canonicalization algorithm and the signed-bytes
-format) is frozen at v1.0; see [Stability guarantees](docs/src/stability.md) for what
-may and may not change without a version bump.
+The interoperability contract (the canonicalization algorithm and the signed
+disclosure-document bytes) is frozen at v1.0; see [Stability guarantees](docs/src/stability.md)
+for what may and may not change without a version bump.
+
+## [Unreleased]
+
+Specification version 2 — a wire-layer hardening that brings ADP into line with the
+standards it interoperates with. It is **additive**: the disclosure-document structure,
+the canonicalization algorithm, and the signed document bytes are all unchanged, so v1 and
+v2 coexist and a v2 verifier accepts a v1 envelope unchanged.
+
+### Added
+
+- **Canonicalization named as RFC 8785 (JCS).** The frozen `canonicalize` algorithm is
+  byte-equivalent to JCS over ADP's value domain; it is now documented under that name,
+  with the two ADP profile rules (`undefined`-key drop, no `NaN`/`Infinity`) called out.
+  No signature or fixture changed.
+- **Flattened JWS (EdDSA) envelope** (`JwsSignedDisclosureSchema`, `signDisclosureJws` /
+  `verifyDisclosureJws`). A second, JOSE-interoperable wrapping of the same disclosure:
+  `{ payload, protected, header.jwk, signature }`, where the signature covers
+  `ASCII(b64url(protected) + "." + b64url(payload))`, so the protected header (with `alg`)
+  is integrity-protected — closing the v1 gap where the algorithm sat outside the signed
+  bytes. The two envelopes coexist (dual-encode), discriminated by shape; a verifier
+  accepts either (`verifyAnyDisclosureSignature`, `parseAnySignedDisclosure`).
+- **Key-rotation binding.** The signed rotation chain (`src/keys.ts`) is wired into the
+  identity check (`verifyKeyBinding` / `verifyRotationChain`): an `agentId` now binds to
+  the signing key directly (hex), via that key's did:key form, OR via a verified rotation
+  chain carried as the optional `rotationChain` envelope field — so an identity survives a
+  key change.
+- **RFC 9421 handshake.** The challenge-response now signs an RFC 9421 signature base over
+  `adp-agent-id` / `adp-audit-head` / `adp-disclosure-version` plus an `@signature-params`
+  line (`created`/`keyid`/`alg`/`nonce`/`tag`), carried as `signatureInput` + `signature`.
+  Two deliberate ADP deviations: ISO-8601 `created` and hex signature.
+- **Version negotiation.** `Challenge.supportedVersions` advertises accepted schema
+  versions; the agent declares a signed `disclosureVersion`; a verifier refuses an
+  unsupported one (a no-version response stays interoperable).
+- **Namespaced operator-attestation schemes + `extensions` bucket.** `attestation.scheme`
+  is now a known value (`AIP` / `VisaTAP` / `ERC8004` / `DID` / `none`) OR a reverse-domain
+  id; a top-level `extensions` record (reverse-domain keys) carries third-party fields a
+  verifier ignores unless it recognizes them.
+- **Standards bridges.** A W3C VC 2.0 / `DataIntegrityProof` bridge (`src/vc.ts`, the
+  non-registered `adp-jcs-2024` cryptosuite over the same ed25519 signature); an SD-JWT-VC
+  bridge (`src/sdjwtvc.ts`, hidden field names + decoy digests + KB-JWT presentation
+  binding); and a DID Document emit with an `AgentDisclosure` `service` entry plus a
+  `did:web` constructor (`src/did.ts`).
+
+### Changed
+
+- `SPEC.md` updated to specification version 2: dual envelope (§3.12), namespaced
+  attestation scheme + `extensions` (§3.6), rotation binding (§5/§5.1), RFC 9421 handshake
+  + version negotiation (§7), a new standards-bridges section (§11), and a normative IANA
+  pointer to the companion Internet-Draft (§14).
+- `docs/src/` chapters updated to match (signing-and-identity, verification-handshake,
+  selective-disclosure, disclosure-document), with a new **Standards Bridges** chapter.
+
+### Governance
+
+- Added `docs/drafts/draft-gl-adp-disclosure-00.md`, an IETF Internet-Draft-shaped
+  document for the ADP wire format requesting registration of the `agent-disclosure`
+  well-known URI per RFC 8615.
 
 ## [0.1.0]
 

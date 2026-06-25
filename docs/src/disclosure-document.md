@@ -105,10 +105,16 @@ Operator identity and the deniability boundary (`OperatorIdentitySchema`).
 | `attestation` | object | REQUIRED | Identity-attestation evidence. |
 | `deniabilityBoundary` | string | REQUIRED | Explicit statement of what the operator is and is NOT accountable for. |
 
-`attestation` has `scheme` (one of `AIP`, `VisaTAP`, `ERC8004`, `none`), `level` (one of
-`none`, `signed`, `registry_attested`), and `evidence` (optional). The
-`deniabilityBoundary` is load-bearing for the regulated-rails argument: it is the
-operator's explicit accountability statement.
+`attestation` has `scheme`, `level` (one of `none`, `signed`, `registry_attested`), and
+`evidence` (optional). The `deniabilityBoundary` is load-bearing for the regulated-rails
+argument: it is the operator's explicit accountability statement.
+
+`scheme` is **a known value OR a reverse-domain id**: the known values are `AIP`,
+`VisaTAP`, `ERC8004`, `DID`, `none`; any other value MUST be a reverse-domain namespace
+(matching `^[a-z0-9]+(\.[a-z0-9-]+)+$`, e.g. `com.visa.tap`), so a new attestation scheme
+is a vendor-namespace publication rather than a core enum edit and a five-language re-port.
+A bare unknown word (no dot) is rejected at validation; a verifier acts only on schemes it
+recognizes.
 
 ## `history` (REQUIRED)
 
@@ -164,6 +170,15 @@ A record keyed by top-level field name, each value a `FieldProvenance` with `der
 (string, for example `opensolvency-gate` or `audit-chain`) and `attestedBy` (optional).
 This lets a verifier weight claims: a field bound to an enforced gate is worth more than a
 self-asserted one. A verifier MAY require provenance for named fields.
+
+## `extensions` (OPTIONAL)
+
+A top-level record keyed by reverse-domain id (matching the namespace regex above), each
+value an arbitrary JSON value. This is the namespaced extension bucket: a vendor can add a
+field under `com.vendor.feature` without a core spec change or a five-language validator
+re-port. A verifier acts only on extension keys it recognizes; unknown extensions are
+carried and ignored. Extensions canonicalize like any other field, so they are covered by
+the signature, and an absent `extensions` field canonicalizes away (minor-version-safe).
 
 ## Structural validation
 

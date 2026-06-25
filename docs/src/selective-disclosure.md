@@ -58,3 +58,9 @@ agent cannot later open it to a different value) and **hiding** (the verifier le
 nothing about the value, and cannot brute-force it, without the salt). Revealing a subset
 proves those fields against the same single signature that covers the whole commitment
 set.
+
+The native commitment map does leak two things: the **field names** (visible as map keys)
+and the **count** of withheld fields. For an encoding that hides both — and binds a
+presentation to one verifier and nonce — use the SD-JWT-VC bridge, described under
+[standards bridges](./standards-bridges.md). It is additive: the same disclosure can be
+carried as the native `RedactedView` or as an SD-JWT-VC string.

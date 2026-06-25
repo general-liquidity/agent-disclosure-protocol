@@ -9,6 +9,7 @@
 - [The Verification Handshake](./verification-handshake.md)
 - [Verification Policy and Verdict](./policy-and-verdict.md)
 - [Selective Disclosure](./selective-disclosure.md)
+- [Standards Bridges](./standards-bridges.md)
 - [Revocation and Transparency](./revocation-and-transparency.md)
 - [Conformance](./conformance.md)
 - [Stability guarantees](./stability.md)

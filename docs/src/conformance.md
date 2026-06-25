@@ -11,12 +11,15 @@ accept/refuse decisions.
 
 - Reproduce every canonicalization vector byte for byte, including the worked examples in
   the [canonicalization](./canonicalization.md) chapter: object key sort, recursive sort,
-  preserved array order, dropped `undefined` values, and the handshake-body
-  absent-`verifierId` case.
+  preserved array order, dropped `undefined` values, and the absent-`verifierId` object
+  case.
 - Produce ed25519 signatures over the canonical UTF-8 bytes that the reference verifier
-  accepts, and verify reference-produced signatures.
-- Enforce the agentId-to-key binding, the freshness window, the
-  [handshake MUST-checks](./verification-handshake.md), and the
+  accepts, and verify reference-produced signatures — for **both** envelope shapes (the v1
+  object envelope and the v2 flattened JWS; `conformance/interop.json` carries a
+  `jwsDisclosures` fixture set).
+- Enforce the agentId-to-key binding including the did:key and rotation-chain forms, the
+  freshness window, the [RFC 9421 handshake MUST-checks](./verification-handshake.md)
+  including the `Signature-Input` match and version negotiation, and the
   [policy semantics](./policy-and-verdict.md) including the empty-policy baseline.
 - Reproduce the [selective-disclosure](./selective-disclosure.md) commitment and
   verification, the signed-revocation preimage, and the
