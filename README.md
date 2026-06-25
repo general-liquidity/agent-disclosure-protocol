@@ -148,6 +148,12 @@ ADP rides *above* the payment rails an agent settles on and composes *with* the 
 | <img height="14" align="top" src="assets/integrations/aip.jpg" />&nbsp; **AIP** (Agent Identity Protocol) · <img height="14" align="top" src="https://cdn.simpleicons.org/visa/1A1F71" />&nbsp; **Visa Trusted Agent Protocol** | Carried in the operator `attestation` field; the evidence KYC-bound rails recognize, so a regulated rail can terminate at an agent endpoint. |
 | <img height="14" align="top" src="assets/integrations/agent-client-protocol.svg" />&nbsp; **Agent Client Protocol** · <img height="14" align="top" src="https://cdn.simpleicons.org/modelcontextprotocol" />&nbsp; **MCP** | Editor/agent surfaces a disclosed agent is driven from. |
 
+#### Agent discovery & messaging
+
+| Protocol | Relationship |
+|:--|:--|
+| <img height="14" align="top" src="https://cdn.simpleicons.org/google/4285F4" />&nbsp; **A2A (Agent2Agent)** | [A2A](https://a2a-protocol.org) (Linux Foundation) - the disclosure rides an Agent Card as a `capabilities.extensions[]` entry ([`src/a2a.ts`](src/a2a.ts)). A counterparty fetches the card at discovery, verifies the disclosure's ed25519 envelope (the trust root) - the card's own RFC 7515 `signatures[]` JWS is treated as origin tamper-evidence - and decides transact/refuse before the A2A task runs. |
+
 #### Discovery transport
 
 The disclosure is served at **`/.well-known/agent-disclosure`**, a well-known URI on the agent's own origin; the live handshake sits beside it at `/agent-disclosure/respond`. Any verifier that can resolve a counterparty's base URL can fetch its commitments - turning the agent-discovery proposals circulating in the space into the concrete transport for the disclosure.
