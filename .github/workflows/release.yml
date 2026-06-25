@@ -1,0 +1,97 @@
+name: Release
+
+# Tokenless publishing via OIDC "Trusted Publishing". There are NO secrets to store or
+# rotate: each registry trusts THIS workflow directly, and GitHub mints a short-lived
+# identity per run. You configure the trusted publisher once on each registry's website
+# (see RELEASING.md), then publishing is just a tag.
+#
+# SAFE BY DEFAULT: each job is gated on a repository VARIABLE, so with nothing configured
+# this workflow publishes NOTHING. Opt a registry in by setting the var:
+#   PUBLISH_NPM=true · PUBLISH_PYPI=true · PUBLISH_CRATES=true
+# Then push a tag (e.g. `v0.1.1`) or run the workflow manually.
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write # the OIDC identity used for trusted publishing (all registries)
+
+jobs:
+  npm:
+    name: npm (@general-liquidity/agent-disclosure)
+    if: ${{ vars.PUBLISH_NPM == 'true' }}
+    runs-on: ubuntu-latest
+    environment: npm
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+          cache: npm
+      # npm trusted publishing (OIDC) needs npm >= 11.5; provenance is automatic.
+      - run: npm install -g npm@latest
+      - run: npm ci
+      - run: npm run build
+      - name: Publish (skip if version exists)
+        run: |
+          V=$(node -p "require('./package.json').version")
+          if npm view "@general-liquidity/agent-disclosure@$V" version >/dev/null 2>&1; then
+            echo "@general-liquidity/agent-disclosure@$V already published — skipping"
+          else
+            npm publish --access public
+          fi
+
+  pypi:
+    name: PyPI (agent-disclosure)
+    if: ${{ vars.PUBLISH_PYPI == 'true' }}
+    runs-on: ubuntu-latest
+    # A dedicated publishing environment (configure protection rules under
+    # Settings → Environments → pypi). Must match the PyPI trusted-publisher config.
+    environment: pypi
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build sdist + wheel
+        working-directory: python
+        run: |
+          python -m pip install --upgrade build
+          python -m build
+      # No password: the action authenticates to PyPI via OIDC (trusted publisher).
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: python/dist
+          # Re-runs of an already-published version are skipped (green), not failed.
+          skip-existing: true
+
+  crates:
+    name: crates.io (agent-disclosure)
+    if: ${{ vars.PUBLISH_CRATES == 'true' }}
+    runs-on: ubuntu-latest
+    environment: crates
+    steps:
+      - uses: actions/checkout@v4
+      # Exchanges the GitHub OIDC identity for a short-lived crates.io token.
+      - uses: rust-lang/crates-io-auth-action@v1
+        id: auth
+      - name: Build + test before publishing
+        working-directory: rust
+        run: cargo test --quiet
+      - name: Publish to crates.io (skip if version exists)
+        working-directory: rust
+        run: |
+          V=$(grep -m1 '^version' Cargo.toml | sed -E 's/.*"([^"]+)".*/\1/')
+          CODE=$(curl -s -o /dev/null -w "%{http_code}" -A "agent-disclosure-ci" "https://crates.io/api/v1/crates/agent-disclosure/$V")
+          if [ "$CODE" = "200" ]; then
+            echo "agent-disclosure $V already on crates.io — skipping"
+          else
+            cargo publish
+          fi
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
