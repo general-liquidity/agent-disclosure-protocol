@@ -19,6 +19,9 @@ export interface Challenge {
   issuedAt: string;
   /** optional: who issued it (binds the proof to a specific verifier exchange) */
   verifierId?: string;
+  /** optional: the disclosure-schema versions the verifier understands, advertised so
+   *  the agent can present a mutually-supported version (MCP-style negotiation). */
+  supportedVersions?: number[];
 }
 
 export interface ChallengeResponse {
@@ -27,7 +30,10 @@ export interface ChallengeResponse {
   /** the agent's audit-chain head at response time - proves history currency */
   auditHead: string;
   signedAt: string;
-  /** ed25519 signature over canonicalize({nonce, agentId, auditHead, signedAt, verifierId}) */
+  /** optional: the schema version of the disclosure this response presents. When set it
+   *  is SIGNED (so it can't be downgraded), and a verifier refuses an unsupported one. */
+  disclosureVersion?: number;
+  /** ed25519 signature over canonicalize({nonce, agentId, auditHead, signedAt, verifierId, disclosureVersion}) */
   signature: string;
 }
 
@@ -36,23 +42,43 @@ export function randomNonce(): string {
   return randomBytes(16).toString("hex");
 }
 
-export function createChallenge(now: string, opts: { nonce?: string; verifierId?: string } = {}): Challenge {
-  return { nonce: opts.nonce ?? randomNonce(), issuedAt: now, verifierId: opts.verifierId };
+export function createChallenge(
+  now: string,
+  opts: { nonce?: string; verifierId?: string; supportedVersions?: number[] } = {},
+): Challenge {
+  return { nonce: opts.nonce ?? randomNonce(), issuedAt: now, verifierId: opts.verifierId, supportedVersions: opts.supportedVersions };
 }
 
-/** Canonical bytes the response signs over - identical on both sides. */
+/** Canonical bytes the response signs over - identical on both sides. `disclosureVersion`
+ *  is included only when set; canonicalize drops `undefined`, so a response that declares
+ *  no version signs byte-identical bytes to the pre-negotiation form (backward-compatible). */
 function responseMessage(r: Omit<ChallengeResponse, "signature">, verifierId?: string): string {
-  return canonicalize({ nonce: r.nonce, agentId: r.agentId, auditHead: r.auditHead, signedAt: r.signedAt, verifierId });
+  return canonicalize({
+    nonce: r.nonce,
+    agentId: r.agentId,
+    auditHead: r.auditHead,
+    signedAt: r.signedAt,
+    verifierId,
+    disclosureVersion: r.disclosureVersion,
+  });
 }
 
-/** The agent answers a challenge: sign the nonce bound to the live audit head. */
+/** The agent answers a challenge: sign the nonce bound to the live audit head. Optionally
+ *  declares the disclosure-schema version it presents (signed, for version negotiation). */
 export function respondToChallenge(
   challenge: Challenge,
   key: AgentKeyPair,
   auditHead: string,
   now: string,
+  opts: { disclosureVersion?: number } = {},
 ): ChallengeResponse {
-  const body = { nonce: challenge.nonce, agentId: key.publicKeyHex, auditHead, signedAt: now };
+  const body = {
+    nonce: challenge.nonce,
+    agentId: key.publicKeyHex,
+    auditHead,
+    signedAt: now,
+    disclosureVersion: opts.disclosureVersion,
+  };
   return { ...body, signature: signMessage(responseMessage(body, challenge.verifierId), key) };
 }
 
@@ -69,6 +95,9 @@ export interface HandshakePolicy {
   /** clock + max age of the response (ms) for freshness (default 60s) */
   now?: string;
   maxAgeMs?: number;
+  /** the disclosure-schema versions this verifier understands. When set, a response that
+   *  declares a `disclosureVersion` outside this set is refused (version negotiation). */
+  supportedVersions?: number[];
 }
 
 /**
@@ -89,6 +118,17 @@ export function verifyChallengeResponse(
   }
   if (!verifyMessage(responseMessage(response, challenge.verifierId), response.agentId, response.signature)) {
     return { ok: false, reason: "challenge signature invalid (no live key possession)" };
+  }
+  // Version negotiation: a declared disclosure version (signed, above) outside the
+  // verifier's supported set is refused with an actionable reason. A response that
+  // declares no version is accepted (pre-negotiation peers stay interoperable).
+  if (policy.supportedVersions && response.disclosureVersion !== undefined) {
+    if (!policy.supportedVersions.includes(response.disclosureVersion)) {
+      return {
+        ok: false,
+        reason: `unsupported disclosure version ${response.disclosureVersion} (verifier supports ${policy.supportedVersions.join(", ")})`,
+      };
+    }
   }
   if (policy.now) {
     const age = Date.parse(policy.now) - Date.parse(response.signedAt);

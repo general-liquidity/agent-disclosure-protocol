@@ -53,3 +53,55 @@ test("a stale response is rejected", () => {
   assert.equal(check.ok, false);
   assert.match(check.reason ?? "", /stale/);
 });
+
+// ── Version negotiation ────────────────────────────────────────────────────────
+test("negotiation: a response declaring a supported version verifies", () => {
+  const key = generateAgentKeyPair();
+  const challenge = createChallenge(NOW, { nonce: "chal-1", supportedVersions: [1, 2] });
+  const response = respondToChallenge(challenge, key, HEAD, NOW, { disclosureVersion: 2 });
+  const check = verifyChallengeResponse(response, challenge, {
+    expectedAgentId: key.publicKeyHex,
+    now: NOW,
+    supportedVersions: [1, 2],
+  });
+  assert.equal(check.ok, true);
+});
+
+test("negotiation: a response declaring an unsupported version is refused", () => {
+  const key = generateAgentKeyPair();
+  const challenge = createChallenge(NOW, { nonce: "chal-1", supportedVersions: [1] });
+  const response = respondToChallenge(challenge, key, HEAD, NOW, { disclosureVersion: 9 });
+  const check = verifyChallengeResponse(response, challenge, {
+    expectedAgentId: key.publicKeyHex,
+    now: NOW,
+    supportedVersions: [1],
+  });
+  assert.equal(check.ok, false);
+  assert.match(check.reason ?? "", /unsupported disclosure version 9/);
+});
+
+test("negotiation: a response that declares no version stays interoperable (no constraint)", () => {
+  const key = generateAgentKeyPair();
+  const challenge = createChallenge(NOW, { nonce: "chal-1" });
+  const response = respondToChallenge(challenge, key, HEAD, NOW); // no disclosureVersion
+  const check = verifyChallengeResponse(response, challenge, {
+    expectedAgentId: key.publicKeyHex,
+    now: NOW,
+    supportedVersions: [1],
+  });
+  assert.equal(check.ok, true);
+});
+
+test("negotiation: the declared version is signed — tampering it breaks the signature", () => {
+  const key = generateAgentKeyPair();
+  const challenge = createChallenge(NOW, { nonce: "chal-1", supportedVersions: [1, 2] });
+  const response = respondToChallenge(challenge, key, HEAD, NOW, { disclosureVersion: 1 });
+  response.disclosureVersion = 2; // downgrade-attack: claim a different version post-signing
+  const check = verifyChallengeResponse(response, challenge, {
+    expectedAgentId: key.publicKeyHex,
+    now: NOW,
+    supportedVersions: [1, 2],
+  });
+  assert.equal(check.ok, false);
+  assert.match(check.reason ?? "", /signature invalid/);
+});

@@ -80,6 +80,23 @@ const cases: NegativeCase[] = [
   cases.push({ name: "tampered-field", raw: c });
 }
 
+// ── Signed-but-schema-invalid: the signature is VALID over these bytes, only the
+// schema is violated (a bad enum / literal). A verifier that leans on the signature
+// and skips structural validation would wrongly ACCEPT them — these cases force every
+// port to validate the field grammar, not just the ed25519 signature. SPEC §3.11.
+function signedWith(mutate: (d: AgentDisclosure) => void, name: string) {
+  const d = disclosure();
+  // deliberately violate the schema after constructing a valid base, then sign so the
+  // signature matches the (invalid) bytes.
+  mutate(d as AgentDisclosure);
+  cases.push({ name, raw: signDisclosure(d, key) });
+}
+signedWith((d) => ((d as unknown as { version: number }).version = 9999), "unsupported-version-value");
+signedWith((d) => ((d.capital as unknown as { custody: string }).custody = "escrow"), "bad-custody-enum");
+signedWith((d) => ((d.operator.attestation as unknown as { scheme: string }).scheme = "Unknown"), "bad-attestation-scheme");
+signedWith((d) => ((d.operator.attestation as unknown as { level: string }).level = "verified"), "bad-attestation-level");
+signedWith((d) => ((d.systemPrompt as unknown as { algorithm: string }).algorithm = "sha512"), "bad-systemprompt-algorithm");
+
 const out = {
   _comment:
     "MUST-REJECT corpus. A verifier given any of these MUST NOT return transact/accept and MUST NOT crash. `raw` is the value to feed the verifier; when isRawString is true, `raw` is a literal byte string (not valid JSON) the parser must reject. Regenerate: node --import tsx conformance/generate-negative.ts",

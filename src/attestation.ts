@@ -14,6 +14,9 @@ import {
   type KeyObject,
 } from "node:crypto";
 import type { AgentDisclosure, SignedDisclosure } from "./schema.ts";
+// Type-only (erased at runtime) so attestation stays the lowest layer: keys.ts
+// imports the shared body-builder below, this only borrows the shape. No runtime cycle.
+import type { RotationStatement } from "./keys.ts";
 
 // SPKI DER prefix for an ed25519 public key; prepended to the raw 32-byte key so
 // Node can import a bare hex public key (the interoperable on-wire form).
@@ -111,16 +114,57 @@ export interface SignatureCheck {
   reason?: string;
 }
 
+/** Canonical signed body of a key-rotation statement. Single source of truth shared
+ *  with keys.ts (which imports it) so the signing side and the chain-verifying side
+ *  here can never disagree on the bytes. */
+export function rotationStatementBody(from: string, to: string, rotatedAt: string): string {
+  return canonicalize({ type: "rotation", from, to, rotatedAt });
+}
+
+/** Defense: cap a rotation chain so a hostile envelope can't force unbounded work. */
+export const MAX_ROTATION_CHAIN = 32;
+
+/** Verify that a chain of signed rotation statements links the stable `agentId` to the
+ *  key that actually signed a disclosure (`signingKey`). Each hop's `from` must itself
+ *  sign the move to its `to`, the hops must be contiguous, acyclic, and end at the
+ *  signing key. This is what lets an identity survive key rotation: `agentId` stays
+ *  fixed while the signing key advances. */
+export function verifyRotationChain(
+  agentId: string,
+  signingKey: string,
+  chain: readonly RotationStatement[],
+): SignatureCheck {
+  if (chain.length === 0) return { ok: false, reason: "empty rotation chain" };
+  if (chain.length > MAX_ROTATION_CHAIN) return { ok: false, reason: "rotation chain exceeds maximum length" };
+  let cursor = agentId;
+  const seen = new Set<string>([agentId]);
+  for (const s of chain) {
+    if (s.from !== cursor) return { ok: false, reason: "rotation chain is not contiguous from agentId" };
+    if (!verifyMessage(rotationStatementBody(s.from, s.to, s.rotatedAt), s.from, s.signature)) {
+      return { ok: false, reason: "a rotation statement signature does not verify against its from key" };
+    }
+    if (seen.has(s.to)) return { ok: false, reason: "rotation chain contains a cycle" };
+    seen.add(s.to);
+    cursor = s.to;
+  }
+  if (cursor !== signingKey) return { ok: false, reason: "rotation chain does not end at the signing key" };
+  return { ok: true };
+}
+
 /** Verify the ed25519 signature over the disclosure. Pure; no policy applied here
  *  (see verify.ts for the counterparty decision). Also enforces the agentId↔key
- *  binding: a disclosure must be signed by the key it claims as its identity. */
+ *  binding: a disclosure must be signed by the key it claims as its identity — OR, when
+ *  the signing key differs (post-rotation), by a key a verified rotation chain links
+ *  back to `agentId`. The chain travels in the envelope (`rotationChain`) and is NOT in
+ *  the signed bytes; the agentId it roots at IS signed, so the binding can't be forged. */
 export function verifyDisclosureSignature(signed: SignedDisclosure): SignatureCheck {
-  if (signed.disclosure.agentId !== signed.signature.publicKey) {
-    return { ok: false, reason: "agentId does not match the signing public key" };
+  if (!verifyMessage(canonicalize(signed.disclosure), signed.signature.publicKey, signed.signature.value)) {
+    return { ok: false, reason: "signature mismatch" };
   }
-  return verifyMessage(canonicalize(signed.disclosure), signed.signature.publicKey, signed.signature.value)
-    ? { ok: true }
-    : { ok: false, reason: "signature mismatch" };
+  if (signed.disclosure.agentId === signed.signature.publicKey) return { ok: true };
+  const chain = signed.rotationChain;
+  if (!chain?.length) return { ok: false, reason: "agentId does not match the signing public key" };
+  return verifyRotationChain(signed.disclosure.agentId, signed.signature.publicKey, chain);
 }
 
 /** Freshness: a disclosure is valid only within [issuedAt, validUntil]. ISO-8601

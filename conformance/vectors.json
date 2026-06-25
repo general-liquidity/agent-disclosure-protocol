@@ -8,7 +8,9 @@
     { "input": "hi", "canonical": "\"hi\"" },
     { "input": 5, "canonical": "5" },
     { "input": true, "canonical": "true" },
-    { "input": null, "canonical": "null" }
+    { "input": null, "canonical": "null" },
+    { "_note": "Non-ASCII KEY sort is by UTF-16 code unit (RFC 8785 / JCS), NOT code point or UTF-8 byte: the emoji's lead surrogate D83D sorts BEFORE FB33. Reachable in-domain via constitution.parameters / provenance record keys. A port that sorts keys by Unicode code point (naive Python sorted) or UTF-8 byte (Go/Rust string <) produces the reverse order, and its signatures will not verify across stacks.", "input": { "😀": 1, "דּ": 2 }, "canonical": "{\"😀\":1,\"דּ\":2}" },
+    { "_note": "Decimal scalars (e.g. redTeam.score, mandate ratios) serialize per ECMAScript Number::toString, which JCS adopts. Integers and short decimals only — ADP carries no exponential-range doubles, so no Ryu corner cases are tested here.", "input": { "score": 87.5, "ratio": 0.5, "big": 1000000 }, "canonical": "{\"big\":1000000,\"ratio\":0.5,\"score\":87.5}" }
   ],
   "sha256": [
     { "input": "", "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855" },

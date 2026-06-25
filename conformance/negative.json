@@ -336,6 +336,261 @@
           "value": "6afe810e5112f832e5e219ca27e5d344c9f6ba4432f424a7e4710bb39ef996d93b859cea65f72dbdd5a6942c83d925e82da292558e9e8dc88234c0c8aaa6d504"
         }
       }
+    },
+    {
+      "name": "unsupported-version-value",
+      "raw": {
+        "disclosure": {
+          "version": 9999,
+          "disclosureId": "d",
+          "agentId": "ef4931f78822741b7eccd616712ff1367d308537828b083ea1326b9ba583cb9d",
+          "issuedAt": "2026-06-24T12:00:00.000Z",
+          "validUntil": "2026-06-24T13:00:00.000Z",
+          "nonce": "n",
+          "auditAnchor": "79bfb0e2ba76b9d447606ddbcc494834f05a4c11deb052e74b49ea307a3c5bcd",
+          "systemPrompt": {
+            "algorithm": "sha256",
+            "digest": "79bfb0e2ba76b9d447606ddbcc494834f05a4c11deb052e74b49ea307a3c5bcd"
+          },
+          "constitution": {
+            "hardConstraints": [],
+            "digest": "79bfb0e2ba76b9d447606ddbcc494834f05a4c11deb052e74b49ea307a3c5bcd",
+            "enforced": true
+          },
+          "tools": {
+            "tools": []
+          },
+          "capital": {
+            "mandates": [],
+            "custody": "non_custodial"
+          },
+          "operator": {
+            "operatorId": "op",
+            "attestation": {
+              "scheme": "none",
+              "level": "none"
+            },
+            "deniabilityBoundary": "x"
+          },
+          "history": {
+            "chainAnchor": "79bfb0e2ba76b9d447606ddbcc494834f05a4c11deb052e74b49ea307a3c5bcd",
+            "summary": {
+              "totalDecisions": 1,
+              "settledCount": 1,
+              "blockedCount": 0
+            }
+          }
+        },
+        "signature": {
+          "algorithm": "ed25519",
+          "publicKey": "ef4931f78822741b7eccd616712ff1367d308537828b083ea1326b9ba583cb9d",
+          "value": "41214a45c55a82431bf86414ca7d5ab5ca5e5d6fecf95af287e62a34644c6527e15119849219ecf5990fe2b695e641a531ec9a97c30eb8ddaf13568c2aa6c103"
+        }
+      }
+    },
+    {
+      "name": "bad-custody-enum",
+      "raw": {
+        "disclosure": {
+          "version": 1,
+          "disclosureId": "d",
+          "agentId": "ef4931f78822741b7eccd616712ff1367d308537828b083ea1326b9ba583cb9d",
+          "issuedAt": "2026-06-24T12:00:00.000Z",
+          "validUntil": "2026-06-24T13:00:00.000Z",
+          "nonce": "n",
+          "auditAnchor": "79bfb0e2ba76b9d447606ddbcc494834f05a4c11deb052e74b49ea307a3c5bcd",
+          "systemPrompt": {
+            "algorithm": "sha256",
+            "digest": "79bfb0e2ba76b9d447606ddbcc494834f05a4c11deb052e74b49ea307a3c5bcd"
+          },
+          "constitution": {
+            "hardConstraints": [],
+            "digest": "79bfb0e2ba76b9d447606ddbcc494834f05a4c11deb052e74b49ea307a3c5bcd",
+            "enforced": true
+          },
+          "tools": {
+            "tools": []
+          },
+          "capital": {
+            "mandates": [],
+            "custody": "escrow"
+          },
+          "operator": {
+            "operatorId": "op",
+            "attestation": {
+              "scheme": "none",
+              "level": "none"
+            },
+            "deniabilityBoundary": "x"
+          },
+          "history": {
+            "chainAnchor": "79bfb0e2ba76b9d447606ddbcc494834f05a4c11deb052e74b49ea307a3c5bcd",
+            "summary": {
+              "totalDecisions": 1,
+              "settledCount": 1,
+              "blockedCount": 0
+            }
+          }
+        },
+        "signature": {
+          "algorithm": "ed25519",
+          "publicKey": "ef4931f78822741b7eccd616712ff1367d308537828b083ea1326b9ba583cb9d",
+          "value": "a9a79a40332d37a6e6e9956198bf83b452990bacdb994f66fbbe0e27f91d4f871444ecc33fee4e200763eeacb4b0606791c9231d8c9eb30a374a54e67a9e010b"
+        }
+      }
+    },
+    {
+      "name": "bad-attestation-scheme",
+      "raw": {
+        "disclosure": {
+          "version": 1,
+          "disclosureId": "d",
+          "agentId": "ef4931f78822741b7eccd616712ff1367d308537828b083ea1326b9ba583cb9d",
+          "issuedAt": "2026-06-24T12:00:00.000Z",
+          "validUntil": "2026-06-24T13:00:00.000Z",
+          "nonce": "n",
+          "auditAnchor": "79bfb0e2ba76b9d447606ddbcc494834f05a4c11deb052e74b49ea307a3c5bcd",
+          "systemPrompt": {
+            "algorithm": "sha256",
+            "digest": "79bfb0e2ba76b9d447606ddbcc494834f05a4c11deb052e74b49ea307a3c5bcd"
+          },
+          "constitution": {
+            "hardConstraints": [],
+            "digest": "79bfb0e2ba76b9d447606ddbcc494834f05a4c11deb052e74b49ea307a3c5bcd",
+            "enforced": true
+          },
+          "tools": {
+            "tools": []
+          },
+          "capital": {
+            "mandates": [],
+            "custody": "non_custodial"
+          },
+          "operator": {
+            "operatorId": "op",
+            "attestation": {
+              "scheme": "Unknown",
+              "level": "none"
+            },
+            "deniabilityBoundary": "x"
+          },
+          "history": {
+            "chainAnchor": "79bfb0e2ba76b9d447606ddbcc494834f05a4c11deb052e74b49ea307a3c5bcd",
+            "summary": {
+              "totalDecisions": 1,
+              "settledCount": 1,
+              "blockedCount": 0
+            }
+          }
+        },
+        "signature": {
+          "algorithm": "ed25519",
+          "publicKey": "ef4931f78822741b7eccd616712ff1367d308537828b083ea1326b9ba583cb9d",
+          "value": "fb01c10c3048a97cff8241c0999a177985c3c04df7b949b7e0da09ff51d832757acb6ffc08d098273f321ac25d30c4461bd71e96ec8113c81653ff272eaa3200"
+        }
+      }
+    },
+    {
+      "name": "bad-attestation-level",
+      "raw": {
+        "disclosure": {
+          "version": 1,
+          "disclosureId": "d",
+          "agentId": "ef4931f78822741b7eccd616712ff1367d308537828b083ea1326b9ba583cb9d",
+          "issuedAt": "2026-06-24T12:00:00.000Z",
+          "validUntil": "2026-06-24T13:00:00.000Z",
+          "nonce": "n",
+          "auditAnchor": "79bfb0e2ba76b9d447606ddbcc494834f05a4c11deb052e74b49ea307a3c5bcd",
+          "systemPrompt": {
+            "algorithm": "sha256",
+            "digest": "79bfb0e2ba76b9d447606ddbcc494834f05a4c11deb052e74b49ea307a3c5bcd"
+          },
+          "constitution": {
+            "hardConstraints": [],
+            "digest": "79bfb0e2ba76b9d447606ddbcc494834f05a4c11deb052e74b49ea307a3c5bcd",
+            "enforced": true
+          },
+          "tools": {
+            "tools": []
+          },
+          "capital": {
+            "mandates": [],
+            "custody": "non_custodial"
+          },
+          "operator": {
+            "operatorId": "op",
+            "attestation": {
+              "scheme": "none",
+              "level": "verified"
+            },
+            "deniabilityBoundary": "x"
+          },
+          "history": {
+            "chainAnchor": "79bfb0e2ba76b9d447606ddbcc494834f05a4c11deb052e74b49ea307a3c5bcd",
+            "summary": {
+              "totalDecisions": 1,
+              "settledCount": 1,
+              "blockedCount": 0
+            }
+          }
+        },
+        "signature": {
+          "algorithm": "ed25519",
+          "publicKey": "ef4931f78822741b7eccd616712ff1367d308537828b083ea1326b9ba583cb9d",
+          "value": "0600ad297e8b6ce5b58f262647d1a453792037cd339f3fef7160b1d3a0a97672160551714fbb998328d0b7e6a7093232d8a735e4b000f47c793345aa8bc7c30e"
+        }
+      }
+    },
+    {
+      "name": "bad-systemprompt-algorithm",
+      "raw": {
+        "disclosure": {
+          "version": 1,
+          "disclosureId": "d",
+          "agentId": "ef4931f78822741b7eccd616712ff1367d308537828b083ea1326b9ba583cb9d",
+          "issuedAt": "2026-06-24T12:00:00.000Z",
+          "validUntil": "2026-06-24T13:00:00.000Z",
+          "nonce": "n",
+          "auditAnchor": "79bfb0e2ba76b9d447606ddbcc494834f05a4c11deb052e74b49ea307a3c5bcd",
+          "systemPrompt": {
+            "algorithm": "sha512",
+            "digest": "79bfb0e2ba76b9d447606ddbcc494834f05a4c11deb052e74b49ea307a3c5bcd"
+          },
+          "constitution": {
+            "hardConstraints": [],
+            "digest": "79bfb0e2ba76b9d447606ddbcc494834f05a4c11deb052e74b49ea307a3c5bcd",
+            "enforced": true
+          },
+          "tools": {
+            "tools": []
+          },
+          "capital": {
+            "mandates": [],
+            "custody": "non_custodial"
+          },
+          "operator": {
+            "operatorId": "op",
+            "attestation": {
+              "scheme": "none",
+              "level": "none"
+            },
+            "deniabilityBoundary": "x"
+          },
+          "history": {
+            "chainAnchor": "79bfb0e2ba76b9d447606ddbcc494834f05a4c11deb052e74b49ea307a3c5bcd",
+            "summary": {
+              "totalDecisions": 1,
+              "settledCount": 1,
+              "blockedCount": 0
+            }
+          }
+        },
+        "signature": {
+          "algorithm": "ed25519",
+          "publicKey": "ef4931f78822741b7eccd616712ff1367d308537828b083ea1326b9ba583cb9d",
+          "value": "995a439d8d6bcbbad2a48dd1b25311b9f04a050a5d1c66a984edcd414e6c9190ba69b74da7a0a03e22eede7f6f70c365ea282378c05197c04d1999bae6b8e70f"
+        }
+      }
     }
   ]
 }

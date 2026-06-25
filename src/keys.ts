@@ -8,8 +8,8 @@ import { z } from "zod";
 import {
   type AgentKeyPair,
   agentKeyFromPrivateHex,
-  canonicalize,
   exportAgentKey,
+  rotationStatementBody,
   signMessage,
   verifyMessage,
 } from "./attestation.ts";
@@ -63,10 +63,6 @@ export const RotationStatementSchema = z.object({
 
 export type RotationStatement = z.infer<typeof RotationStatementSchema>;
 
-function rotationBody(from: string, to: string, rotatedAt: string): string {
-  return canonicalize({ type: "rotation", from, to, rotatedAt });
-}
-
 /** Issue a rotation statement: the OLD key signs that identity moves to the new
  *  key. The new key never signs here; trust flows forward from the established
  *  identity. */
@@ -82,7 +78,7 @@ export function rotateKey(
     from,
     to,
     rotatedAt: now,
-    signature: signMessage(rotationBody(from, to, now), oldKey),
+    signature: signMessage(rotationStatementBody(from, to, now), oldKey),
   };
 }
 
@@ -94,7 +90,7 @@ export interface RotationCheck {
 /** Verify a rotation statement's signature against the `from` key. A valid result
  *  means the holder of the old identity authorized the move to `to`. */
 export function verifyRotation(statement: RotationStatement): RotationCheck {
-  const body = rotationBody(statement.from, statement.to, statement.rotatedAt);
+  const body = rotationStatementBody(statement.from, statement.to, statement.rotatedAt);
   return verifyMessage(body, statement.from, statement.signature)
     ? { ok: true }
     : { ok: false, reason: "rotation signature does not verify against the from key" };

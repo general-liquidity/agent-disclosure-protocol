@@ -64,17 +64,20 @@ function signedDisclosure(): { signed: SignedDisclosure; key: ReturnType<typeof 
   return { signed, key };
 }
 
-test("toVerifiableCredential -> verifyVerifiableCredential is ok", () => {
+test("toVerifiableCredential -> verifyVerifiableCredential is ok (VC 2.0 / DataIntegrityProof)", () => {
   const { signed } = signedDisclosure();
   const vc = toVerifiableCredential(signed);
 
-  assert.deepEqual(vc["@context"], [
-    "https://www.w3.org/2018/credentials/v1",
-    "https://w3id.org/security/suites/ed25519-2020/v1",
-  ]);
+  assert.deepEqual(vc["@context"], ["https://www.w3.org/ns/credentials/v2"]);
   assert.deepEqual(vc.type, ["VerifiableCredential", "AgentDisclosureCredential"]);
-  assert.equal(vc.proof.type, "Ed25519Signature2020");
-  assert.equal(vc.proof.proofValue, signed.signature.value);
+  assert.equal(vc.proof.type, "DataIntegrityProof");
+  assert.equal(vc.proof.cryptosuite, "adp-jcs-2024");
+  // VC 2.0 validity window replaces issuanceDate/expirationDate
+  assert.equal(vc.validFrom, signed.disclosure.issuedAt);
+  assert.equal(vc.validUntil, signed.disclosure.validUntil);
+  // proofValue is multibase base58btc (Data Integrity form), not raw hex
+  assert.ok(vc.proof.proofValue.startsWith("z"));
+  assert.notEqual(vc.proof.proofValue, signed.signature.value);
   assert.deepEqual(verifyVerifiableCredential(vc), { ok: true });
 });
 
@@ -88,17 +91,19 @@ test("issuer defaults to the agentId did:key and the subject id matches", () => 
   assert.ok(vc.proof.verificationMethod.startsWith(`${did}#`));
 });
 
-test("issuer / id / issuanceDate overrides are honored", () => {
+test("issuer / id / validFrom / validUntil overrides are honored", () => {
   const { signed } = signedDisclosure();
   const vc = toVerifiableCredential(signed, {
     issuer: "did:web:example.com",
     id: "urn:uuid:1234",
-    issuanceDate: "2026-06-24T00:00:00.000Z",
+    validFrom: "2026-06-24T00:00:00.000Z",
+    validUntil: "2026-06-30T00:00:00.000Z",
   });
 
   assert.equal(vc.issuer, "did:web:example.com");
   assert.equal(vc.id, "urn:uuid:1234");
-  assert.equal(vc.issuanceDate, "2026-06-24T00:00:00.000Z");
+  assert.equal(vc.validFrom, "2026-06-24T00:00:00.000Z");
+  assert.equal(vc.validUntil, "2026-06-30T00:00:00.000Z");
   // a custom issuer does not break proof verification (proof binds to the subject key)
   assert.deepEqual(verifyVerifiableCredential(vc), { ok: true });
 });

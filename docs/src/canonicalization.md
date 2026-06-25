@@ -6,6 +6,17 @@ whitespace or key order. Every implementation MUST reproduce the exact algorithm
 implementations that canonicalize identically produce verifiable signatures across vendor
 boundaries.
 
+ADP canonicalization is **RFC 8785 (JSON Canonicalization Scheme, JCS)** over ADP's value
+domain — sorted keys by UTF-16 code unit, ECMAScript `Number::toString` numbers, JSON
+string escaping, compact, UTF-8 — plus two profile rules JCS leaves to the caller because
+it canonicalizes already-parsed JSON while ADP canonicalizes in-memory documents:
+`undefined`-valued keys are dropped (an absent optional field ≡ one set to `undefined`;
+JSON `null` is kept), and the input must not contain `NaN`/`Infinity`. The
+**UTF-16 code-unit** key sort is normative: a supplementary-plane key (emoji, lead
+surrogate `D83D`) sorts before a BMP key like `U+FB33`. A port that sorts by code point or
+UTF-8 byte produces different bytes and its signatures will not verify cross-stack — the
+conformance vectors include a case that catches exactly this.
+
 ## The algorithm
 
 `canonicalize(value)` returns a string, defined recursively:

@@ -251,6 +251,26 @@ whitespace or key order. Every implementation MUST reproduce the exact algorithm
 implementations that canonicalize identically produce verifiable signatures across
 vendor boundaries.
 
+ADP canonicalization is **RFC 8785 (JSON Canonicalization Scheme, JCS)** over ADP's
+value domain: sorted object keys by UTF-16 code unit, ECMAScript `Number::toString`
+number formatting, JSON string escaping, no insignificant whitespace, UTF-8 output. For
+every value an ADP disclosure can carry, the algorithm below emits byte-identical output
+to a conformant JCS implementation. ADP adds two profile rules JCS does not legislate
+(it canonicalizes already-parsed JSON; ADP canonicalizes in-memory documents):
+
+- **`undefined`-valued object keys are dropped** (equivalent to never having been
+  present). An absent optional field and one set to `undefined` MUST canonicalize
+  identically. JSON `null` is NOT dropped.
+- **The input MUST NOT contain `NaN` or `Infinity`** (not representable in JSON).
+
+Implementers porting to another language MUST satisfy JCS exactly — in particular the
+**UTF-16 code-unit** key sort (NOT Unicode code point, NOT UTF-8 byte order: a
+supplementary-plane key such as an emoji sorts before a BMP key like `U+FB33` because its
+lead surrogate `D83D` is the smaller code unit) and ECMAScript number formatting. The
+conformance vectors in `conformance/vectors.json` include a non-ASCII key-sort case that
+a code-point- or byte-sorting port will fail. ADP carries no exponential-range doubles,
+so no Ryu/exotic-float corner is exercised; numeric fields are integers or short decimals.
+
 ### 4.1 Algorithm
 
 `canonicalize(value)` returns a string, defined recursively:

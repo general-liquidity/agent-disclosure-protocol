@@ -12,6 +12,7 @@
 // asymmetric signature so a counterparty can verify it without holding any secret.
 
 import { z } from "zod";
+import { RotationStatementSchema } from "./keys.ts";
 
 /** Bump on any breaking change to the disclosure structure. */
 export const DISCLOSURE_SCHEMA_VERSION = 1;
@@ -205,6 +206,11 @@ export const SignedDisclosureSchema = z.object({
     /** signature over the canonicalized disclosure (hex) */
     value: Hex,
   }),
+  /** Optional key-rotation chain linking the disclosure's stable `agentId` to the
+   *  `signature.publicKey` that actually signed, when they differ post-rotation. NOT
+   *  part of the signed bytes (it's verification metadata); the agentId it roots at is
+   *  signed, so the binding can't be forged. Absent for the common no-rotation case. */
+  rotationChain: z.array(RotationStatementSchema).optional(),
 });
 
 // ── Inferred types ───────────────────────────────────────────────────────────

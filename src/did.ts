@@ -67,6 +67,18 @@ function base58Decode(str: string): Uint8Array {
   return out;
 }
 
+/** Multibase base58btc encode (the 'z' prefix), the encoding W3C Data Integrity uses
+ *  for `proofValue` and `publicKeyMultibase`. */
+export function multibaseBase58btcEncode(bytes: Uint8Array): string {
+  return `z${base58Encode(bytes)}`;
+}
+
+/** Inverse of `multibaseBase58btcEncode`. Throws if the 'z' multibase prefix is absent. */
+export function multibaseBase58btcDecode(str: string): Uint8Array {
+  if (!str.startsWith("z")) throw new Error("not a base58btc multibase string (expected 'z' prefix)");
+  return base58Decode(str.slice(1));
+}
+
 function hexToBytes(hex: string): Uint8Array {
   if (hex.length % 2 !== 0) throw new Error("hex string must have an even length");
   const out = new Uint8Array(hex.length / 2);
