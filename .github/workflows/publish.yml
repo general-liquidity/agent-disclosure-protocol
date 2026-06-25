@@ -1,0 +1,40 @@
+name: publish
+
+# Publishes @general-liquidity/agent-disclosure to npm when a GitHub Release is
+# published. Uses npm Trusted Publishing (OIDC) — no NPM_TOKEN secret — and attaches
+# build provenance. See PUBLISHING.md for the one-time npm trusted-publisher setup and
+# the first-publish step.
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+  id-token: write # required for OIDC trusted publishing + provenance
+
+jobs:
+  npm:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          registry-url: "https://registry.npmjs.org"
+          cache: npm
+      # Trusted Publishing (OIDC) requires a recent npm.
+      - run: npm install -g npm@latest
+      - run: npm ci
+      - run: npm run build
+      - run: npm test
+      # Guard: package.json version MUST equal the release tag (v<version>).
+      - name: Verify version matches the release tag
+        run: |
+          PKG="$(node -p "require('./package.json').version")"
+          TAG="${GITHUB_REF_NAME#v}"
+          if [ "$PKG" != "$TAG" ]; then
+            echo "::error::package.json version ($PKG) does not match release tag ($TAG)"
+            exit 1
+          fi
+      - run: npm publish --provenance --access public
