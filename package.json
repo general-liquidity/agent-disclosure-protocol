@@ -75,6 +75,11 @@
   "optionalDependencies": {
     "@noble/curves": "^1.6.0",
     "@noble/hashes": "^1.5.0",
-    "viem": "^2.21.0"
+    "@sd-jwt/sd-jwt-vc": "^0.10.0",
+    "@selfxyz/core": "^1.0.0",
+    "did-resolver": "^4.1.0",
+    "jose": "^6.0.0",
+    "viem": "^2.21.0",
+    "web-did-resolver": "^2.0.27"
   }
 }

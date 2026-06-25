@@ -415,6 +415,154 @@ export function verifySdJwtVc(
   return { ok: true, claims, revealedFields, issuer: iss };
 }
 
+// ── optional: verify via @sd-jwt/sd-jwt-vc (standards-track library) ──────────
+//
+// The bespoke `verifySdJwtVc` above is the DEFAULT and the spec-of-record for ADP. But
+// SD-JWT-VC is the surface most prone to spec drift (combined serialization, digest
+// rules, KB-JWT binding all evolve with the draft). So this OPTIONAL path runs the same
+// presentation through the reference `@sd-jwt/sd-jwt-vc` verifier, wiring our EdDSA +
+// did:key key recovery in as its verifier/hasher callbacks. Same `VerifySdJwtVcResult`
+// shape; the bespoke implementation stays default. `@sd-jwt/sd-jwt-vc` is an OPTIONAL dep.
+
+const SD_JWT_HINT =
+  "verifying via the standards-track library needs @sd-jwt/sd-jwt-vc. " +
+  "Install it: `npm install @sd-jwt/sd-jwt-vc` (optional extra), or use `verifySdJwtVc` " +
+  "for the bespoke node:crypto path.";
+
+// The slice of @sd-jwt/sd-jwt-vc's SDJwtVcInstance we drive. Kept minimal so a mock can
+// satisfy it without the package installed.
+type SdJwtVerifierCb = (data: string, signature: string) => Promise<boolean> | boolean;
+type SdJwtHasherCb = (data: string | ArrayBuffer, alg: string) => Uint8Array | Promise<Uint8Array>;
+interface SdJwtVcModule {
+  SDJwtVcInstance: new (config: {
+    verifier: SdJwtVerifierCb;
+    hasher: SdJwtHasherCb;
+    hashAlg?: string;
+    kbVerifier?: SdJwtVerifierCb;
+  }) => {
+    verify: (
+      encoded: string,
+      requiredClaims?: string[],
+      requireKb?: boolean,
+    ) => Promise<{ payload: Record<string, unknown> }>;
+  };
+}
+
+let sdJwtVcLoader: () => Promise<SdJwtVcModule> = () =>
+  import("@sd-jwt/sd-jwt-vc") as unknown as Promise<SdJwtVcModule>;
+
+/** Test seam: inject a mock `@sd-jwt/sd-jwt-vc` module so the optional path is exercised
+ *  without installing it. */
+export function __setSdJwtVcLoader(loader: () => Promise<SdJwtVcModule>): void {
+  sdJwtVcLoader = loader;
+}
+
+// Recover the issuer key from the presentation's `iss` did:key, returning a JWS verifier
+// callback the library calls over `signingInput`/`signature`. The KB-JWT is verified
+// against the `cnf` holder JWK. Both reuse our EdDSA primitives — no jose, no @noble.
+function buildSdJwtVerifierCallbacks(presentation: string): {
+  verifier: SdJwtVerifierCb;
+  kbVerifier: SdJwtVerifierCb;
+} {
+  const issuerJwt = presentation.split("~")[0];
+  const payload = jwsDecode(issuerJwt).payload;
+  const issuerKeyHex = didKeyToAgentId(payload.iss as string);
+  const cnfKey = jwkToPublicKeyHex((payload.cnf as Record<string, unknown> | undefined)?.jwk);
+
+  const verifyWith = (keyHex: string | undefined): SdJwtVerifierCb => {
+    return (data: string, signature: string) => {
+      if (!keyHex) return false;
+      return jwsVerify(
+        { header: {}, payload: {}, signingInput: data, signature: Buffer.from(signature, "base64url") },
+        keyHex,
+      );
+    };
+  };
+  return { verifier: verifyWith(issuerKeyHex), kbVerifier: verifyWith(cnfKey) };
+}
+
+/** Verify an SD-JWT-VC presentation through the OPTIONAL `@sd-jwt/sd-jwt-vc` library,
+ *  returning the SAME `VerifySdJwtVcResult` as the bespoke `verifySdJwtVc`. The library
+ *  drives the combined-serialization parsing, digest matching, and KB-JWT binding; ADP
+ *  supplies the EdDSA verifier (issuer key from `iss` did:key, holder key from `cnf`) and
+ *  the sha-256 hasher. Throws an install hint if the optional dep is absent. */
+export async function verifySdJwtVcWithLib(
+  presentation: string,
+  opts: VerifySdJwtVcOptions = {},
+): Promise<VerifySdJwtVcResult> {
+  let mod: SdJwtVcModule;
+  try {
+    mod = await sdJwtVcLoader();
+  } catch {
+    throw new Error(SD_JWT_HINT);
+  }
+
+  let issuer: string | undefined;
+  let callbacks: { verifier: SdJwtVerifierCb; kbVerifier: SdJwtVerifierCb };
+  try {
+    issuer = jwsDecode(presentation.split("~")[0]).payload.iss as string;
+    callbacks = buildSdJwtVerifierCallbacks(presentation);
+  } catch (e) {
+    return { ok: false, reason: `issuer JWT decode failed: ${(e as Error).message}` };
+  }
+
+  const hasher: SdJwtHasherCb = (data, _alg) =>
+    new Uint8Array(
+      createHash("sha256")
+        .update(typeof data === "string" ? Buffer.from(data, "ascii") : Buffer.from(data))
+        .digest(),
+    );
+
+  const instance = new mod.SDJwtVcInstance({
+    verifier: callbacks.verifier,
+    kbVerifier: callbacks.kbVerifier,
+    hasher,
+    hashAlg: "sha-256",
+  });
+
+  const kbRequired = opts.aud !== undefined || opts.nonce !== undefined;
+  let claims: Record<string, unknown>;
+  try {
+    const verified = await instance.verify(presentation, undefined, kbRequired);
+    claims = verified.payload;
+  } catch (e) {
+    return { ok: false, reason: `sd-jwt library rejected: ${(e as Error).message}`, issuer };
+  }
+
+  if (opts.expectedVct && claims.vct !== opts.expectedVct) {
+    return { ok: false, reason: `vct mismatch: ${String(claims.vct)}`, issuer };
+  }
+  if (opts.now !== undefined && typeof claims.exp === "number" && claims.exp < opts.now) {
+    return { ok: false, reason: "credential expired", issuer };
+  }
+
+  // The library validates the KB-JWT signature + sd_hash binding, but the aud/nonce
+  // EXPECTATIONS are ADP policy — enforce them here against the trailing KB-JWT payload.
+  if (kbRequired) {
+    const lastSeg = presentation.split("~").pop() ?? "";
+    let kbPayload: Record<string, unknown> | undefined;
+    try {
+      kbPayload = jwsDecode(lastSeg).payload;
+    } catch {
+      return { ok: false, reason: "KB-JWT required (aud/nonce expected) but absent", issuer };
+    }
+    if (opts.aud !== undefined && kbPayload.aud !== opts.aud) {
+      return { ok: false, reason: "KB-JWT aud mismatch", issuer };
+    }
+    if (opts.nonce !== undefined && kbPayload.nonce !== opts.nonce) {
+      return { ok: false, reason: "KB-JWT nonce mismatch", issuer };
+    }
+  }
+
+  // The library returns the reconstructed claim set with disclosed fields spliced in. Mirror
+  // the bespoke result: strip SD machinery and report which redactable fields were revealed.
+  const out: Record<string, unknown> = { ...claims };
+  delete out._sd;
+  delete out._sd_alg;
+  const revealedFields = REDACTABLE_FIELDS.filter((f) => f in out);
+  return { ok: true, claims: out, revealedFields, issuer };
+}
+
 // ── internals ─────────────────────────────────────────────────────────────────
 
 /** Fisher–Yates in place; uses crypto randomness so digest ordering is unbiased. */
