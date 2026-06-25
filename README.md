@@ -152,7 +152,7 @@ ADP rides *above* the payment rails an agent settles on and composes *with* the 
 
 | Protocol | Relationship |
 |:--|:--|
-| <img height="14" align="top" src="https://cdn.simpleicons.org/google/4285F4" />&nbsp; **A2A (Agent2Agent)** | [A2A](https://a2a-protocol.org) (Linux Foundation) - the disclosure rides an Agent Card as a `capabilities.extensions[]` entry ([`src/a2a.ts`](src/a2a.ts)). A counterparty fetches the card at discovery, verifies the disclosure's ed25519 envelope (the trust root) - the card's own RFC 7515 `signatures[]` JWS is treated as origin tamper-evidence - and decides transact/refuse before the A2A task runs. |
+| <img height="14" align="top" src="assets/integrations/a2a.svg" />&nbsp; **A2A (Agent2Agent)** | [A2A](https://a2a-protocol.org) (Linux Foundation) - the disclosure rides an Agent Card as a `capabilities.extensions[]` entry ([`src/a2a.ts`](src/a2a.ts)). A counterparty fetches the card at discovery, verifies the disclosure's ed25519 envelope (the trust root) - the card's own RFC 7515 `signatures[]` JWS is treated as origin tamper-evidence - and decides transact/refuse before the A2A task runs. |
 
 #### Discovery transport
 
