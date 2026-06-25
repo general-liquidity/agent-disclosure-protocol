@@ -8,7 +8,8 @@
 *Agents are starting to transact with each other with no way to answer the first question of commerce: who am I dealing with, and what are they committed to? ADP is the disclosure an agent publishes **before** it transacts - so a counterparty can verify and decide before value moves, not after a loss.*
 
 [![CI](https://img.shields.io/github/actions/workflow/status/general-liquidity/agent-disclosure-protocol/ci.yml?style=flat-square&label=CI)](https://github.com/general-liquidity/agent-disclosure-protocol/actions)
-[![tests](https://img.shields.io/badge/tests-171%20passing-success?style=flat-square)](#develop)
+[![npm](https://img.shields.io/npm/v/@general-liquidity/agent-disclosure?style=flat-square&label=npm&logo=npm)](https://www.npmjs.com/package/@general-liquidity/agent-disclosure)
+[![tests](https://img.shields.io/badge/tests-229%20passing-success?style=flat-square)](#develop)
 [![conformance](https://img.shields.io/badge/conformance-vectors%20%2B%20fuzz%20%2B%20adversarial-success?style=flat-square)](#conformance)
 [![interop](https://img.shields.io/badge/interop-5%20stacks-success?style=flat-square)](#conformance)
 [![node](https://img.shields.io/badge/node-%E2%89%A520-5FA04E?style=flat-square&logo=nodedotjs&logoColor=white)](#develop)
@@ -99,12 +100,12 @@ counterparty                                          agent
 |:--|:--|
 | **1 · Fetch** | Resolve the counterparty's commitments from a well-known URI on its own origin. No registry, no directory, no out-of-band exchange. |
 | **2 · Evaluate** | `evaluateDisclosure` runs the verifier's `VerificationPolicy`. Signature + freshness are on by default; every other requirement (enforced constitution, required hard constraints, red-team grade, non-custodial, attestation level, history, audit anchor) is an opt-in field set to the verifier's risk appetite. |
-| **3 · Handshake** | A fresh-nonce challenge proves the counterparty holds the signing key *right now* and that its audit head is current - which a captured static document cannot. Defeats identity replay. |
+| **3 · Handshake** | A fresh-nonce challenge proves the counterparty holds the signing key *right now* and that its audit head is current - which a captured static document cannot. The response signs an **RFC 9421 (HTTP Message Signatures) signature base**, so a standard implementation reads the exact covered set + params. Defeats identity replay. |
 | **4 · Decide** | `transact` only when both legs pass. Cheap and deterministic, so it can run before every transaction (see the [economic-viability model](src/economics.ts)). |
 
 ## The disclosure document
 
-What an agent exposes. Each field group maps to a surface serious agent products already maintain, and each carries the threat it makes legible. `SignedDisclosure` wraps the document in an ed25519 envelope whose public key *is* the `agentId`.
+What an agent exposes. Each field group maps to a surface serious agent products already maintain, and each carries the threat it makes legible. `SignedDisclosure` wraps the document in an ed25519 envelope whose public key *is* the `agentId`. The same disclosure also serializes as a **flattened JWS (EdDSA) envelope** (`signDisclosureJws`) for JOSE-native stacks; `verifyAnyDisclosureSignature` accepts either shape, discriminated by structure, so both encodings share one signature path.
 
 | Field group | What it is | Threat it makes legible |
 |:--|:--|:--|
@@ -112,7 +113,7 @@ What an agent exposes. Each field group maps to a surface serious agent products
 | **Constitution** (`enforced`) | the hard deny-list + gate parameters; `enforced` = these rules ARE the running gate | a promise vs an enforced gate |
 | **Tool inventory** | tools + permission boundaries (gated · read-only · operator-only) | hidden capability / privilege |
 | **Capital envelope** | the mandate set - scoped, capped, expiring spend authority - and custody | unbounded spend |
-| **Operator identity** | who deployed it, the deniability boundary, the attestation level | an unaccountable operator |
+| **Operator identity** | who deployed it, the deniability boundary, the attestation level + scheme | an unaccountable operator |
 | **Deployment history** | a summary bound to a signed, hash-linked audit chain (`chainAnchor`) | history forgery |
 | **Red-team attestation** | a grade against a *public* adversarial corpus | self-grading on a private rubric |
 | *Model identity · provenance* (optional) | a declared model fingerprint; how each field was derived | model swap; claim-weighting |
@@ -120,6 +121,10 @@ What an agent exposes. Each field group maps to a surface serious agent products
 #### The load-bearing field: `enforced`
 
 When `enforced` is true, the disclosed constitution **is the gate actually running**, not a description of intent. In the OpenSolvency reference implementation it is populated directly from the live deny-list and gate config, and `enforcementEvidence` names the gate. A verifier that sets `requireEnforcedConstitution: true` refuses any counterparty whose constitution is merely declared. This is the difference between a disclosure and a promise: the rules are not prose a model can be talked out of, they are the function that decides whether value moves.
+
+#### Extending without a core edit
+
+The attestation `scheme` and the document-level `extensions` map are **open by reverse-domain id** (e.g. `com.visa.tap`): a new attestation scheme or vendor field is a namespace publication, not a core enum edit that forces a five-way re-port. A verifier acts only on extension keys it recognizes and ignores the rest, so the wire format stays forward-compatible across stacks.
 
 ## Where it fits
 
@@ -157,9 +162,10 @@ Canonicalization is the interoperability crux: the signed bytes must be byte-ide
 | **Differential fuzzer** ([`fuzz.json`](conformance/fuzz.json)) | 200 seeded-random values; all five stacks agree byte-for-byte. It already caught a real C-only divergence (embedded-NUL truncation). |
 | **Interop fixtures** ([`interop.json`](conformance/interop.json)) | TS-minted, ed25519-signed disclosures; native **verifiers** reproduce every verdict + handshake, and native **emitters** reproduce the signatures byte-for-byte (bidirectional interop, no shared secret). Plus redaction / revocation / transparency cases. |
 | **Adversarial corpus** ([`negative.json`](conformance/negative.json)) | A MUST-REJECT set (malformed, tampered, hostile input); every verifier rejects all of it and never crashes. It caught a real `signature.algorithm` check gap in two stacks. |
-| **Live cross-process** | A TS server serves a disclosure over a real socket; the TS, Go, and Python clients verify it against one live origin. |
+| **Live cross-process** | A TS server serves a disclosure over a real socket; the TS, Go, Python, and Rust clients verify it against one live origin. |
+| **Schema drift guard** ([`schema/`](schema/)) | The committed JSON-Schema artifacts are generated from the zod source (`npm run schema`); a drift test (TS [`schema-drift`](conformance/schema-drift.test.ts) + Go [`schema_sync_test`](go/schema_sync_test.go)) fails CI if an enum is edited without regenerating, keeping the schema and every port in sync. |
 
-[`SPEC.md`](SPEC.md) is the normative protocol; [`docs/`](docs/) is a browsable mdBook; the canonicalization + signed-bytes format is frozen (see the [stability guarantees](docs/src/stability.md)).
+[`SPEC.md`](SPEC.md) is the normative protocol and [`docs/drafts/draft-gl-adp-disclosure-00.md`](docs/drafts/draft-gl-adp-disclosure-00.md) is the IETF Internet-Draft; [`docs/`](docs/) is a browsable mdBook and [`RELEASING.md`](RELEASING.md) covers tokenless (OIDC trusted-publishing) releases; the canonicalization + signed-bytes format is frozen (see the [stability guarantees](docs/src/stability.md)).
 
 ```bash
 npm run conformance       # the TS conformance + fuzz + interop suite
@@ -172,13 +178,14 @@ The vendor-neutral core has **one runtime dependency** (`zod`); the ERC-8004 on-
 
 | Group | Modules |
 |:--|:--|
-| **Core** | [`schema`](src/schema.ts) (document + signed envelope), [`attestation`](src/attestation.ts) (ed25519, deterministic canonicalization, the `agentId`-to-key binding, freshness, recursion-depth guard), [`versioning`](src/versioning.ts) (schema version negotiation). |
+| **Core** | [`schema`](src/schema.ts) (document + both signed envelopes; namespaced attestation schemes + `extensions`), [`attestation`](src/attestation.ts) (ed25519, deterministic canonicalization, the `agentId`-to-key binding, freshness, recursion-depth guard, the v2 flattened-JWS `EdDSA` envelope), [`versioning`](src/versioning.ts) (schema version negotiation). |
 | **Verify** | [`verify`](src/verify.ts) + [`client`](src/client.ts) (the policy language, deterministic verdict, the over-the-wire loop), [`cache`](src/cache.ts) (tiered + validity-window), [`guard`](src/guard.ts) + [`mutual`](src/mutual.ts) (disclose-before-settle, both-sides verification), [`adapters`](src/adapters.ts) (a verify-before-pay tool for any framework), [`verifierService`](src/verifierService.ts) (verify-as-a-service HTTP). |
 | **Handshake** | [`handshake`](src/handshake.ts) (live nonce challenge-response, defeats identity replay). |
-| **Selective disclosure + ZK** | [`redaction`](src/redaction.ts) (salted-commitment field hiding), [`negotiate`](src/negotiate.ts) (reveal exactly what a policy needs), [`zk`](src/zk.ts) (equality backend) + [`zkRange`](src/zkRange.ts) (real Pedersen + bit-decomposition range proofs over secp256k1). |
+| **Selective disclosure + ZK** | [`redaction`](src/redaction.ts) (salted-commitment field hiding), [`negotiate`](src/negotiate.ts) (reveal exactly what a policy needs), [`zk`](src/zk.ts) (equality backend) + [`zkRange`](src/zkRange.ts) (real Pedersen + bit-decomposition range proofs over secp256k1), [`zkDisclosure`](src/zkDisclosure.ts) (attach + require range proofs about hidden attributes as a disclosure feature). |
 | **Revocation + transparency** | [`revocation`](src/revocation.ts) + [`revocationTransport`](src/revocationTransport.ts) (status list + fetch/honor over the wire), [`transparency`](src/transparency.ts) + [`transparencyTransport`](src/transparencyTransport.ts) + [`witness`](src/witness.ts) (CT-for-agents log, inclusion proofs, split-view monitor). |
-| **Identity (ERC-8004)** | [`erc8004`](src/erc8004.ts) (agent-to-wallet binding), [`erc8004Onchain`](src/erc8004Onchain.ts) (secp256k1 EIP-191 recovery), [`erc8004Registry`](src/erc8004Registry.ts) (viem registry read), [`modelAttestation`](src/modelAttestation.ts) (declared model fingerprint). |
-| **Discovery + ops** | [`discovery`](src/discovery.ts) (.well-known fetcher + agent directory), [`keys`](src/keys.ts) (rotation, keyring, files), [`monitor`](src/monitor.ts) (disclosure diffing + downgrade alarm), [`statusList`](src/statusList.ts) (W3C StatusList revocation), [`builder`](src/builder.ts) (a fluent disclosure builder), [`economics`](src/economics.ts) (which markets clear at verification cost C). |
+| **Identity (ERC-8004)** | [`erc8004`](src/erc8004.ts) (agent-to-wallet binding), [`erc8004Onchain`](src/erc8004Onchain.ts) (secp256k1 EIP-191 recovery), [`erc8004Registry`](src/erc8004Registry.ts) (viem registry read), [`erc8004Validation`](src/erc8004Validation.ts) (read on-chain `validationResponse` scores), [`modelAttestation`](src/modelAttestation.ts) (declared model fingerprint). |
+| **Standards bridges** | [`did`](src/did.ts) (the `agentId` as a `did:key` / `did:web`), [`vc`](src/vc.ts) (a disclosure as a W3C VC Data Model 2.0 with an ADP-namespaced `adp-jcs-2024` Data Integrity proof - same signature, no second trust root), [`sdjwtvc`](src/sdjwtvc.ts) (an SD-JWT-VC encoding that hides field *names* + count via decoy digests and binds a presentation to one verifier + nonce). |
+| **Discovery + ops** | [`discovery`](src/discovery.ts) (.well-known fetcher + agent directory), [`keys`](src/keys.ts) (keyring, key files, and a signed key-rotation statement - the old key signs the move to the new one, chaining identity across a key change), [`monitor`](src/monitor.ts) (disclosure diffing + downgrade alarm), [`statusList`](src/statusList.ts) (W3C StatusList revocation), [`builder`](src/builder.ts) (a fluent disclosure builder), [`economics`](src/economics.ts) (which markets clear at verification cost C). |
 | **CLI** | [`cli`](src/cli.ts) - `keygen` / `sign` / `verify-file` / `verify-url`. |
 | **Native implementations** | Verifiers + emitters in [`go/`](go/) · [`python/`](python/) · [`rust/`](rust/) · [`c/`](c/), each gated by the conformance contract. |
 
@@ -190,7 +197,7 @@ The OpenSolvency-specific half (the field *builders* that populate a disclosure 
 
 ```bash
 npm install
-npm test          # 171 TS tests across the protocol + every module
+npm test          # 229 TS tests across the protocol + every module
 npm run conformance # the conformance vectors + fuzz + interop suite
 npm run typecheck # tsc --noEmit, strict
 npm run build     # tsc -> dist
