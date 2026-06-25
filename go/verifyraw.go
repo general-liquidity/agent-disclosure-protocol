@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
+	"strconv"
 )
 
 // VerifyRaw is the adversarial entry point: it takes the raw bytes of an
@@ -47,15 +48,9 @@ func VerifyRawReason(raw string) (accepted bool, reason string) {
 var hexRe = regexp.MustCompile(`^[0-9a-fA-F]+$`)
 
 // reverseDomainRe matches a reverse-domain attestation-scheme id (e.g. "com.visa.tap"),
-// mirroring the TS ReverseDomain regex. At least one dot is required, so a bare word
-// ("Unknown") is not a valid namespace.
-var reverseDomainRe = regexp.MustCompile(`^[a-z0-9]+(\.[a-z0-9-]+)+$`)
-
-// knownAttestationSchemes is the closed set of attestation schemes; a value outside it
-// is valid only if it is a reverse-domain id (see AttestationScheme in src/schema.ts).
-var knownAttestationSchemes = map[string]bool{
-	"AIP": true, "VisaTAP": true, "ERC8004": true, "DID": true, "none": true,
-}
+// compiled from the named AttestationSchemeReverseDomainPattern (constraints.json).
+// At least one dot is required, so a bare word ("Unknown") is not a valid namespace.
+var reverseDomainRe = regexp.MustCompile(AttestationSchemeReverseDomainPattern)
 
 // decodeNumberAwareBytes decodes JSON bytes into a generic any with UseNumber() so
 // integers stay literal (5, not 5.0) for byte-exact canonicalization. Returns nil on a
@@ -141,14 +136,14 @@ func parseSignedDisclosureStrict(data []byte) (SignedDisclosure, error) {
 // before it can reach the signature stage. It does not re-list every optional
 // field; absent optionals are valid.
 func validateDisclosureShape(d map[string]any) error {
-	// version is the literal integer 1.
+	// version is the literal integer SchemaVersion.
 	switch v := d["version"].(type) {
 	case json.Number:
-		if v.String() != "1" {
-			return fmt.Errorf("version must be 1, got %s", v.String())
+		if v.String() != strconv.Itoa(SchemaVersion) {
+			return fmt.Errorf("version must be %d, got %s", SchemaVersion, v.String())
 		}
 	default:
-		return fmt.Errorf("version must be the integer 1")
+		return fmt.Errorf("version must be the integer %d", SchemaVersion)
 	}
 
 	for _, k := range []string{"disclosureId", "agentId", "issuedAt", "validUntil", "nonce"} {
@@ -187,15 +182,13 @@ func validateDisclosureShape(d map[string]any) error {
 // is a structural rejection.
 func validateEnums(d map[string]any) error {
 	systemPrompt := d["systemPrompt"].(map[string]any)
-	if alg, _ := systemPrompt["algorithm"].(string); alg != "sha256" {
-		return fmt.Errorf("systemPrompt.algorithm must be sha256, got %q", alg)
+	if alg, _ := systemPrompt["algorithm"].(string); alg != DigestAlgorithm {
+		return fmt.Errorf("systemPrompt.algorithm must be %s, got %q", DigestAlgorithm, alg)
 	}
 
 	capital := d["capital"].(map[string]any)
-	switch custody, _ := capital["custody"].(string); custody {
-	case "non_custodial", "custodial":
-	default:
-		return fmt.Errorf("capital.custody must be non_custodial or custodial, got %q", custody)
+	if custody, _ := capital["custody"].(string); !custodyModeSet[custody] {
+		return fmt.Errorf("capital.custody must be one of %v, got %q", CustodyModes, custody)
 	}
 
 	operator := d["operator"].(map[string]any)
@@ -204,13 +197,11 @@ func validateEnums(d map[string]any) error {
 		return fmt.Errorf("operator.attestation is missing or not an object")
 	}
 	scheme, _ := attestation["scheme"].(string)
-	if !knownAttestationSchemes[scheme] && !reverseDomainRe.MatchString(scheme) {
+	if !knownAttestationSchemeSet[scheme] && !reverseDomainRe.MatchString(scheme) {
 		return fmt.Errorf("operator.attestation.scheme must be a known value or a reverse-domain id, got %q", scheme)
 	}
-	switch level, _ := attestation["level"].(string); level {
-	case "none", "signed", "registry_attested":
-	default:
-		return fmt.Errorf("operator.attestation.level must be none, signed, or registry_attested, got %q", level)
+	if level, _ := attestation["level"].(string); !attestationLevelSet[level] {
+		return fmt.Errorf("operator.attestation.level must be one of %v, got %q", AttestationLevels, level)
 	}
 
 	return nil

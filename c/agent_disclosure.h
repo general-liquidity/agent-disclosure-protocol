@@ -47,6 +47,29 @@ bool adp_verify_disclosure_signature(const cJSON *signed_env, const char **reaso
  * `disclosure` is the inner disclosure object. */
 bool adp_is_fresh(const cJSON *disclosure, const char *now);
 
+/* ── Disclosure enum grammar (schema/constraints.json) ─────────────────────────
+ * The single cross-language source of the disclosure enum/literal grammar is the
+ * generated manifest schema/constraints.json (from src/schema.ts). These arrays are
+ * the C mirror of that manifest and are the value sets actually consumed by the
+ * validator below; conformance_test.c re-parses the manifest and asserts each array
+ * equals it, so a source-side enum change not mirrored here fails the suite.
+ * Each array is NULL-terminated. ADP_DIGEST_ALGORITHM / ADP_SCHEMA_VERSION /
+ * ADP_REVERSE_DOMAIN_PATTERN mirror the scalar manifest fields. */
+#define ADP_SCHEMA_VERSION 1
+#define ADP_DIGEST_ALGORITHM "sha256"
+#define ADP_REVERSE_DOMAIN_PATTERN "^[a-z0-9]+(\\.[a-z0-9-]+)+$"
+
+extern const char *const ADP_CUSTODY[];
+extern const char *const ADP_ATTESTATION_LEVEL[];
+extern const char *const ADP_ATTESTATION_SCHEME_KNOWN[];
+extern const char *const ADP_CONSTRAINT_KIND[];
+extern const char *const ADP_TOOL_ACCESS[];
+extern const char *const ADP_MANDATE_PERIOD[];
+extern const char *const ADP_RED_TEAM_GRADE[];
+
+/* True iff `value` is a member of the NUL-list-terminated set `set`. NULL-safe. */
+bool adp_in_set(const char *const *set, const char *value);
+
 /* ── Schema validation (SPEC.md §3) ────────────────────────────────────────────
  * Structural grammar check on a decoded disclosure object, mirroring the zod enums /
  * literals in src/schema.ts: version==1, capital.custody ∈ {non_custodial,custodial},

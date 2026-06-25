@@ -29,12 +29,14 @@ from agent_disclosure import (
     verify_inclusion_proof,
 )
 from agent_disclosure.verify import VerificationPolicy
+from agent_disclosure import verify as _verify
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 VECTORS = json.loads((ROOT / "conformance" / "vectors.json").read_text(encoding="utf-8"))
 INTEROP = json.loads((ROOT / "conformance" / "interop.json").read_text(encoding="utf-8"))
 FUZZ = json.loads((ROOT / "conformance" / "fuzz.json").read_text(encoding="utf-8"))
 NEGATIVE = json.loads((ROOT / "conformance" / "negative.json").read_text(encoding="utf-8"))
+CONSTRAINTS = json.loads((ROOT / "schema" / "constraints.json").read_text(encoding="utf-8"))
 
 
 class TestCanonicalization(unittest.TestCase):
@@ -247,6 +249,53 @@ class TestNegativeCorpus(unittest.TestCase):
         for case in NEGATIVE["cases"]:
             raw = case["raw"] if case.get("isRawString") else json.dumps(case["raw"])
             self.assertTrue(verify_raw(raw), msg=f"{case['name']}: not rejected (default policy)")
+
+
+class TestSchemaSync(unittest.TestCase):
+    """Pin the port's named enum constants to schema/constraints.json (the generated
+    cross-language source of the disclosure grammar). A source-side enum change that
+    isn't mirrored in verify.py fails here — drift can't pass silently."""
+
+    def test_scalar_literals(self):
+        self.assertEqual(_verify._VERSION, CONSTRAINTS["version"])
+        self.assertEqual(_verify._DIGEST_ALGORITHM, CONSTRAINTS["digestAlgorithm"])
+        self.assertEqual(
+            _verify._REVERSE_DOMAIN.pattern, CONSTRAINTS["attestationSchemeReverseDomainPattern"]
+        )
+
+    def test_closed_sets_match_manifest(self):
+        # frozenset constants: order-independent membership equality.
+        cases = {
+            "custody": _verify._CUSTODY,
+            "attestationSchemeKnown": _verify._KNOWN_ATTESTATION_SCHEMES,
+            "constraintKind": _verify._CONSTRAINT_KINDS,
+            "toolAccess": _verify._TOOL_ACCESS,
+            "mandatePeriod": _verify._MANDATE_PERIODS,
+        }
+        for key, const in cases.items():
+            self.assertEqual(set(const), set(CONSTRAINTS[key]), msg=key)
+
+    def test_ordered_sets_match_manifest(self):
+        # Tuple constants carry rank order; membership (not order) is the grammar contract.
+        self.assertEqual(set(_verify._ATTESTATION_LEVELS), set(CONSTRAINTS["attestationLevel"]))
+        self.assertEqual(set(_verify._RED_TEAM_GRADES), set(CONSTRAINTS["redTeamGrade"]))
+
+    def test_no_extra_or_missing_manifest_keys(self):
+        # Every manifest enum is pinned above — a NEW source enum must be wired in here.
+        pinned = {
+            "version",
+            "digestAlgorithm",
+            "attestationSchemeReverseDomainPattern",
+            "custody",
+            "attestationSchemeKnown",
+            "constraintKind",
+            "toolAccess",
+            "mandatePeriod",
+            "attestationLevel",
+            "redTeamGrade",
+        }
+        manifest_keys = {k for k in CONSTRAINTS if not k.startswith("_")}
+        self.assertEqual(manifest_keys, pinned)
 
 
 if __name__ == "__main__":

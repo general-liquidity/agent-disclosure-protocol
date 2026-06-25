@@ -338,9 +338,31 @@ static unsigned char *b64url_decode(const char *in, size_t inlen, size_t *outlen
     return out;
 }
 
+/* ── Disclosure enum grammar (mirror of schema/constraints.json) ───────────────
+ * Single source of truth lives in schema/constraints.json (generated from
+ * src/schema.ts). These NULL-terminated arrays are the C mirror; conformance_test.c
+ * asserts they equal the manifest, so a source-side change not mirrored here fails CI.
+ * They are the value sets consumed directly by adp_disclosure_schema_valid /
+ * adp_evaluate_disclosure below — no inline literal duplicates the grammar. */
+const char *const ADP_CUSTODY[] = {"non_custodial", "custodial", NULL};
+const char *const ADP_ATTESTATION_LEVEL[] = {"none", "signed", "registry_attested", NULL};
+const char *const ADP_ATTESTATION_SCHEME_KNOWN[] = {"AIP", "VisaTAP", "ERC8004", "DID", "none", NULL};
+const char *const ADP_CONSTRAINT_KIND[] = {"deny", "cap", "velocity", "rationale", "scope", "other", NULL};
+const char *const ADP_TOOL_ACCESS[] = {"gated", "read_only", "operator_only", NULL};
+const char *const ADP_MANDATE_PERIOD[] = {"day", "week", "month", NULL};
+const char *const ADP_RED_TEAM_GRADE[] = {"A", "B", "C", "D", "F", NULL};
+
+bool adp_in_set(const char *const *set, const char *value) {
+    if (!value) return false;
+    for (const char *const *p = set; *p; p++)
+        if (strcmp(*p, value) == 0) return true;
+    return false;
+}
+
 /* Reverse-domain id check: ^[a-z0-9]+(\.[a-z0-9-]+)+$ — at least one dot, each label
  * lowercase-alnum (hyphen allowed only in non-leading labels), matching ReverseDomain in
- * src/schema.ts. So "Unknown" (no dot, uppercase) fails; "com.visa.tap" passes. */
+ * src/schema.ts (ADP_REVERSE_DOMAIN_PATTERN). So "Unknown" (no dot, uppercase) fails;
+ * "com.visa.tap" passes. */
 static bool is_reverse_domain(const char *s) {
     if (!s || !*s) return false;
     size_t label_len = 0;
@@ -375,17 +397,15 @@ bool adp_disclosure_schema_valid(const cJSON *disclosure) {
     const cJSON *version = cJSON_GetObjectItemCaseSensitive(disclosure, "version");
     if (!cJSON_IsNumber(version) || version->valuedouble != 1.0) return false;
 
-    /* systemPrompt.algorithm: z.literal("sha256"). */
+    /* systemPrompt.algorithm: z.literal("sha256") (manifest digestAlgorithm). */
     const cJSON *sp = cJSON_GetObjectItemCaseSensitive(disclosure, "systemPrompt");
     const cJSON *sp_alg = cJSON_GetObjectItemCaseSensitive(sp, "algorithm");
-    if (!cJSON_IsString(sp_alg) || strcmp(sp_alg->valuestring, "sha256") != 0) return false;
+    if (!cJSON_IsString(sp_alg) || strcmp(sp_alg->valuestring, ADP_DIGEST_ALGORITHM) != 0) return false;
 
-    /* capital.custody: z.enum(["non_custodial","custodial"]). */
+    /* capital.custody: z.enum(["non_custodial","custodial"]) (manifest custody). */
     const cJSON *cap = cJSON_GetObjectItemCaseSensitive(disclosure, "capital");
     const cJSON *custody = cJSON_GetObjectItemCaseSensitive(cap, "custody");
-    if (!cJSON_IsString(custody) ||
-        (strcmp(custody->valuestring, "non_custodial") != 0 &&
-         strcmp(custody->valuestring, "custodial") != 0))
+    if (!cJSON_IsString(custody) || !adp_in_set(ADP_CUSTODY, custody->valuestring))
         return false;
 
     /* operator.attestation.scheme: known enum OR reverse-domain id. */
@@ -393,20 +413,13 @@ bool adp_disclosure_schema_valid(const cJSON *disclosure) {
     const cJSON *att = cJSON_GetObjectItemCaseSensitive(op, "attestation");
     const cJSON *scheme = cJSON_GetObjectItemCaseSensitive(att, "scheme");
     if (!cJSON_IsString(scheme)) return false;
-    {
-        const char *sv = scheme->valuestring;
-        int known = (strcmp(sv, "AIP") == 0 || strcmp(sv, "VisaTAP") == 0 ||
-                     strcmp(sv, "ERC8004") == 0 || strcmp(sv, "DID") == 0 ||
-                     strcmp(sv, "none") == 0);
-        if (!known && !is_reverse_domain(sv)) return false;
-    }
+    if (!adp_in_set(ADP_ATTESTATION_SCHEME_KNOWN, scheme->valuestring) &&
+        !is_reverse_domain(scheme->valuestring))
+        return false;
 
     /* operator.attestation.level: z.enum(["none","signed","registry_attested"]). */
     const cJSON *level = cJSON_GetObjectItemCaseSensitive(att, "level");
-    if (!cJSON_IsString(level) ||
-        (strcmp(level->valuestring, "none") != 0 &&
-         strcmp(level->valuestring, "signed") != 0 &&
-         strcmp(level->valuestring, "registry_attested") != 0))
+    if (!cJSON_IsString(level) || !adp_in_set(ADP_ATTESTATION_LEVEL, level->valuestring))
         return false;
 
     return true;
@@ -903,17 +916,22 @@ bool adp_verify_challenge_response(const cJSON *response,
 }
 
 /* ── policy evaluation (SPEC.md §8) ────────────────────────────────────────── */
-static const char *GRADES[] = {"F", "D", "C", "B", "A"}; /* rank = index */
+/* Ranks are derived from the manifest arrays so the grade/level value sets stay the
+ * single source. ADP_RED_TEAM_GRADE is best→worst (A..F): higher rank == better grade,
+ * so rank = (last index) - manifest index. ADP_ATTESTATION_LEVEL is weakest→strongest
+ * (none,signed,registry_attested): rank == manifest index. */
 static int grade_rank(const char *g) {
-    for (int i = 0; i < 5; i++)
-        if (g && strcmp(g, GRADES[i]) == 0) return i;
+    if (!g) return -1;
+    int n = 0;
+    while (ADP_RED_TEAM_GRADE[n]) n++;
+    for (int i = 0; i < n; i++)
+        if (strcmp(g, ADP_RED_TEAM_GRADE[i]) == 0) return (n - 1) - i;
     return -1;
 }
 static int attestation_rank(const char *l) {
     if (!l) return -1;
-    if (strcmp(l, "none") == 0) return 0;
-    if (strcmp(l, "signed") == 0) return 1;
-    if (strcmp(l, "registry_attested") == 0) return 2;
+    for (int i = 0; ADP_ATTESTATION_LEVEL[i]; i++)
+        if (strcmp(l, ADP_ATTESTATION_LEVEL[i]) == 0) return i;
     return -1;
 }
 
@@ -1051,7 +1069,7 @@ void adp_evaluate_disclosure(const cJSON *signed_env, const cJSON *policy, adp_v
         fs.checks_run++;
         const cJSON *cap = cJSON_GetObjectItemCaseSensitive(d, "capital");
         const cJSON *cust = cJSON_GetObjectItemCaseSensitive(cap, "custody");
-        if (!(cJSON_IsString(cust) && strcmp(cust->valuestring, "non_custodial") == 0))
+        if (!(cJSON_IsString(cust) && strcmp(cust->valuestring, ADP_CUSTODY[0]) == 0))
             fs_add(&fs, "nonCustodial");
     }
 

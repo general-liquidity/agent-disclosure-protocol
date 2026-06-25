@@ -541,6 +541,76 @@ static void run_negative(const cJSON *root) {
     total_fail += fail;
 }
 
+/* ── schema-constraints consistency (../schema/constraints.json) ────────────────
+ * The generated manifest schema/constraints.json (from src/schema.ts) is the single
+ * cross-language source of the disclosure enum grammar. Assert the C port's named
+ * value sets (agent_disclosure.h) equal the manifest, order-for-order, plus the
+ * scalar fields (version, digestAlgorithm, reverse-domain pattern). A source-side
+ * enum change not mirrored in the C arrays fails here. */
+static int set_equals_manifest(const cJSON *root, const char *key,
+                               const char *const *set) {
+    const cJSON *arr = cJSON_GetObjectItemCaseSensitive(root, key);
+    if (!cJSON_IsArray(arr)) {
+        printf("  [FAIL] constraints '%s': missing/not an array in manifest\n", key);
+        return 0;
+    }
+    int n = cJSON_GetArraySize(arr);
+    int cn = 0;
+    while (set[cn]) cn++;
+    if (cn != n) {
+        printf("  [FAIL] constraints '%s': C has %d values, manifest has %d\n", key, cn, n);
+        return 0;
+    }
+    for (int i = 0; i < n; i++) {
+        const cJSON *e = cJSON_GetArrayItem(arr, i);
+        if (!cJSON_IsString(e) || strcmp(e->valuestring, set[i]) != 0) {
+            printf("  [FAIL] constraints '%s'[%d]: C=\"%s\" manifest=\"%s\"\n", key, i,
+                   set[i], cJSON_IsString(e) ? e->valuestring : "(non-string)");
+            return 0;
+        }
+    }
+    return 1;
+}
+
+static int scalar_str_equals(const cJSON *root, const char *key, const char *want) {
+    const cJSON *v = cJSON_GetObjectItemCaseSensitive(root, key);
+    if (!(cJSON_IsString(v) && strcmp(v->valuestring, want) == 0)) {
+        printf("  [FAIL] constraints '%s': C=\"%s\" manifest=\"%s\"\n", key, want,
+               cJSON_IsString(v) ? v->valuestring : "(non-string)");
+        return 0;
+    }
+    return 1;
+}
+
+static void run_schema_constraints(const cJSON *root) {
+    int pass = 0, fail = 0;
+#define CHECK(expr) do { if (expr) pass++; else fail++; } while (0)
+
+    const cJSON *ver = cJSON_GetObjectItemCaseSensitive(root, "version");
+    if (cJSON_IsNumber(ver) && ver->valuedouble == (double)ADP_SCHEMA_VERSION) {
+        pass++;
+    } else {
+        fail++;
+        printf("  [FAIL] constraints 'version': C=%d manifest=%g\n", ADP_SCHEMA_VERSION,
+               cJSON_IsNumber(ver) ? ver->valuedouble : -1.0);
+    }
+    CHECK(scalar_str_equals(root, "digestAlgorithm", ADP_DIGEST_ALGORITHM));
+    CHECK(scalar_str_equals(root, "attestationSchemeReverseDomainPattern",
+                            ADP_REVERSE_DOMAIN_PATTERN));
+    CHECK(set_equals_manifest(root, "custody", ADP_CUSTODY));
+    CHECK(set_equals_manifest(root, "attestationLevel", ADP_ATTESTATION_LEVEL));
+    CHECK(set_equals_manifest(root, "attestationSchemeKnown", ADP_ATTESTATION_SCHEME_KNOWN));
+    CHECK(set_equals_manifest(root, "constraintKind", ADP_CONSTRAINT_KIND));
+    CHECK(set_equals_manifest(root, "toolAccess", ADP_TOOL_ACCESS));
+    CHECK(set_equals_manifest(root, "mandatePeriod", ADP_MANDATE_PERIOD));
+    CHECK(set_equals_manifest(root, "redTeamGrade", ADP_RED_TEAM_GRADE));
+
+#undef CHECK
+    printf("schema constraints: %d passed, %d failed\n", pass, fail);
+    total_pass += pass;
+    total_fail += fail;
+}
+
 int main(void) {
     if (sodium_init() < 0) {
         fprintf(stderr, "libsodium init failed\n");
@@ -551,23 +621,29 @@ int main(void) {
     char *interop_raw = read_file("../conformance/interop.json");
     char *fuzz_raw = read_file("../conformance/fuzz.json");
     char *negative_raw = read_file("../conformance/negative.json");
-    if (!vectors_raw || !interop_raw || !fuzz_raw || !negative_raw) {
+    /* manifest is the sibling schema/ dir, loaded with the same relative-path base
+     * as the conformance/ fixtures above. */
+    char *constraints_raw = read_file("../schema/constraints.json");
+    if (!vectors_raw || !interop_raw || !fuzz_raw || !negative_raw || !constraints_raw) {
         free(vectors_raw);
         free(interop_raw);
         free(fuzz_raw);
         free(negative_raw);
+        free(constraints_raw);
         return 2;
     }
     cJSON *vectors = cJSON_Parse(vectors_raw);
     cJSON *interop = cJSON_Parse(interop_raw);
     cJSON *fuzz = cJSON_Parse(fuzz_raw);
     cJSON *negative = cJSON_Parse(negative_raw);
-    if (!vectors || !interop || !fuzz || !negative) {
+    cJSON *constraints = cJSON_Parse(constraints_raw);
+    if (!vectors || !interop || !fuzz || !negative || !constraints) {
         fprintf(stderr, "failed to parse conformance JSON\n");
         return 2;
     }
 
     printf("=== ADP C conformance ===\n");
+    run_schema_constraints(constraints);
     run_canonicalization(vectors);
     run_fuzz(fuzz);
     run_sha256(vectors);
@@ -588,9 +664,11 @@ int main(void) {
     cJSON_Delete(interop);
     cJSON_Delete(fuzz);
     cJSON_Delete(negative);
+    cJSON_Delete(constraints);
     free(vectors_raw);
     free(interop_raw);
     free(fuzz_raw);
     free(negative_raw);
+    free(constraints_raw);
     return total_fail == 0 ? 0 : 1;
 }

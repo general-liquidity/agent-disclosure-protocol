@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "payload": {
+      "type": "string"
+    },
+    "protected": {
+      "type": "string"
+    },
+    "header": {
+      "type": "object",
+      "properties": {
+        "jwk": {
+          "type": "object",
+          "properties": {
+            "kty": {
+              "type": "string",
+              "const": "OKP"
+            },
+            "crv": {
+              "type": "string",
+              "const": "Ed25519"
+            },
+            "x": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kty",
+            "crv",
+            "x"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "jwk"
+      ],
+      "additionalProperties": false
+    },
+    "signature": {
+      "type": "string"
+    },
+    "rotationChain": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "rotation"
+          },
+          "from": {
+            "type": "string"
+          },
+          "to": {
+            "type": "string"
+          },
+          "rotatedAt": {
+            "type": "string",
+            "description": "ISO-8601 timestamp"
+          },
+          "signature": {
+            "type": "string",
+            "pattern": "^[0-9a-fA-F]+$"
+          }
+        },
+        "required": [
+          "type",
+          "from",
+          "to",
+          "rotatedAt",
+          "signature"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "payload",
+    "protected",
+    "header",
+    "signature"
+  ],
+  "additionalProperties": false
+}

@@ -1135,12 +1135,40 @@ fn require_bool(obj: &serde_json::Map<String, Value>, key: &str) -> Result<bool,
         .ok_or_else(|| format!("{key} is not a bool"))
 }
 
+// ── Disclosure enum grammar (mirror of schema/constraints.json) ───────────────
+// These named consts are the single Rust-side copy of the cross-language enum
+// grammar generated from `src/schema.ts` into `schema/constraints.json`. The
+// validator below uses them, and `constraints_manifest_matches_consts` (in the
+// test module) asserts each one equals the manifest value — so a source-side enum
+// change not mirrored here fails `cargo test`.
+
+/// `version` literal the disclosure document must carry.
+pub const DISCLOSURE_VERSION: u64 = 1;
+/// `digestAlgorithm` for every hex digest field.
+pub const DIGEST_ALGORITHM: &str = "sha256";
+/// `custody` modes (`capital.custody`).
+pub const CUSTODY_MODES: &[&str] = &["non_custodial", "custodial"];
+/// `attestationLevel` values (`operator.attestation.level`).
+pub const ATTESTATION_LEVELS: &[&str] = &["none", "signed", "registry_attested"];
+/// `attestationSchemeKnown` literals (`operator.attestation.scheme`, before the
+/// reverse-domain fallback).
+pub const KNOWN_ATTESTATION_SCHEMES: &[&str] = &["AIP", "VisaTAP", "ERC8004", "DID", "none"];
+/// `attestationSchemeReverseDomainPattern` — the fallback reverse-domain grammar.
+pub const ATTESTATION_SCHEME_REVERSE_DOMAIN_PATTERN: &str = "^[a-z0-9]+(\\.[a-z0-9-]+)+$";
+/// `constraintKind` values (`constitution.hardConstraints[].kind`).
+pub const CONSTRAINT_KINDS: &[&str] = &["deny", "cap", "velocity", "rationale", "scope", "other"];
+/// `toolAccess` levels (`tools.tools[].access`).
+pub const TOOL_ACCESS_LEVELS: &[&str] = &["gated", "read_only", "operator_only"];
+/// `mandatePeriod` values (`capital.mandates[].period`).
+pub const MANDATE_PERIODS: &[&str] = &["day", "week", "month"];
+/// `redTeamGrade` values (`redTeam.result.grade`), best-to-worst.
+pub const RED_TEAM_GRADES: &[&str] = &["A", "B", "C", "D", "F"];
+
 /// An operator attestation scheme is valid if it is a known literal OR a reverse-domain
 /// id. Mirrors the TS `AttestationScheme` union: `z.enum(KNOWN) | regex(ReverseDomain)`
 /// with `ReverseDomain = /^[a-z0-9]+(\.[a-z0-9-]+)+$/`.
 fn is_valid_attestation_scheme(s: &str) -> bool {
-    const KNOWN: [&str; 5] = ["AIP", "VisaTAP", "ERC8004", "DID", "none"];
-    KNOWN.contains(&s) || is_reverse_domain(s)
+    KNOWN_ATTESTATION_SCHEMES.contains(&s) || is_reverse_domain(s)
 }
 
 /// Match `^[a-z0-9]+(\.[a-z0-9-]+)+$`: a lowercase-alnum first label, then one or more
@@ -1173,7 +1201,7 @@ fn is_reverse_domain(s: &str) -> bool {
 /// literal. Optional fields are only type-checked when present. Returns `Err` on the
 /// first violation so an invalid disclosure can never be accepted.
 fn validate_disclosure(d: &serde_json::Map<String, Value>) -> Result<(), String> {
-    if d.get("version").and_then(Value::as_u64) != Some(1) {
+    if d.get("version").and_then(Value::as_u64) != Some(DISCLOSURE_VERSION) {
         return Err("version must be the integer literal 1".to_string());
     }
     require_str(d, "disclosureId")?;
@@ -1183,7 +1211,7 @@ fn validate_disclosure(d: &serde_json::Map<String, Value>) -> Result<(), String>
     require_str(d, "nonce")?;
 
     let system_prompt = require_object(d, "systemPrompt")?;
-    require_literal_str(system_prompt, "algorithm", "sha256")?;
+    require_literal_str(system_prompt, "algorithm", DIGEST_ALGORITHM)?;
     require_hex(system_prompt, "digest")?;
 
     let constitution = require_object(d, "constitution")?;
@@ -1197,7 +1225,7 @@ fn validate_disclosure(d: &serde_json::Map<String, Value>) -> Result<(), String>
     let capital = require_object(d, "capital")?;
     require_array(capital, "mandates")?;
     let custody = require_str(capital, "custody")?;
-    if custody != "non_custodial" && custody != "custodial" {
+    if !CUSTODY_MODES.contains(&custody) {
         return Err("capital.custody is not a valid enum value".to_string());
     }
 
@@ -1209,7 +1237,7 @@ fn validate_disclosure(d: &serde_json::Map<String, Value>) -> Result<(), String>
         return Err("operator.attestation.scheme is not a known value or reverse-domain id".to_string());
     }
     let level = require_str(attestation, "level")?;
-    if !matches!(level, "none" | "signed" | "registry_attested") {
+    if !ATTESTATION_LEVELS.contains(&level) {
         return Err("operator.attestation.level is not a valid enum value".to_string());
     }
     require_str(operator, "deniabilityBoundary")?;
@@ -1257,6 +1285,84 @@ mod tests {
             env!("CARGO_MANIFEST_DIR"),
             "/../conformance/fuzz.json"
         ))
+    }
+
+    fn constraints() -> Value {
+        load(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../schema/constraints.json"
+        ))
+    }
+
+    // schema/constraints.json (generated from src/schema.ts) is the single
+    // cross-language source of the disclosure enum grammar. Every named const this
+    // port validates against MUST equal the manifest value, so a source-side enum
+    // change not mirrored here fails CI rather than silently diverging.
+    #[test]
+    fn constraints_manifest_matches_consts() {
+        let c = constraints();
+
+        let arr = |key: &str| -> Vec<String> {
+            c[key]
+                .as_array()
+                .unwrap_or_else(|| panic!("constraints.json: {key} is not an array"))
+                .iter()
+                .map(|v| {
+                    v.as_str()
+                        .unwrap_or_else(|| panic!("constraints.json: {key} has a non-string member"))
+                        .to_string()
+                })
+                .collect()
+        };
+        let consts = |c: &[&str]| c.iter().map(|s| s.to_string()).collect::<Vec<String>>();
+
+        assert_eq!(
+            c["version"].as_u64(),
+            Some(DISCLOSURE_VERSION),
+            "version drift"
+        );
+        assert_eq!(
+            c["digestAlgorithm"].as_str(),
+            Some(DIGEST_ALGORITHM),
+            "digestAlgorithm drift"
+        );
+        assert_eq!(
+            c["attestationSchemeReverseDomainPattern"].as_str(),
+            Some(ATTESTATION_SCHEME_REVERSE_DOMAIN_PATTERN),
+            "attestationSchemeReverseDomainPattern drift"
+        );
+
+        assert_eq!(arr("custody"), consts(CUSTODY_MODES), "custody drift");
+        assert_eq!(
+            arr("attestationLevel"),
+            consts(ATTESTATION_LEVELS),
+            "attestationLevel drift"
+        );
+        assert_eq!(
+            arr("attestationSchemeKnown"),
+            consts(KNOWN_ATTESTATION_SCHEMES),
+            "attestationSchemeKnown drift"
+        );
+        assert_eq!(
+            arr("constraintKind"),
+            consts(CONSTRAINT_KINDS),
+            "constraintKind drift"
+        );
+        assert_eq!(
+            arr("toolAccess"),
+            consts(TOOL_ACCESS_LEVELS),
+            "toolAccess drift"
+        );
+        assert_eq!(
+            arr("mandatePeriod"),
+            consts(MANDATE_PERIODS),
+            "mandatePeriod drift"
+        );
+        assert_eq!(
+            arr("redTeamGrade"),
+            consts(RED_TEAM_GRADES),
+            "redTeamGrade drift"
+        );
     }
 
     // Replay the differential fuzz corpus produced by the TS reference

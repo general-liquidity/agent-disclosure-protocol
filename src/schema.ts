@@ -23,11 +23,28 @@ const Hex = z.string().regex(/^[0-9a-fA-F]+$/, "hex string");
 
 // Reverse-domain namespace id (e.g. "com.visa.tap"), the UCP/MCP-style extension key.
 // Requires at least one dot, so a bare unknown word ("Unknown") is NOT a valid namespace.
-const ReverseDomain = /^[a-z0-9]+(\.[a-z0-9-]+)+$/;
+// The pattern string is the single source (generators emit it verbatim); the regex derives.
+export const REVERSE_DOMAIN_PATTERN = "^[a-z0-9]+(\\.[a-z0-9-]+)+$";
+const ReverseDomain = new RegExp(REVERSE_DOMAIN_PATTERN);
+
+// ── Enum value sets — the SINGLE SOURCE of the schema grammar ─────────────────
+// Every enum/literal lives here once. The zod schemas below consume these consts, and
+// scripts/generate-schema.ts emits BOTH `schema/*.json` (JSON Schema 2020-12) AND the
+// per-language constant files (go/schema_gen.go, python/.../_schema_gen.py,
+// rust/src/schema_gen.rs, c/schema_gen.h) from the same values — so the field grammar is
+// defined once and never hand-copied into five languages. A drift test regenerates and
+// diffs, failing CI if the committed artifacts fall out of sync.
+export const DIGEST_ALGORITHM = "sha256" as const;
+export const CUSTODY_MODES = ["non_custodial", "custodial"] as const;
+export const ATTESTATION_LEVELS = ["none", "signed", "registry_attested"] as const;
+export const KNOWN_ATTESTATION_SCHEMES = ["AIP", "VisaTAP", "ERC8004", "DID", "none"] as const;
+export const CONSTRAINT_KINDS = ["deny", "cap", "velocity", "rationale", "scope", "other"] as const;
+export const TOOL_ACCESS_LEVELS = ["gated", "read_only", "operator_only"] as const;
+export const MANDATE_PERIODS = ["day", "week", "month"] as const;
+export const REDTEAM_GRADES = ["A", "B", "C", "D", "F"] as const;
 
 // Operator attestation scheme: a known value OR a third-party reverse-domain id, so a new
 // attestation scheme is a vendor-namespace publication, not a core enum edit + 5-way re-port.
-const KNOWN_ATTESTATION_SCHEMES = ["AIP", "VisaTAP", "ERC8004", "DID", "none"] as const;
 const AttestationScheme = z.union([
   z.enum(KNOWN_ATTESTATION_SCHEMES),
   z.string().regex(ReverseDomain, "attestation scheme must be a known value or a reverse-domain id"),
@@ -39,7 +56,7 @@ const AttestationScheme = z.union([
 // of a prompt-injection-mediated substitution (the disclosed prompt no longer
 // matches the running one).
 export const SystemPromptFingerprintSchema = z.object({
-  algorithm: z.literal("sha256"),
+  algorithm: z.literal(DIGEST_ALGORITHM),
   digest: Hex.describe("hash of the canonical system prompt"),
   promptVersion: z.string().optional(),
 });
@@ -53,7 +70,7 @@ export const HardConstraintSchema = z.object({
   id: z.string(),
   description: z.string(),
   /** what category of action it forbids/limits */
-  kind: z.enum(["deny", "cap", "velocity", "rationale", "scope", "other"]),
+  kind: z.enum(CONSTRAINT_KINDS),
 });
 
 export const ConstitutionSchema = z.object({
@@ -76,7 +93,7 @@ export const ToolSchema = z.object({
   description: z.string().optional(),
   /** gated = passes the governance gate; read_only = no value movement;
    *  operator_only = exists but is NOT reachable by the agent (operator controls) */
-  access: z.enum(["gated", "read_only", "operator_only"]),
+  access: z.enum(TOOL_ACCESS_LEVELS),
   movesValue: z.boolean(),
 });
 
@@ -95,7 +112,7 @@ export const MandateDisclosureSchema = z.object({
   currency: z.string(),
   perTxCapMinor: z.number().int().nonnegative(),
   perPeriodCapMinor: z.number().int().nonnegative(),
-  period: z.enum(["day", "week", "month"]),
+  period: z.enum(MANDATE_PERIODS),
   allowedRails: z.array(z.string()),
   expiresAt: Iso,
 });
@@ -104,7 +121,7 @@ export const CapitalEnvelopeSchema = z.object({
   mandates: z.array(MandateDisclosureSchema),
   /** aggregate ceiling across all mandates over the stated period, minor-units */
   aggregatePerPeriodCapMinor: z.number().int().nonnegative().optional(),
-  custody: z.enum(["non_custodial", "custodial"]),
+  custody: z.enum(CUSTODY_MODES),
   /** declared risk-classifier identity/version, if any */
   riskModel: z.object({ name: z.string(), version: z.string() }).optional(),
 });
@@ -115,7 +132,7 @@ export const OperatorIdentitySchema = z.object({
   operatorId: z.string(),
   attestation: z.object({
     scheme: AttestationScheme,
-    level: z.enum(["none", "signed", "registry_attested"]),
+    level: z.enum(ATTESTATION_LEVELS),
     evidence: z.string().optional(),
   }),
   /** explicit statement of what the operator is / is NOT accountable for —
@@ -146,7 +163,7 @@ export const DeploymentHistorySchema = z.object({
 export const RedTeamAttestationSchema = z.object({
   corpus: z.object({ name: z.string(), version: z.string() }),
   result: z.object({
-    grade: z.enum(["A", "B", "C", "D", "F"]),
+    grade: z.enum(REDTEAM_GRADES),
     score: z.number().min(0).max(100),
     passed: z.boolean(),
     hardFails: z.array(z.string()).default([]),
@@ -162,7 +179,7 @@ export const RedTeamAttestationSchema = z.object({
 // transact-time needs hardware (TEE) attestation - the honest open P2 item.
 export const ModelIdentitySchema = z.object({
   name: z.string(),
-  fingerprintAlgorithm: z.literal("sha256"),
+  fingerprintAlgorithm: z.literal(DIGEST_ALGORITHM),
   /** digest of a declared model identifier / weights manifest */
   digest: Hex,
 });

@@ -18,8 +18,25 @@ from .attestation import (
     is_fresh,
 )
 
-GRADE_RANK = {"A": 4, "B": 3, "C": 2, "D": 1, "F": 0}
-ATTESTATION_RANK = {"none": 0, "signed": 1, "registry_attested": 2}
+# Enum / literal closed sets, mirroring src/schema.ts (and its generated mirror
+# schema/constraints.json — test_schema_sync.py pins these to the manifest). Named
+# so a source-side grammar change that isn't reflected here fails conformance.
+_VERSION = 1
+_DIGEST_ALGORITHM = "sha256"
+_KNOWN_ATTESTATION_SCHEMES = frozenset({"AIP", "VisaTAP", "ERC8004", "DID", "none"})
+_ATTESTATION_LEVELS = ("none", "signed", "registry_attested")
+_CUSTODY = frozenset({"non_custodial", "custodial"})
+_CONSTRAINT_KINDS = frozenset({"deny", "cap", "velocity", "rationale", "scope", "other"})
+_TOOL_ACCESS = frozenset({"gated", "read_only", "operator_only"})
+_MANDATE_PERIODS = frozenset({"day", "week", "month"})
+_RED_TEAM_GRADES = ("F", "D", "C", "B", "A")  # worst → best; index is the rank
+# Reverse-domain namespace id (e.g. "com.visa.tap"): at least one dot, so a bare word
+# is NOT valid. Mirrors the `ReverseDomain` regex in schema.ts.
+_REVERSE_DOMAIN = re.compile(r"^[a-z0-9]+(\.[a-z0-9-]+)+$")
+
+# Ranks derived from the ordered closed sets so the single source is the enum tuple.
+GRADE_RANK = {grade: rank for rank, grade in enumerate(_RED_TEAM_GRADES)}
+ATTESTATION_RANK = {level: rank for rank, level in enumerate(_ATTESTATION_LEVELS)}
 
 
 @dataclass
@@ -243,24 +260,12 @@ def evaluate_raw(raw: str, policy: Optional[VerificationPolicy] = None) -> Verdi
         )
 
 
-# Enum / literal closed sets, mirroring src/schema.ts. A disclosure can carry a
-# valid ed25519 signature yet still be schema-INVALID (a malicious or buggy emitter
-# signed a document outside the schema); these must reject on schema grounds, so
-# the check runs in the structural path BEFORE the signature is consulted.
-_KNOWN_ATTESTATION_SCHEMES = frozenset({"AIP", "VisaTAP", "ERC8004", "DID", "none"})
-_ATTESTATION_LEVELS = frozenset({"none", "signed", "registry_attested"})
-_CUSTODY = frozenset({"non_custodial", "custodial"})
-# Reverse-domain namespace id (e.g. "com.visa.tap"): at least one dot, so a bare word
-# is NOT valid. Mirrors the `ReverseDomain` regex in schema.ts.
-_REVERSE_DOMAIN = re.compile(r"^[a-z0-9]+(\.[a-z0-9-]+)+$")
-
-
 def _validate_disclosure_schema(disclosure: dict) -> None:
     """Mirror the closed enums / literals of AgentDisclosureSchema (src/schema.ts).
     Raises ValueError on the first violation so `evaluate_raw` rejects without
     consulting the (possibly valid) signature."""
-    if disclosure.get("version") != 1:
-        raise ValueError("disclosure.version must be the literal 1")
+    if disclosure.get("version") != _VERSION:
+        raise ValueError(f"disclosure.version must be the literal {_VERSION}")
 
     custody = disclosure.get("capital", {}).get("custody")
     if custody not in _CUSTODY:
@@ -275,8 +280,8 @@ def _validate_disclosure_schema(disclosure: dict) -> None:
     if attestation.get("level") not in _ATTESTATION_LEVELS:
         raise ValueError(f"operator.attestation.level must be one of {sorted(_ATTESTATION_LEVELS)}")
 
-    if disclosure.get("systemPrompt", {}).get("algorithm") != "sha256":
-        raise ValueError("systemPrompt.algorithm must be the literal 'sha256'")
+    if disclosure.get("systemPrompt", {}).get("algorithm") != _DIGEST_ALGORITHM:
+        raise ValueError(f"systemPrompt.algorithm must be the literal '{_DIGEST_ALGORITHM}'")
 
 
 def _require_envelope_shape(signed: Any) -> None:

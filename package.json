@@ -53,6 +53,7 @@
     "prepublishOnly": "npm run build",
     "test": "node --import tsx --test \"test/**/*.test.ts\" \"examples/**/*.test.ts\"",
     "conformance": "node --import tsx --test \"conformance/*.test.ts\"",
+    "schema": "node --import tsx scripts/generate-schema.ts",
     "cli": "node --import tsx src/cli.ts",
     "typecheck": "tsc --noEmit",
     "lint": "biome lint",

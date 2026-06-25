@@ -1,0 +1,573 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "disclosure": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "type": "number",
+          "const": 1
+        },
+        "disclosureId": {
+          "type": "string"
+        },
+        "agentId": {
+          "type": "string"
+        },
+        "issuedAt": {
+          "type": "string",
+          "description": "ISO-8601 timestamp"
+        },
+        "validUntil": {
+          "type": "string",
+          "description": "ISO-8601 timestamp"
+        },
+        "nonce": {
+          "type": "string"
+        },
+        "auditAnchor": {
+          "type": "string",
+          "pattern": "^[0-9a-fA-F]+$"
+        },
+        "systemPrompt": {
+          "type": "object",
+          "properties": {
+            "algorithm": {
+              "type": "string",
+              "const": "sha256"
+            },
+            "digest": {
+              "type": "string",
+              "pattern": "^[0-9a-fA-F]+$",
+              "description": "hash of the canonical system prompt"
+            },
+            "promptVersion": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "algorithm",
+            "digest"
+          ],
+          "additionalProperties": false
+        },
+        "constitution": {
+          "type": "object",
+          "properties": {
+            "hardConstraints": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "deny",
+                      "cap",
+                      "velocity",
+                      "rationale",
+                      "scope",
+                      "other"
+                    ]
+                  }
+                },
+                "required": [
+                  "id",
+                  "description",
+                  "kind"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "parameters": {
+              "type": "object",
+              "propertyNames": {
+                "type": "string"
+              },
+              "additionalProperties": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "boolean"
+                  }
+                ]
+              }
+            },
+            "digest": {
+              "type": "string",
+              "pattern": "^[0-9a-fA-F]+$"
+            },
+            "enforced": {
+              "type": "boolean"
+            },
+            "enforcementEvidence": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "hardConstraints",
+            "digest",
+            "enforced"
+          ],
+          "additionalProperties": false
+        },
+        "tools": {
+          "type": "object",
+          "properties": {
+            "tools": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "access": {
+                    "type": "string",
+                    "enum": [
+                      "gated",
+                      "read_only",
+                      "operator_only"
+                    ]
+                  },
+                  "movesValue": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "name",
+                  "access",
+                  "movesValue"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "valuePath": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "tools"
+          ],
+          "additionalProperties": false
+        },
+        "capital": {
+          "type": "object",
+          "properties": {
+            "mandates": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "label": {
+                    "type": "string"
+                  },
+                  "scope": {
+                    "type": "string",
+                    "description": "what it can pay (class or allowlist, summarized)"
+                  },
+                  "currency": {
+                    "type": "string"
+                  },
+                  "perTxCapMinor": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "perPeriodCapMinor": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "period": {
+                    "type": "string",
+                    "enum": [
+                      "day",
+                      "week",
+                      "month"
+                    ]
+                  },
+                  "allowedRails": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "expiresAt": {
+                    "type": "string",
+                    "description": "ISO-8601 timestamp"
+                  }
+                },
+                "required": [
+                  "label",
+                  "scope",
+                  "currency",
+                  "perTxCapMinor",
+                  "perPeriodCapMinor",
+                  "period",
+                  "allowedRails",
+                  "expiresAt"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "aggregatePerPeriodCapMinor": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "custody": {
+              "type": "string",
+              "enum": [
+                "non_custodial",
+                "custodial"
+              ]
+            },
+            "riskModel": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "version": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "name",
+                "version"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "mandates",
+            "custody"
+          ],
+          "additionalProperties": false
+        },
+        "operator": {
+          "type": "object",
+          "properties": {
+            "operatorId": {
+              "type": "string"
+            },
+            "attestation": {
+              "type": "object",
+              "properties": {
+                "scheme": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "enum": [
+                        "AIP",
+                        "VisaTAP",
+                        "ERC8004",
+                        "DID",
+                        "none"
+                      ]
+                    },
+                    {
+                      "type": "string",
+                      "pattern": "^[a-z0-9]+(\\.[a-z0-9-]+)+$"
+                    }
+                  ]
+                },
+                "level": {
+                  "type": "string",
+                  "enum": [
+                    "none",
+                    "signed",
+                    "registry_attested"
+                  ]
+                },
+                "evidence": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "scheme",
+                "level"
+              ],
+              "additionalProperties": false
+            },
+            "deniabilityBoundary": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "operatorId",
+            "attestation",
+            "deniabilityBoundary"
+          ],
+          "additionalProperties": false
+        },
+        "history": {
+          "type": "object",
+          "properties": {
+            "chainAnchor": {
+              "type": "string",
+              "pattern": "^[0-9a-fA-F]+$"
+            },
+            "summary": {
+              "type": "object",
+              "properties": {
+                "totalDecisions": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "settledCount": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "blockedCount": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "firstSeen": {
+                  "type": "string",
+                  "description": "ISO-8601 timestamp"
+                },
+                "lastActive": {
+                  "type": "string",
+                  "description": "ISO-8601 timestamp"
+                }
+              },
+              "required": [
+                "totalDecisions",
+                "settledCount",
+                "blockedCount"
+              ],
+              "additionalProperties": false
+            },
+            "verificationHint": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "chainAnchor",
+            "summary"
+          ],
+          "additionalProperties": false
+        },
+        "redTeam": {
+          "type": "object",
+          "properties": {
+            "corpus": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "version": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "name",
+                "version"
+              ],
+              "additionalProperties": false
+            },
+            "result": {
+              "type": "object",
+              "properties": {
+                "grade": {
+                  "type": "string",
+                  "enum": [
+                    "A",
+                    "B",
+                    "C",
+                    "D",
+                    "F"
+                  ]
+                },
+                "score": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 100
+                },
+                "passed": {
+                  "type": "boolean"
+                },
+                "hardFails": {
+                  "default": [],
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              },
+              "required": [
+                "grade",
+                "score",
+                "passed",
+                "hardFails"
+              ],
+              "additionalProperties": false
+            },
+            "attestedAt": {
+              "type": "string",
+              "description": "ISO-8601 timestamp"
+            },
+            "attestationRef": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "corpus",
+            "result",
+            "attestedAt"
+          ],
+          "additionalProperties": false
+        },
+        "model": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "fingerprintAlgorithm": {
+              "type": "string",
+              "const": "sha256"
+            },
+            "digest": {
+              "type": "string",
+              "pattern": "^[0-9a-fA-F]+$"
+            }
+          },
+          "required": [
+            "name",
+            "fingerprintAlgorithm",
+            "digest"
+          ],
+          "additionalProperties": false
+        },
+        "provenance": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "derivedFrom": {
+                "type": "string"
+              },
+              "attestedBy": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "derivedFrom"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "extensions": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string",
+            "pattern": "^[a-z0-9]+(\\.[a-z0-9-]+)+$"
+          },
+          "additionalProperties": {}
+        }
+      },
+      "required": [
+        "version",
+        "disclosureId",
+        "agentId",
+        "issuedAt",
+        "validUntil",
+        "nonce",
+        "systemPrompt",
+        "constitution",
+        "tools",
+        "capital",
+        "operator",
+        "history"
+      ],
+      "additionalProperties": false
+    },
+    "signature": {
+      "type": "object",
+      "properties": {
+        "algorithm": {
+          "type": "string",
+          "const": "ed25519"
+        },
+        "publicKey": {
+          "type": "string",
+          "pattern": "^[0-9a-fA-F]+$"
+        },
+        "value": {
+          "type": "string",
+          "pattern": "^[0-9a-fA-F]+$"
+        }
+      },
+      "required": [
+        "algorithm",
+        "publicKey",
+        "value"
+      ],
+      "additionalProperties": false
+    },
+    "rotationChain": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "rotation"
+          },
+          "from": {
+            "type": "string"
+          },
+          "to": {
+            "type": "string"
+          },
+          "rotatedAt": {
+            "type": "string",
+            "description": "ISO-8601 timestamp"
+          },
+          "signature": {
+            "type": "string",
+            "pattern": "^[0-9a-fA-F]+$"
+          }
+        },
+        "required": [
+          "type",
+          "from",
+          "to",
+          "rotatedAt",
+          "signature"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "disclosure",
+    "signature"
+  ],
+  "additionalProperties": false
+}

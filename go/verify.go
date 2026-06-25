@@ -4,8 +4,29 @@ import (
 	"encoding/json"
 )
 
-var gradeRank = map[string]int{"A": 4, "B": 3, "C": 2, "D": 1, "F": 0}
-var attestationRank = map[string]int{"none": 0, "signed": 1, "registry_attested": 2}
+// gradeRank / attestationRank rank the ordered enum slices for comparison. They derive
+// from RedTeamGrades (best-to-worst) and AttestationLevels (weakest-to-strongest) so
+// the ranking keys cannot drift from constraints.json.
+var gradeRank = descRank(RedTeamGrades)
+var attestationRank = ascRank(AttestationLevels)
+
+// ascRank ranks an ordered slice weakest-to-strongest (index 0 = rank 0).
+func ascRank(xs []string) map[string]int {
+	m := make(map[string]int, len(xs))
+	for i, x := range xs {
+		m[x] = i
+	}
+	return m
+}
+
+// descRank ranks an ordered best-to-worst slice so the first element scores highest.
+func descRank(xs []string) map[string]int {
+	m := make(map[string]int, len(xs))
+	for i, x := range xs {
+		m[x] = len(xs) - 1 - i
+	}
+	return m
+}
 
 // mapAt returns the nested map[string]any at key k, or nil.
 func mapAt(m map[string]any, k string) map[string]any {
