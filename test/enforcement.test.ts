@@ -204,11 +204,39 @@ test("a different policy ⇒ a different hash (collision sanity)", () => {
 // sha256Hex(canonicalize(<normalized policy>)) — the exact recipe an OS agent reports.
 // This pins the byte contract both sides hash against.
 test("cross-check: computePolicyHash == sha256Hex(canonicalize(normalized policy))", () => {
+  // mirror production normalizePolicy: project mandates to the stable OS field set
+  // (drop volatile/extra fields, sort allowedRails) + project gateConfig/riskConfig.
+  const g = POLICY.gateConfig as Record<string, unknown>;
+  const r = POLICY.riskConfig as Record<string, unknown>;
   const normalized = {
-    mandates: [...POLICY.mandates].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)),
-    gateConfig: POLICY.gateConfig,
+    mandates: [...POLICY.mandates]
+      .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
+      .map((x) => {
+        const m = x as Record<string, unknown>;
+        return {
+          id: m.id,
+          scope: m.scope,
+          currency: m.currency,
+          allowedRails: Array.isArray(m.allowedRails) ? [...(m.allowedRails as unknown[])].sort() : m.allowedRails,
+          perTxCap: m.perTxCap,
+          perPeriodCap: m.perPeriodCap,
+          period: m.period,
+          expiresAt: m.expiresAt,
+          status: m.status,
+        };
+      }),
+    gateConfig: {
+      minRationaleChars: g.minRationaleChars,
+      velocityWindowMinutes: g.velocityWindowMinutes,
+      velocityMaxCount: g.velocityMaxCount,
+      anomalyMultiple: g.anomalyMultiple,
+    },
     denyRuleIds: [...POLICY.denyRuleIds].sort(),
-    riskConfig: POLICY.riskConfig,
+    riskConfig: {
+      velocityWindowMinutes: r.velocityWindowMinutes,
+      velocityMaxCount: r.velocityMaxCount,
+      anomalyMultiple: r.anomalyMultiple,
+    },
   };
   assert.equal(POLICY_HASH, sha256Hex(canonicalize(normalized)));
 });

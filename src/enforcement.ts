@@ -72,17 +72,43 @@ export const PoEAttestationSchema = z.object({
 export type PoEAttestation = z.infer<typeof PoEAttestationSchema>;
 
 // ── policyHash — byte-identical to OS's computePolicyHash ─────────────────────
-/** Normalize an EffectivePolicy to its canonical hashing form: mandates sorted by id,
- *  denyRuleIds sorted lexically. Object KEY order is handled by `canonicalize` (RFC 8785),
- *  so the only thing to pin here is ARRAY order — the one degree of freedom canonicalize
- *  preserves. OS performs the identical normalization, so both sides feed `canonicalize`
- *  the same logical object and get the same bytes. */
+/** Normalize an EffectivePolicy to its canonical hashing form. This MUST byte-match the
+ *  OpenSolvency emitter (`src/core/enforcement.ts` `computePolicyHash`): the emitter projects
+ *  each mandate to a STABLE field set (dropping volatile/extra fields like `grantedAt`) and
+ *  sorts `allowedRails`, and projects `gateConfig`/`riskConfig` to fixed fields — so unrelated
+ *  fields can never silently shift the binding. Object KEY order is handled by `canonicalize`
+ *  (RFC 8785); we pin ARRAY order (mandates by id, allowedRails, denyRuleIds) and the field
+ *  projection here. (Cross-repo-tested: identical digest to OS for the same EffectivePolicy.) */
 function normalizePolicy(policy: EffectivePolicy): EffectivePolicy {
+  const m = (x: Record<string, unknown>) => ({
+    id: x.id,
+    scope: x.scope,
+    currency: x.currency,
+    allowedRails: Array.isArray(x.allowedRails) ? [...(x.allowedRails as unknown[])].sort() : x.allowedRails,
+    perTxCap: x.perTxCap,
+    perPeriodCap: x.perPeriodCap,
+    period: x.period,
+    expiresAt: x.expiresAt,
+    status: x.status,
+  });
+  const g = policy.gateConfig as Record<string, unknown>;
+  const r = policy.riskConfig as Record<string, unknown>;
   return {
-    mandates: [...policy.mandates].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)),
-    gateConfig: policy.gateConfig,
+    mandates: [...policy.mandates]
+      .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
+      .map((x) => m(x as Record<string, unknown>)) as EffectivePolicy["mandates"],
+    gateConfig: {
+      minRationaleChars: g.minRationaleChars,
+      velocityWindowMinutes: g.velocityWindowMinutes,
+      velocityMaxCount: g.velocityMaxCount,
+      anomalyMultiple: g.anomalyMultiple,
+    },
     denyRuleIds: [...policy.denyRuleIds].sort(),
-    riskConfig: policy.riskConfig,
+    riskConfig: {
+      velocityWindowMinutes: r.velocityWindowMinutes,
+      velocityMaxCount: r.velocityMaxCount,
+      anomalyMultiple: r.anomalyMultiple,
+    },
   };
 }
 
@@ -113,9 +139,26 @@ const DisclosedEnforcementSchema = z.object({
  *  independent disclosed hash and binding can't be asserted from the disclosure. */
 function disclosedPolicyHash(disclosure: AgentDisclosure): string | undefined {
   const raw = disclosure.extensions?.[ENFORCEMENT_EXTENSION_KEY];
-  if (raw === undefined) return undefined;
-  const parsed = DisclosedEnforcementSchema.safeParse(raw);
-  return parsed.success ? parsed.data.policyHash : undefined;
+  if (raw !== undefined) {
+    const parsed = DisclosedEnforcementSchema.safeParse(raw);
+    if (parsed.success) return parsed.data.policyHash;
+  }
+  // Fallback: the OpenSolvency builder carries the binding in the schema-stable
+  // `constitution.enforcementEvidence` string (a nested `enforcement` object is stripped
+  // by the frozen ConstitutionSchema), encoded as "…; poe=<json>". Recover it.
+  const ev = (disclosure.constitution as { enforcementEvidence?: unknown } | undefined)?.enforcementEvidence;
+  if (typeof ev === "string") {
+    const at = ev.indexOf("poe=");
+    if (at >= 0) {
+      try {
+        const obj = JSON.parse(ev.slice(at + 4)) as { policyHash?: unknown };
+        if (typeof obj.policyHash === "string") return obj.policyHash;
+      } catch {
+        /* malformed evidence → no disclosed hash */
+      }
+    }
+  }
+  return undefined;
 }
 
 // ── verifyEnforcement — the falsifiable verifier ─────────────────────────────
