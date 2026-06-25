@@ -159,7 +159,18 @@ The secp256k1 recovery is the optional `@noble` extra (lazy import, the same pat
 of the on-chain surface); minting and parsing are pure, and the registry tier is an injected seam
 — ADP bundles no chain client.
 
-## Self / proof-of-personhood (`src/self.ts`)
+## Proof-of-personhood attestation schemes
+
+Three schemes recognize a **human** (or a unique human, or a humanity-reputation score)
+behind the operator, recorded in a disclosure's `operator.attestation` field. None is locally
+verifiable dep-free — each delegates the heavy half (a ZK proof check, an on-chain read, an
+API/EAS score fetch) to an **injected seam** while ADP does the **structural** validation and
+the level mapping. Each maps to a **reverse-domain** scheme id because the attestation
+`scheme` enum in `schema.ts` is frozen — they are recognized through the schema's open
+reverse-domain arm, **not** a core enum edit: Self → `xyz.self`, World ID → `org.world`,
+Human Passport → `tech.human.passport`.
+
+### Self / proof-of-personhood (`src/self.ts`)
 
 [Self](https://self.xyz) (self.xyz) proves a real human is behind an identity with a
 zero-knowledge proof over a government passport/ID (NFC read + zk-SNARK), disclosing only
@@ -188,6 +199,52 @@ nullifier and disclosed attributes are returned.
 off-chain result is `signed`, a failure is `none`. The scheme is the reverse-domain
 `xyz.self` (`SELF_ATTESTATION_SCHEME`) — the attestation `scheme` enum in `schema.ts` is frozen,
 so Self is recognized through the schema's open reverse-domain arm, **not** a core enum edit.
+
+### World ID / proof-of-personhood (`src/worldid.ts`)
+
+[World ID](https://world.org) (Worldcoin) proves a **unique human** is behind an action with a
+Groth16 zero-knowledge proof over a Semaphore membership tree: the person's World ID is a leaf,
+the proof shows membership without revealing which leaf, and a per-(person, action)
+`nullifier_hash` makes a second submission for the same action detectable (the sybil key)
+without linking it to identity. The `verification_level` grades credential strength: `orb` (an
+iris-scanned unique-human credential), `device`, `secure_document`, `document`.
+
+Full verification is a Groth16 proof check against a live merkle root — the Developer Portal
+`/verify` call or the on-chain **World ID Router** — **not** locally checkable dep-free. So this
+bridge does **structural** validation (`validateWorldIdStructural`: the `WorldID` scheme, an
+`app_`-prefixed `app_id`, a non-empty `action`, hex `nullifier_hash` / `merkle_root` / `proof`,
+and a known `verification_level`) plus an **injected verifier seam**.
+
+`verifyWorldId(att, opts?)` returns `{ structural, valid, nullifier?, reason? }`. **Without** a
+verifier the result is `{ structural: true, valid: false, nullifier }` — crypto-pending, fully
+representable, it does **not** throw, and the nullifier is surfaced so a consumer can do sybil
+bookkeeping on the structurally-valid claim. **With** `opts.verifier` (the consumer wiring the
+`/verify` call or the on-chain router), its `valid` is the answer and its `nullifier` is surfaced.
+`worldIdToOperatorAttestation` maps a verified `orb` proof to `registry_attested` (the anchored
+unique-human credential) and any other verified level to `signed`; a non-verified proof is `none`.
+The scheme is the reverse-domain `org.world` (`WORLDID_ATTESTATION_SCHEME`).
+
+### Human Passport / humanity score (`src/humanpassport.ts`)
+
+[Human Passport](https://passport.human.tech) (formerly Gitcoin Passport) aggregates many
+identity **stamps** — each a verified credential — into a single **Unique Humanity Score**. A
+score at or above a chosen threshold (the canonical default is **20**, `HUMAN_THRESHOLD`) marks
+an address as *passing* / likely-unique; each stamp carries a weight and a `dedup` flag. The
+score is fetched from the Passport API (an `X-API-KEY` call) or read on-chain via EAS — **not** a
+local computation. **Gotcha:** the API returns `score` / `threshold` as numeric **strings**; this
+module stores them as **numbers**, and the consumer's injected scorer is the boundary that parses
+them.
+
+`verifyPassportAttestation(att, opts?)` does structural validation (`validatePassportAttestation`:
+the `HumanPassport` scheme, a `0x`+40-hex `address`, finite `score` / `threshold` when present)
+always. **With** `opts.scorer` it fetches the live score and recomputes `passing` against the
+threshold; **without** one it falls back to the embedded `score` / `passing` — representable, it
+does **not** throw. `passportToAdpLevel(score, threshold)` bands the score: `>= 1.5×` the
+threshold is `high`, `>= 1×` is `medium`, a present-but-below score is `low`, and an absent score
+is `unverified`. `passportToOperatorAttestation` maps a passing attestation to `signed` (a
+reputation attestation, not a registry record) with the band + score as `evidence`, and a
+non-passing one to `none`. The scheme is the reverse-domain `tech.human.passport`
+(`HUMANPASSPORT_ATTESTATION_SCHEME`).
 
 ## Other ecosystem standards (no new code)
 

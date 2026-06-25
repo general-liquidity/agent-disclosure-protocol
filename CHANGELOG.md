@@ -9,6 +9,36 @@ The interoperability contract (the canonicalization algorithm and the signed
 disclosure-document bytes) is frozen at v1.0; see [Stability guarantees](docs/src/stability.md)
 for what may and may not change without a version bump.
 
+## [Unreleased]
+
+### Added
+
+- **World ID (Worldcoin) attestation scheme** (`src/worldid.ts`). Recognizes World ID —
+  proof-of-*unique*-personhood via a Groth16 ZK proof over a Semaphore membership tree — as an
+  operator-attestation scheme without a chain client. ADP does STRUCTURAL validation of the
+  proof shape (`validateWorldIdStructural`: an `app_`-prefixed `app_id`, a non-empty `action`,
+  hex `nullifier_hash` / `merkle_root` / `proof`, a known `verification_level`) and delegates the
+  heavy Groth16 check (the Developer Portal `/verify` call or the on-chain World ID Router) to an
+  injected `verifier` seam. `verifyWorldId` is crypto-pending without a verifier
+  (`{ structural: true, valid: false, nullifier }`, surfacing the sybil-key nullifier — it does
+  not throw). `worldIdToOperatorAttestation` maps a verified `orb` proof to `registry_attested`
+  and any other level to `signed`, under the reverse-domain scheme `org.world`
+  (`WORLDID_ATTESTATION_SCHEME`) — the frozen attestation `scheme` enum in `schema.ts` is
+  untouched. No new runtime dependency.
+- **Human Passport (Gitcoin) attestation scheme** (`src/humanpassport.ts`). Recognizes Human
+  Passport — a Unique Humanity Score aggregated from identity stamps — as an operator-attestation
+  scheme. ADP does STRUCTURAL validation (`validatePassportAttestation`: a `0x`+40-hex address,
+  finite `score` / `threshold`) and delegates the score lookup (the Passport API `X-API-KEY` call
+  or an EAS on-chain read) to an injected `scorer` seam — also the boundary that parses the API's
+  numeric-STRING `score` / `threshold` into numbers. `verifyPassportAttestation` recomputes
+  `passing` against the threshold (default `HUMAN_THRESHOLD` = 20); `passportToAdpLevel` bands the
+  score (`>= 1.5×` → high, `>= 1×` → medium, below → low, absent → unverified);
+  `passportToOperatorAttestation` maps a passing score to `signed` under the reverse-domain scheme
+  `tech.human.passport` (`HUMANPASSPORT_ATTESTATION_SCHEME`) — the frozen `scheme` enum is
+  untouched. No new runtime dependency.
+
+---
+
 ## [0.1.3] - 2026-06-25
 
 ### Added

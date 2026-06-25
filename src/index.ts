@@ -121,3 +121,11 @@ export * from "./siwa.ts";
 // Self (self.xyz) attestation scheme - ZK proof-of-personhood as an operator attestation
 // (structural validation + an injected ZK/onchain verifier seam; the OFAC flag is inverted).
 export * from "./self.ts";
+
+// World ID (Worldcoin) attestation scheme - proof-of-personhood as an operator attestation
+// (structural validation of the Groth16/Semaphore proof shape + an injected verifier seam).
+export * from "./worldid.ts";
+
+// Human Passport (Gitcoin) attestation scheme - a Unique Humanity Score as an operator
+// attestation (structural validation + an injected scorer seam; score bands map to a level).
+export * from "./humanpassport.ts";
