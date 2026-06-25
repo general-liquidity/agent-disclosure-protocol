@@ -26,8 +26,8 @@ jobs:
     runs-on: ubuntu-latest
     environment: npm
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
         with:
           node-version: 24
           registry-url: https://registry.npmjs.org
@@ -53,8 +53,8 @@ jobs:
     # Settings → Environments → pypi). Must match the PyPI trusted-publisher config.
     environment: pypi
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.14"
       - name: Build sdist + wheel
@@ -76,7 +76,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: crates
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       # Exchanges the GitHub OIDC identity for a short-lived crates.io token.
       - uses: rust-lang/crates-io-auth-action@v1
         id: auth
