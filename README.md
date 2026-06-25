@@ -9,7 +9,7 @@
 
 [![CI](https://img.shields.io/github/actions/workflow/status/general-liquidity/agent-disclosure-protocol/ci.yml?style=flat-square&label=CI)](https://github.com/general-liquidity/agent-disclosure-protocol/actions)
 [![npm](https://img.shields.io/npm/v/@general-liquidity/agent-disclosure?style=flat-square&label=npm&logo=npm)](https://www.npmjs.com/package/@general-liquidity/agent-disclosure)
-[![tests](https://img.shields.io/badge/tests-229%20passing-success?style=flat-square)](#develop)
+[![tests](https://img.shields.io/badge/tests-267%20passing-success?style=flat-square)](#develop)
 [![conformance](https://img.shields.io/badge/conformance-vectors%20%2B%20fuzz%20%2B%20adversarial-success?style=flat-square)](#conformance)
 [![interop](https://img.shields.io/badge/interop-5%20stacks-success?style=flat-square)](#conformance)
 [![node](https://img.shields.io/badge/node-%E2%89%A520-5FA04E?style=flat-square&logo=nodedotjs&logoColor=white)](#develop)
