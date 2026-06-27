@@ -77,9 +77,9 @@ The npm name is owned by the `general-liquidity` org. Verify the others are free
 enabling their jobs: `pip index versions agent-disclosure` (PyPI) and
 `cargo search agent-disclosure` (crates.io). If taken, scope/rename in the manifest.
 
-## Downstream: OpenSolvency
+## Downstream: AgentWorth
 
-OpenSolvency depends on this package via a local `file:../agent-disclosure-protocol`
-link (the held rewire commit) that **cannot** be pushed — it breaks OpenSolvency CI. Once
+AgentWorth depends on this package via a local `file:../agent-disclosure-protocol`
+link (the held rewire commit) that **cannot** be pushed — it breaks AgentWorth CI. Once
 `@general-liquidity/agent-disclosure` is on npm, swap that dependency to `^0.1.0`,
-`npm install`, run the suite, and push OpenSolvency — CI then resolves it from npm.
+`npm install`, run the suite, and push AgentWorth — CI then resolves it from npm.

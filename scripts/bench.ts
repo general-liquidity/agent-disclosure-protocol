@@ -53,7 +53,7 @@ export function buildSampleSigned(key: AgentKeyPair, now: string): SignedDisclos
       ],
       parameters: { minRationaleChars: 10, velocityCeilingPerHour: 20 },
       enforced: true,
-      enforcementEvidence: "opensolvency-gate@audit-chain",
+      enforcementEvidence: "agentworth-gate@audit-chain",
     })
     .tools(
       [

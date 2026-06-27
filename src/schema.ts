@@ -4,7 +4,7 @@
 // expose, BEFORE transacting, to be a credible counterparty. It deliberately has
 // ZERO dependencies on any product internals (only zod), so it is the portable core
 // of the standalone `agent-disclosure` package; a reference implementation
-// (OpenSolvency) maps its live primitives onto these structures.
+// (AgentWorth) maps its live primitives onto these structures.
 //
 // Each field group maps to a surface serious agent products already maintain, and
 // each carries the threat it is meant to make legible (the proposal's part-2 threat
@@ -188,7 +188,7 @@ export const ModelIdentitySchema = z.object({
 // How each field was derived/attested, so a verifier can WEIGHT claims (a field
 // bound to an enforced gate is worth more than a self-asserted one).
 export const FieldProvenanceSchema = z.object({
-  /** where the field came from, e.g. "opensolvency-gate", "audit-chain", "spendtrust" */
+  /** where the field came from, e.g. "agentworth-gate", "audit-chain", "spendtrust" */
   derivedFrom: z.string(),
   /** an attestation reference, if the source is itself attested */
   attestedBy: z.string().optional(),
@@ -231,7 +231,7 @@ export const AgentDisclosureSchema = z.object({
 
 // ── The signed envelope ──────────────────────────────────────────────────────
 // Asymmetric signature so a COUNTERPARTY can verify without any shared secret —
-// the one capability HMAC (OpenSolvency's audit signing) can't provide here.
+// the one capability HMAC (AgentWorth's audit signing) can't provide here.
 export const SignedDisclosureSchema = z.object({
   disclosure: AgentDisclosureSchema,
   signature: z.object({

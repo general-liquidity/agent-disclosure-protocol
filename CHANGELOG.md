@@ -9,6 +9,16 @@ The interoperability contract (the canonicalization algorithm and the signed
 disclosure-document bytes) is frozen at v1.0; see [Stability guarantees](docs/src/stability.md)
 for what may and may not change without a version bump.
 
+## [0.1.7] - 2026-06-27
+
+### Changed
+- The reference enforcement implementation was renamed from **OpenSolvency** to **AgentWorth**;
+  all references in the docs, spec prose, and examples are updated. The optional enforcement
+  extension key `ENFORCEMENT_EXTENSION_KEY` changed value from `com.opensolvency.enforcement` to
+  `com.agentworth.enforcement`. This does not affect the frozen v1.0 interop contract (the
+  canonicalization algorithm and signed disclosure-document bytes are unchanged); the schema-stable
+  `constitution.enforcementEvidence` / `poe=` binding that AgentWorth actually emits is untouched.
+
 ## [0.1.6] - 2026-06-26
 
 ### Added
@@ -16,11 +26,11 @@ for what may and may not change without a version bump.
 - **Proof-of-Enforcement verifier** (`src/enforcement.ts`). Makes the `enforced` claim
   *cryptographically falsifiable*: `verifyEnforcement(disclosure, attestation, opts?)` checks the
   disclosed `policyHash` is **bound** to the live attestation, that it's **fresh** (the audit head
-  advances the disclosed anchor), and — given an injected `replay` seam (OpenSolvency's pure
+  advances the disclosed anchor), and — given an injected `replay` seam (AgentWorth's pure
   `replayDecision`) — **replays** sampled real decisions: any mismatch ⇒ `replayed:"FAILED"` ⇒
   `ok:false`, so a gate that does *not* enforce what it discloses is detected, not just asserted.
-  `computePolicyHash` is byte-identical to the OpenSolvency emitter (cross-repo tested); ADP imports
-  zero OS code — the replay is an injected seam. Reads the binding from the `com.opensolvency.enforcement`
+  `computePolicyHash` is byte-identical to the AgentWorth emitter (cross-repo tested); ADP imports
+  zero OS code — the replay is an injected seam. Reads the binding from the `com.agentworth.enforcement`
   extension or the schema-stable `constitution.enforcementEvidence`. Frozen disclosure schema untouched.
 - **ADP-as-ERC-8004-validator** (`src/erc8004Validator.ts`). Fills ERC-8004's named-but-unfilled
   validation hook: expresses an ADP verification verdict as an on-chain `validationResponse` attestation
@@ -150,7 +160,7 @@ additions below shipped in the `0.1.0` tarball and are recorded here for complet
 ### Added (tooling)
 
 - `.github/workflows/release.yml` + `RELEASING.md`: tag-triggered, OIDC trusted publishing
-  to npm (and, behind opt-in flags, PyPI and crates.io), mirroring the OpenSolvency
+  to npm (and, behind opt-in flags, PyPI and crates.io), mirroring the AgentWorth
   release pattern.
 
 ---

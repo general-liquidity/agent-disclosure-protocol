@@ -36,7 +36,7 @@ protocols it authenticates with.
 | **AIP (Agent Identity Protocol)** and **Visa Trusted Agent Protocol** | Carried in the operator `attestation` field; the evidence KYC-bound rails recognize, so a regulated rail can terminate at an agent endpoint. |
 | **Agent Client Protocol** and **MCP** | Editor and agent surfaces a disclosed agent is driven from. |
 
-The protocol is vendor-neutral. Live rail and identity adapters live in the OpenSolvency
+The protocol is vendor-neutral. Live rail and identity adapters live in the AgentWorth
 reference implementation, not in the protocol core.
 
 ## The regulated-rails argument

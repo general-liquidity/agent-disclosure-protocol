@@ -1,7 +1,7 @@
-# Integration-Conformance Audit — ADP & OpenSolvency adapters vs upstream specs
+# Integration-Conformance Audit — ADP & AgentWorth adapters vs upstream specs
 
 **Date:** 2026-06-25
-**Scope:** the **integration** lens — do ADP's and OpenSolvency's adapters faithfully implement
+**Scope:** the **integration** lens — do ADP's and AgentWorth's adapters faithfully implement
 the upstream protocol specs they call (x402, AP2, Agentic Commerce, UCP, MPP, Visa Intelligent
 Commerce, Visa Trusted Agent Protocol, Mastercard Agent Pay, ERC-8004, MCP, Agent Client Protocol,
 ERC-20/EIP-3009, Stripe Issuing)? Distinct from the **design** lens
@@ -14,9 +14,9 @@ against our adapter code.
 "works" but a claimed security property is not actually enforced), **CORRECTNESS** (wrong
 behavior / inverted logic), **COSMETIC** (naming/labelling).
 
-> **OpenSolvency rail findings live in that repo:** `opensolvency/docs/audits/2026-06-25-rail-conformance.md`.
+> **AgentWorth rail findings live in that repo:** `agentworth/docs/audits/2026-06-25-rail-conformance.md`.
 > This document covers the **ADP-side** integration item (ERC-8004) in full and summarizes the
-> OpenSolvency rail verdicts for cross-reference.
+> AgentWorth rail verdicts for cross-reference.
 
 ---
 
@@ -46,12 +46,12 @@ defines.** The reframe:
 
 ---
 
-## OpenSolvency rail verdicts (summary — detail in the OpenSolvency repo)
+## AgentWorth rail verdicts (summary — detail in the AgentWorth repo)
 
 | Protocol / adapter | Verdict | Severity |
 |---|---|---|
 | **AP2 content schemas** (`rails/ap2/`) | Field-exact against the upstream JSON Schemas — **the strongest adapter we ship** | ✅ conformant |
-| **MCP** (`src/mcp/server.ts`, `opensolvency-mcp/`) | Real `@modelcontextprotocol/sdk` server, conformant | ✅ conformant |
+| **MCP** (`src/mcp/server.ts`, `agentworth-mcp/`) | Real `@modelcontextprotocol/sdk` server, conformant | ✅ conformant |
 | **Agent Client Protocol (Zed)** (`src/acp/`) | Conformant | ✅ conformant |
 | **Visa Trusted Agent Protocol** (`identity/verifier.ts`) | Claims RFC 9421 but ships only a string-map `staticIdentityVerifier` — the attestation is **self-assertable**, the claimed signature verification is not actually performed | **INTEGRITY** |
 | **x402** (`rails/x402.ts`, clients/proxy) | V1-shaped but **wire-incomplete** — missing required fields vs the live x402 header/payload format | CORRECTNESS |
@@ -83,4 +83,4 @@ defines.** The reframe:
 6. **Stripe Issuing** — build the real adapter or remove the surface claim.
 
 These compose with the design-audit roadmap at the same v2 boundary; nothing here is blocked by
-the publish hold, since all of it lives on the public ADP repo / local OpenSolvency tree.
+the publish hold, since all of it lives on the public ADP repo / local AgentWorth tree.

@@ -1,4 +1,4 @@
-// A generic disclosure builder - so a non-OpenSolvency adopter can construct a
+// A generic disclosure builder - so a non-AgentWorth adopter can construct a
 // valid AgentDisclosure without hand-writing the literal and getting a field shape
 // wrong. The reference implementation populates these structures from a live gate;
 // this is the manual path for everyone else. build() validates against the schema,

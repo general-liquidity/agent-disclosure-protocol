@@ -53,7 +53,7 @@ function signedDisclosure(): { signed: SignedDisclosure; key: ReturnType<typeof 
         { id: "no_unknown_payee", description: "deny irreversible to unknown payee", kind: "deny" },
       ],
       enforced: true,
-      enforcementEvidence: "gate:opensolvency",
+      enforcementEvidence: "gate:agentworth",
     })
     .tools(TOOLS, "executor")
     .capital(CAPITAL)

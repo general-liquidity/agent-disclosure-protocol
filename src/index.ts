@@ -6,7 +6,7 @@
 //
 // This package is the protocol + a reference verifier. It has ONE runtime
 // dependency (zod) and uses only node:crypto for signing, so any agent stack can
-// emit or verify a disclosure. OpenSolvency is the reference implementation that
+// emit or verify a disclosure. AgentWorth is the reference implementation that
 // populates these structures from a live, enforced governance gate.
 //
 // See SPEC.md for the normative protocol and conformance/ for the test vectors.

@@ -7,7 +7,7 @@ import type { VerificationPolicy } from "../src/verify.ts";
 import { discloseFor, requiredFields, satisfiesPolicy } from "../src/negotiate.ts";
 
 // A structurally complete disclosure carrying every redactable field, so any policy's
-// required fields can in principle be revealed. Hand-built (no OpenSolvency builders).
+// required fields can in principle be revealed. Hand-built (no AgentWorth builders).
 function buildDisclosure(agentId: string): AgentDisclosure {
   return {
     version: 1,
@@ -54,7 +54,7 @@ function buildDisclosure(agentId: string): AgentDisclosure {
       attestedAt: "2026-01-01T00:00:00.000Z",
     },
     model: { name: "fable", fingerprintAlgorithm: "sha256", digest: "dd".repeat(32) },
-    provenance: { constitution: { derivedFrom: "opensolvency-gate" } },
+    provenance: { constitution: { derivedFrom: "agentworth-gate" } },
   };
 }
 

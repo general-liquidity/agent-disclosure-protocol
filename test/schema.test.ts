@@ -25,7 +25,7 @@ function sample(over: Partial<AgentDisclosure> = {}): AgentDisclosure {
       hardConstraints: [{ id: "irreversible_to_unknown_payee", description: "...", kind: "deny" }],
       digest: "c0ffee",
       enforced: true,
-      enforcementEvidence: "gate:opensolvency",
+      enforcementEvidence: "gate:agentworth",
     },
     tools: {
       tools: [

@@ -10,7 +10,7 @@ import {
   verifySdJwtVc,
 } from "../src/sdjwtvc.ts";
 
-// A minimal but structurally complete disclosure (no OpenSolvency builders — stays
+// A minimal but structurally complete disclosure (no AgentWorth builders — stays
 // vendor-neutral). Includes every redactable field so the full _sd set is exercised.
 function buildDisclosure(agentId: string): AgentDisclosure {
   return {
@@ -58,7 +58,7 @@ function buildDisclosure(agentId: string): AgentDisclosure {
       attestedAt: "2026-01-01T00:00:00.000Z",
     },
     model: { name: "fable", fingerprintAlgorithm: "sha256", digest: "dd".repeat(32) },
-    provenance: { constitution: { derivedFrom: "opensolvency-gate" } },
+    provenance: { constitution: { derivedFrom: "agentworth-gate" } },
   };
 }
 

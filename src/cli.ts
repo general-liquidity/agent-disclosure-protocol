@@ -2,7 +2,7 @@
 // A dependency-free CLI for the Agent Disclosure Protocol. Mints signing keys,
 // signs a caller-supplied AgentDisclosure JSON, and verifies a disclosure (from a
 // file or over the wire) against a policy assembled from flags. This package has no
-// disclosure builders (those live in OpenSolvency), so `sign` consumes a disclosure
+// disclosure builders (those live in AgentWorth), so `sign` consumes a disclosure
 // document the user already has.
 //
 // `runCli` returns an exit code and accepts injected io (out/err writers + fetch) so

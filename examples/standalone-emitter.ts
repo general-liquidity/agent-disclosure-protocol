@@ -1,4 +1,4 @@
-// Standalone emitter - how ANY agent emits a disclosure, with no OpenSolvency and no
+// Standalone emitter - how ANY agent emits a disclosure, with no AgentWorth and no
 // product internals. The schema is vendor-neutral: you build a plain AgentDisclosure
 // literal from ordinary values you already have, sign it with a generated key, and
 // serve the signed envelope at /.well-known/agent-disclosure. That is the whole job.
@@ -19,7 +19,7 @@ const key = generateAgentKeyPair();
 
 // 2. Build the disclosure from ordinary values you already maintain. Digests are just
 //    sha256 hex of whatever you are fingerprinting (the system prompt, the constitution
-//    text, the audit-chain head). Nothing here is OpenSolvency-shaped.
+//    text, the audit-chain head). Nothing here is AgentWorth-shaped.
 const disclosure: AgentDisclosure = {
   version: 1,
   disclosureId: "disc_standalone_1",

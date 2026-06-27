@@ -59,7 +59,7 @@ Each `HardConstraint` has `id` (string), `description` (string), and `kind` (one
 The `enforced` flag is load-bearing. When `true`, the disclosed constitution **is** the
 gate actually running, not a claim. This is the difference between a disclosure and a
 promise. A verifier that sets `requireEnforcedConstitution: true` refuses any counterparty
-whose constitution is declared-only. In the OpenSolvency reference implementation the flag
+whose constitution is declared-only. In the AgentWorth reference implementation the flag
 is populated directly from the live deny-list and gate config, and `enforcementEvidence`
 names the gate. This defends against constitution substitution via prompt injection
 (threat 1).
@@ -167,7 +167,7 @@ breaking change.
 ## `provenance` (OPTIONAL)
 
 A record keyed by top-level field name, each value a `FieldProvenance` with `derivedFrom`
-(string, for example `opensolvency-gate` or `audit-chain`) and `attestedBy` (optional).
+(string, for example `agentworth-gate` or `audit-chain`) and `attestedBy` (optional).
 This lets a verifier weight claims: a field bound to an enforced gate is worth more than a
 self-asserted one. A verifier MAY require provenance for named fields.
 

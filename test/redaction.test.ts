@@ -10,7 +10,7 @@ import {
 import type { AgentDisclosure } from "../src/schema.ts";
 
 // A minimal but structurally complete disclosure. Hand-built to stay vendor-neutral
-// (no OpenSolvency builders). Includes every redactable field so REDACTABLE_FIELDS is
+// (no AgentWorth builders). Includes every redactable field so REDACTABLE_FIELDS is
 // fully exercised.
 function buildDisclosure(agentId: string): AgentDisclosure {
   return {
@@ -60,7 +60,7 @@ function buildDisclosure(agentId: string): AgentDisclosure {
       attestedAt: "2026-01-01T00:00:00.000Z",
     },
     model: { name: "fable", fingerprintAlgorithm: "sha256", digest: "dd".repeat(32) },
-    provenance: { constitution: { derivedFrom: "opensolvency-gate" } },
+    provenance: { constitution: { derivedFrom: "agentworth-gate" } },
   };
 }
 

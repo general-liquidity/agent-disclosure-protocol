@@ -244,7 +244,7 @@ open item. Threat: model swap. See `THREAT_MODEL.md` attack 7.
 
 A record keyed by top-level field name (for example `"constitution"`, `"history"`),
 each value a `FieldProvenance` (`FieldProvenanceSchema`): `derivedFrom` (string,
-REQUIRED, for example `"opensolvency-gate"`, `"audit-chain"`) and `attestedBy` (string,
+REQUIRED, for example `"agentworth-gate"`, `"audit-chain"`) and `attestedBy` (string,
 OPTIONAL). This lets a verifier WEIGHT claims: a field bound to an enforced gate is worth
 more than a self-asserted one. A verifier MAY require provenance for named fields via
 `requireProvenanceFor` (Section 8).

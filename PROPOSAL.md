@@ -181,7 +181,7 @@ markets survive.
   `go/`, `python/`, `rust/`, `c/`).
 
 The protocol has one runtime dependency (`zod`) and signs with `node:crypto` only.
-OpenSolvency is the reference implementation that populates a disclosure from a live,
+AgentWorth is the reference implementation that populates a disclosure from a live,
 enforced governance gate.
 
 ### Honest open items

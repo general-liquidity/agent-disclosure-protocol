@@ -1,6 +1,6 @@
 // Proof-of-Enforcement (PoE) — the keystone that turns ADP's `enforced` boolean
 // into a CRYPTOGRAPHICALLY FALSIFIABLE claim. A self-asserted "enforced: true" is a
-// promise; PoE makes it a checkable statement backed by OpenSolvency's deterministic,
+// promise; PoE makes it a checkable statement backed by AgentWorth's deterministic,
 // signed, replayable audit chain. OS *emits* a PoEAttestation, the OS→ADP builder
 // *binds* a policyHash into the disclosure, and this module *verifies* the three legs:
 //
@@ -9,7 +9,7 @@
 //   replayed — sampled real decisions, re-executed under the disclosed policy, match
 //              their signed verdicts (ANY mismatch ⇒ a false `enforced` claim is DETECTED)
 //
-// Dep-light by design: zod + node:crypto only. ADP does NOT import OpenSolvency — the
+// Dep-light by design: zod + node:crypto only. ADP does NOT import AgentWorth — the
 // gate-replay is an INJECTED seam (`opts.replay`), the canonical wiring being OS's pure
 // `replayDecision`. The policyHash is computed with ADP's own `canonicalize` (RFC 8785 /
 // JCS) + sha256, byte-identical to OS's `computePolicyHash`, so both sides hash the same
@@ -73,7 +73,7 @@ export type PoEAttestation = z.infer<typeof PoEAttestationSchema>;
 
 // ── policyHash — byte-identical to OS's computePolicyHash ─────────────────────
 /** Normalize an EffectivePolicy to its canonical hashing form. This MUST byte-match the
- *  OpenSolvency emitter (`src/core/enforcement.ts` `computePolicyHash`): the emitter projects
+ *  AgentWorth emitter (`src/core/enforcement.ts` `computePolicyHash`): the emitter projects
  *  each mandate to a STABLE field set (dropping volatile/extra fields like `grantedAt`) and
  *  sorts `allowedRails`, and projects `gateConfig`/`riskConfig` to fixed fields — so unrelated
  *  fields can never silently shift the binding. Object KEY order is handled by `canonicalize`
@@ -126,7 +126,7 @@ export function computePolicyHash(policy: EffectivePolicy): string {
 // binding is anchored to the disclosure's EXISTING `auditAnchor`. If a builder hasn't
 // populated the extension, ADP falls back to the attestation's own policyHash so the
 // fresh + replay legs still run (binding then degrades to attestation-internal).
-export const ENFORCEMENT_EXTENSION_KEY = "com.opensolvency.enforcement";
+export const ENFORCEMENT_EXTENSION_KEY = "com.agentworth.enforcement";
 
 const DisclosedEnforcementSchema = z.object({
   policyHash: z.string(),
@@ -143,7 +143,7 @@ function disclosedPolicyHash(disclosure: AgentDisclosure): string | undefined {
     const parsed = DisclosedEnforcementSchema.safeParse(raw);
     if (parsed.success) return parsed.data.policyHash;
   }
-  // Fallback: the OpenSolvency builder carries the binding in the schema-stable
+  // Fallback: the AgentWorth builder carries the binding in the schema-stable
   // `constitution.enforcementEvidence` string (a nested `enforcement` object is stripped
   // by the frozen ConstitutionSchema), encoded as "…; poe=<json>". Recover it.
   const ev = (disclosure.constitution as { enforcementEvidence?: unknown } | undefined)?.enforcementEvidence;
@@ -206,7 +206,7 @@ export interface EnforcementVerification {
  *    what it discloses is now DETECTED, not merely asserted. No seam/policy ⇒ `"skipped"`.
  *
  * Pure; dep-light. The replay seam is the only place OS-specific logic enters, and it is
- * injected — ADP never imports OpenSolvency.
+ * injected — ADP never imports AgentWorth.
  */
 export function verifyEnforcement(
   disclosure: AgentDisclosure,
