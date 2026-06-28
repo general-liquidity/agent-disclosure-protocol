@@ -3,7 +3,7 @@
 
 # Agent Disclosure Protocol (ADP)
 
-### The wire format for Verifiable Agency
+### The wire format for verifiable agency
 
 *Agents are starting to transact with each other with no way to answer the first question of commerce: who am I dealing with, and what are they committed to? ADP is the disclosure an agent publishes **before** it transacts - so a counterparty can verify and decide before value moves, not after a loss.*
 
